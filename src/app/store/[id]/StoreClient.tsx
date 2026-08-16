@@ -54,7 +54,7 @@ const ROLE_LABELS: Record<Role, string> = {
   ADMIN: "Admin",
   MANAGER: "Manager",
   TEAM_LEADER: "Team Leader",
-  EMPLOYEE: "Employee",
+  EMPLOYEE: "Agent",
 };
 
 const ROLE_COLORS: Record<Role, string> = {
@@ -507,7 +507,7 @@ export default function StoreClient({ storeId }: { storeId: string }) {
           <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
             <div style={{ fontSize: "0.9375rem", fontWeight: "800", color: "#fff", display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <span>👥</span>
-              <span>Employee RPM Breakdown — {data?.currentMonthLabel}</span>
+              <span>Agent RPM Breakdown — {data?.currentMonthLabel}</span>
             </div>
 
             {currentMonthRpm.empBreakdown.length === 0 ? (
@@ -642,7 +642,7 @@ export default function StoreClient({ storeId }: { storeId: string }) {
               <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                 <div style={{ fontSize: "0.9375rem", fontWeight: "800", color: "#fff", display: "flex", alignItems: "center", gap: "0.5rem" }}>
                   <span>👥</span>
-                  <span>Employee Final RPM — {data?.lastMonthLabel}</span>
+                  <span>Agent Final RPM — {data?.lastMonthLabel}</span>
                 </div>
 
                 {lastMonthRpm.empBreakdown.length === 0 ? (

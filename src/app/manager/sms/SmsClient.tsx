@@ -180,7 +180,7 @@ export default function SmsClient() {
             <div>
               <h3 style={{ fontSize: "1.0625rem", fontWeight: "800", color: "#fff" }}>📊 Store RPM (مجموع الفرع)</h3>
               <p style={{ fontSize: "0.75rem", color: "var(--vf-text-muted)", marginTop: "0.125rem" }}>
-                {date} · {reports.length} employee reports
+                {date} · {reports.length} agent reports
               </p>
             </div>
             <button
@@ -218,7 +218,7 @@ export default function SmsClient() {
 
           <div style={{ fontSize: "0.875rem", fontWeight: "800", color: "#fff", marginBottom: "0.75rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
             <span>👥</span>
-            <span>Employee RPM Breakdown (المفصل لكل موظف)</span>
+            <span>Agent RPM Breakdown (المفصل لكل موظف)</span>
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
@@ -264,14 +264,14 @@ export default function SmsClient() {
 
       <section className="vf-card sms-table-card">
         <div className="sms-preview-head">
-          <div className="daily-section-title">Employee Reports</div>
+          <div className="daily-section-title">Agent Reports</div>
           <span>{loading ? "Loading..." : `${reports.length} reports`}</span>
         </div>
         <div className="sms-table-wrap">
           <table className="vf-table">
             <thead>
               <tr>
-                <th>Employee</th>
+                <th>Agent</th>
                 <th>Pre</th>
                 <th>F52</th>
                 <th>F80</th>

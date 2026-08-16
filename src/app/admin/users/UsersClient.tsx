@@ -55,7 +55,7 @@ const roleLabels: Record<Role, string> = {
   ADMIN: "Admin",
   MANAGER: "Manager",
   TEAM_LEADER: "Team Leader",
-  EMPLOYEE: "Employee",
+  EMPLOYEE: "Agent",
 };
 
 function localPart(email: string) {

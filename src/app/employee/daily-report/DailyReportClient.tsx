@@ -61,7 +61,7 @@ function calcCumulative(reports: SavedReport[]) {
 
 export default function DailyReportClient() {
   const { data: session } = useSession();
-  const userName = session?.user?.name || "Employee";
+  const userName = session?.user?.name || "Agent";
 
   const [values, setValues] = useState<DailyReportFormValues>(emptyDailyReportValues);
   const [reports, setReports] = useState<SavedReport[]>([]);

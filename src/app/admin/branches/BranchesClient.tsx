@@ -25,7 +25,7 @@ const ROLE_LABELS: Record<Role, string> = {
   ADMIN: "Admin",
   MANAGER: "Manager",
   TEAM_LEADER: "Team Leader",
-  EMPLOYEE: "Employee",
+  EMPLOYEE: "Agent",
 };
 
 const ROLE_ORDER: Role[] = ["MANAGER", "TEAM_LEADER", "EMPLOYEE", "ADMIN"];

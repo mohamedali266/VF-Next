@@ -204,7 +204,7 @@ export default function ManagerHealthCheckPage() {
                 color: cfg.color,
                 fontWeight: "700"
               }}>
-                {recs.length} employees
+                {recs.length} agents
               </span>
             </div>
 
