@@ -4,6 +4,7 @@ import Link from "next/link";
 export default async function ManagerDashboard() {
   const session = await auth();
   const user = session?.user;
+  const branchId = user?.branchId;
 
   const today = new Date().toLocaleDateString("ar-EG", {
     weekday: "long",
@@ -25,6 +26,12 @@ export default async function ManagerDashboard() {
       sub: "NID shift monitoring",
       href: "/manager/health-check",
     },
+    ...(branchId ? [{
+      icon: "🏪",
+      title: "My Store",
+      sub: "Team, SMS & health view",
+      href: `/store/${branchId}`,
+    }] : []),
   ];
 
   return (

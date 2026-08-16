@@ -73,8 +73,16 @@ export async function GET(req: NextRequest) {
   const targetDate = dateOnly(date);
 
   if (currentUser.role === "MANAGER" || currentUser.role === "TEAM_LEADER" || currentUser.role === "ADMIN") {
+    // ADMIN: can filter by branchId query param (or see all if not specified)
+    // MANAGER/TEAM_LEADER: strictly scoped to their own branch — no branch = no data
+    if (currentUser.role === "MANAGER" || currentUser.role === "TEAM_LEADER") {
+      if (!currentUser.branchId) {
+        return NextResponse.json({ reports: [] });
+      }
+    }
+
     const branchId = searchParams.get("branchId") || undefined;
-    const scopedBranchId = currentUser.role === "ADMIN" ? branchId : currentUser.branchId || undefined;
+    const scopedBranchId = currentUser.role === "ADMIN" ? branchId : currentUser.branchId ?? undefined;
 
     const reports = await prisma.dailyReport.findMany({
       where: {

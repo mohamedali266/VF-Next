@@ -10,7 +10,7 @@ function asNumber(value: unknown) {
   return typeof value === "number" ? value : 0;
 }
 
-// GET: fetch today's health check for current user or all (manager)
+// GET: fetch health checks — branch-scoped for MANAGER/TEAM_LEADER
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -21,29 +21,48 @@ export async function GET(req: NextRequest) {
   const date = searchParams.get("date") || new Date().toISOString().split("T")[0];
   const targetDate = new Date(date);
 
-  // Manager/Admin: get all records for a date
-  if (user.role === "MANAGER" || user.role === "TEAM_LEADER" || user.role === "ADMIN") {
+  const includeEmployee = {
+    employee: {
+      select: {
+        id: true,
+        name: true,
+        department: true,
+        branch: { select: { name: true } },
+      },
+    },
+  };
+
+  // ADMIN: see all records across all branches
+  if (user.role === "ADMIN") {
     const records = await prisma.healthCheck.findMany({
       where: {
         date: targetDate,
         ...(isShift(shift) ? { shift } : {}),
       },
-      include: {
-        employee: {
-          select: {
-            id: true,
-            name: true,
-            department: true,
-            branch: { select: { name: true } },
-          },
-        },
-      },
+      include: includeEmployee,
       orderBy: [{ shift: "asc" }, { submittedAt: "asc" }],
     });
     return NextResponse.json({ records });
   }
 
-  // Employee: get own record
+  // MANAGER / TEAM_LEADER: only their branch — strictly no branch = no data
+  if (user.role === "MANAGER" || user.role === "TEAM_LEADER") {
+    const branchId = user.branchId;
+    if (!branchId) return NextResponse.json({ records: [] });
+
+    const records = await prisma.healthCheck.findMany({
+      where: {
+        date: targetDate,
+        ...(isShift(shift) ? { shift } : {}),
+        employee: { branchId },
+      },
+      include: includeEmployee,
+      orderBy: [{ shift: "asc" }, { submittedAt: "asc" }],
+    });
+    return NextResponse.json({ records });
+  }
+
+  // EMPLOYEE: own record only
   const record = await prisma.healthCheck.findFirst({
     where: {
       employeeId: user.id,
@@ -55,7 +74,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ record });
 }
 
-// POST: submit health check (employee)
+// POST: submit health check (employee only)
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -75,7 +94,6 @@ export async function POST(req: NextRequest) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Check for duplicate
   const existing = await prisma.healthCheck.findFirst({
     where: { employeeId: user.id, date: today, shift: submittedShift },
   });
@@ -89,15 +107,15 @@ export async function POST(req: NextRequest) {
       employeeId: user.id,
       shift: submittedShift,
       date: today,
-      line1Nid: asNumber(line1Nid),
-      line2Nid: asNumber(line2Nid),
-      line3Nid: asNumber(line3Nid),
-      line4Nid: asNumber(line4Nid),
-      line5Nid: asNumber(line5Nid),
-      line6Nid: asNumber(line6Nid),
-      line7Nid: asNumber(line7Nid),
-      line8Nid: asNumber(line8Nid),
-      line9Nid: asNumber(line9Nid),
+      line1Nid:  asNumber(line1Nid),
+      line2Nid:  asNumber(line2Nid),
+      line3Nid:  asNumber(line3Nid),
+      line4Nid:  asNumber(line4Nid),
+      line5Nid:  asNumber(line5Nid),
+      line6Nid:  asNumber(line6Nid),
+      line7Nid:  asNumber(line7Nid),
+      line8Nid:  asNumber(line8Nid),
+      line9Nid:  asNumber(line9Nid),
       line10Nid: asNumber(line10Nid),
       isLocked: true,
     },

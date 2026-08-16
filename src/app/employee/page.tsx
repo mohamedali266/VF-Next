@@ -4,6 +4,7 @@ import Link from "next/link";
 export default async function EmployeeDashboard() {
   const session = await auth();
   const user = session?.user;
+  const branchId = user?.branchId;
 
   const today = new Date().toLocaleDateString("ar-EG", {
     weekday: "long",
@@ -25,6 +26,12 @@ export default async function EmployeeDashboard() {
       sub: "Submit NID lines",
       href: "/employee/health-check",
     },
+    ...(branchId ? [{
+      icon: "🏪",
+      title: "My Store",
+      sub: "View team, SMS & health report",
+      href: `/store/${branchId}`,
+    }] : []),
   ];
 
   return (
