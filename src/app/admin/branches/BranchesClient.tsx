@@ -1,10 +1,11 @@
 "use client";
 
+import { Edit3, Plus, Store, Trash2, X } from "lucide-react";
 import { useState } from "react";
 
 type Role = "EMPLOYEE" | "TEAM_LEADER" | "MANAGER" | "ADMIN";
 
-type BranchUser = {
+type StoreUser = {
   id: string;
   name: string;
   email: string;
@@ -12,12 +13,12 @@ type BranchUser = {
   isActive: boolean;
 };
 
-type Branch = {
+type StoreItem = {
   id: string;
   name: string;
   code: string | null;
   isActive: boolean;
-  users: BranchUser[];
+  users: StoreUser[];
 };
 
 const ROLE_LABELS: Record<Role, string> = {
@@ -29,137 +30,163 @@ const ROLE_LABELS: Record<Role, string> = {
 
 const ROLE_ORDER: Role[] = ["MANAGER", "TEAM_LEADER", "EMPLOYEE", "ADMIN"];
 
-export default function BranchesClient({ branches: initialBranches }: { branches: Branch[] }) {
-  const [branches, setBranches] = useState(initialBranches);
-  const [form, setForm] = useState({ name: "", code: "" });
+export default function BranchesClient({ branches: initialStores }: { branches: StoreItem[] }) {
+  const [stores, setStores] = useState(initialStores);
+  const [form, setForm] = useState({ name: "", code: "", isActive: true });
+  const [editing, setEditing] = useState<StoreItem | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
-  async function createBranch(e: React.FormEvent) {
+  function openCreate() {
+    setEditing(null);
+    setForm({ name: "", code: "", isActive: true });
+    setMessage("");
+    setModalOpen(true);
+  }
+
+  function openEdit(store: StoreItem) {
+    setEditing(store);
+    setForm({ name: store.name, code: store.code || "", isActive: store.isActive });
+    setMessage("");
+    setModalOpen(true);
+  }
+
+  async function saveStore(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setMessage("");
 
     try {
-      const res = await fetch("/api/admin/branches", {
-        method: "POST",
+      const res = await fetch(editing ? `/api/admin/branches/${editing.id}` : "/api/admin/branches", {
+        method: editing ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to create branch");
-      setBranches((prev) => [...prev, data.branch].sort((a, b) => a.name.localeCompare(b.name)));
-      setForm({ name: "", code: "" });
-      setMessage("Branch created");
+      if (!res.ok) throw new Error(data.error || "Failed to save store");
+      setStores((prev) => {
+        const next = editing ? prev.map((store) => store.id === editing.id ? data.branch : store) : [...prev, data.branch];
+        return next.sort((a, b) => a.name.localeCompare(b.name));
+      });
+      setModalOpen(false);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Failed to create branch");
+      setMessage(error instanceof Error ? error.message : "Failed to save store");
     } finally {
       setLoading(false);
     }
   }
 
+  async function deleteStore(store: StoreItem) {
+    if (!confirm(`Delete ${store.name}? This only works if no users or reports are linked.`)) return;
+    const res = await fetch(`/api/admin/branches/${store.id}`, { method: "DELETE" });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setMessage(data.error || "Failed to delete store");
+      return;
+    }
+    setStores((prev) => prev.filter((item) => item.id !== store.id));
+  }
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-      <div className="animate-fade-up">
-        <h1 style={{ fontSize: "1.25rem", fontWeight: "800", color: "#fff", marginBottom: "0.25rem" }}>
-          Branches
-        </h1>
-        <p style={{ fontSize: "0.8125rem", color: "var(--nox-text-muted)" }}>
-          Create branches and review each branch team.
-        </p>
-      </div>
-
-      <form onSubmit={createBranch} className="nox-card animate-fade-up animate-fade-up-delay-1" style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
+    <div className="stores-admin-shell">
+      <section className="users-admin-head">
         <div>
-          <label className="nox-label">Branch name</label>
-          <input
-            className="nox-input"
-            value={form.name}
-            onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-            placeholder="Cairo Branch"
-            required
-          />
+          <span>Stores</span>
+          <h1>Store Management</h1>
+          <p>Create stores and review each store team.</p>
         </div>
-        <div>
-          <label className="nox-label">Branch code</label>
-          <input
-            className="nox-input"
-            value={form.code}
-            onChange={(e) => setForm((prev) => ({ ...prev, code: e.target.value }))}
-            placeholder="CAI"
-          />
-        </div>
-        {message && <div className="nox-alert nox-alert-success">{message}</div>}
-        <button className="nox-btn nox-btn-primary nox-btn-md" disabled={loading}>
-          {loading ? "Creating..." : "Create branch"}
+        <button className="vf-btn vf-btn-primary vf-btn-md" type="button" onClick={openCreate}>
+          <Plus size={18} />
+          Add Store
         </button>
-      </form>
+      </section>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
-        {branches.map((branch) => (
-          <div key={branch.id} className="nox-card animate-fade-up" style={{ padding: 0, overflow: "hidden" }}>
-            <div style={{
-              padding: "1rem",
-              borderBottom: "1px solid var(--nox-border)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: "0.75rem",
-            }}>
+      {message && <div className="vf-alert vf-alert-error">{message}</div>}
+
+      <section className="stores-grid">
+        {stores.map((store) => (
+          <article key={store.id} className="vf-card store-card">
+            <div className="store-card-head">
+              <div className="store-icon"><Store size={20} /></div>
               <div>
-                <div style={{ fontWeight: "800", color: "#fff" }}>{branch.name}</div>
-                <div style={{ fontSize: "0.75rem", color: "var(--nox-text-muted)" }}>
-                  {branch.code || "No code"} | {branch.users.length} users
-                </div>
+                <h2>{store.name}</h2>
+                <p>{store.code || "No code"} | {store.users.length} users</p>
               </div>
-              <span style={{
-                color: branch.isActive ? "#4ade80" : "#f87171",
-                fontSize: "0.75rem",
-                fontWeight: "800",
-              }}>
-                {branch.isActive ? "Active" : "Inactive"}
+              <span className={store.isActive ? "users-status active" : "users-status disabled"}>
+                {store.isActive ? "Active" : "Inactive"}
               </span>
             </div>
 
-            <div style={{ padding: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+            <div className="store-actions">
+              <button className="vf-btn vf-btn-ghost vf-btn-sm" type="button" onClick={() => openEdit(store)}>
+                <Edit3 size={15} />
+                Edit
+              </button>
+              <button className="vf-btn vf-btn-ghost vf-btn-sm" type="button" onClick={() => deleteStore(store)} style={{ color: "#f87171" }}>
+                <Trash2 size={15} />
+                Delete
+              </button>
+            </div>
+
+            <div className="store-team">
               {ROLE_ORDER.map((role) => {
-                const members = branch.users.filter((user) => user.role === role);
-                if (members.length === 0) return null;
+                const members = store.users.filter((user) => user.role === role);
+                if (!members.length) return null;
                 return (
                   <div key={role}>
-                    <div style={{ color: "var(--nox-red-light)", fontWeight: "800", fontSize: "0.75rem", marginBottom: "0.375rem" }}>
-                      {ROLE_LABELS[role]}
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
-                      {members.map((user) => (
-                        <div key={user.id} style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          gap: "0.75rem",
-                          padding: "0.625rem 0.75rem",
-                          border: "1px solid var(--nox-border)",
-                          borderRadius: "10px",
-                          background: "var(--nox-surface-2)",
-                          opacity: user.isActive ? 1 : 0.5,
-                        }}>
-                          <span style={{ color: "var(--nox-text)", fontWeight: "700" }}>{user.name}</span>
-                          <span style={{ color: "var(--nox-text-muted)", fontSize: "0.75rem" }}>{user.email}</span>
-                        </div>
-                      ))}
-                    </div>
+                    <strong>{ROLE_LABELS[role]}</strong>
+                    {members.map((user) => (
+                      <div key={user.id} className="store-member" style={{ opacity: user.isActive ? 1 : 0.5 }}>
+                        <span>{user.name}</span>
+                        <em>{user.email}</em>
+                      </div>
+                    ))}
                   </div>
                 );
               })}
-
-              {branch.users.length === 0 && (
-                <div style={{ color: "var(--nox-text-muted)", fontSize: "0.875rem" }}>
-                  No users assigned. Assign users to this branch from Admin Users.
-                </div>
-              )}
+              {!store.users.length && <p>No users assigned. Assign users from Admin Users.</p>}
             </div>
-          </div>
+          </article>
         ))}
-      </div>
+      </section>
+
+      {modalOpen && (
+        <div className="users-modal" onClick={() => setModalOpen(false)}>
+          <form className="users-modal-card" onSubmit={saveStore} onClick={(event) => event.stopPropagation()}>
+            <div className="users-modal-head">
+              <div>
+                <span>{editing ? "Edit Store" : "Create Store"}</span>
+                <h2>{editing ? editing.name : "New store"}</h2>
+              </div>
+              <button type="button" onClick={() => setModalOpen(false)} aria-label="Close"><X size={18} /></button>
+            </div>
+
+            <div className="users-form-grid">
+              <label className="users-field">
+                <span>Store name</span>
+                <input className="vf-input" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} required placeholder="Amerya Koubry Store" />
+              </label>
+              <label className="users-field">
+                <span>Store code</span>
+                <input className="vf-input" value={form.code} onChange={(event) => setForm((current) => ({ ...current, code: event.target.value }))} placeholder="AMR" />
+              </label>
+              <label className="users-field">
+                <span>Status</span>
+                <select className="vf-input" value={form.isActive ? "active" : "inactive"} onChange={(event) => setForm((current) => ({ ...current, isActive: event.target.value === "active" }))}>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </label>
+            </div>
+
+            <div className="users-modal-actions">
+              <button className="vf-btn vf-btn-ghost vf-btn-lg" type="button" onClick={() => setModalOpen(false)}>Cancel</button>
+              <button className="vf-btn vf-btn-primary vf-btn-lg" type="submit" disabled={loading}>{loading ? "Saving..." : "Save Store"}</button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

@@ -2,7 +2,6 @@
 
 import {
   AT_HOME_REQUIRED,
-  DAILY_ACQUISITION_TARGET,
   DailyReportFormValues,
   buildSmsMessage,
   emptyDailyReportValues,
@@ -33,17 +32,19 @@ export default function DailyReportClient() {
   const [message, setMessage] = useState("");
   const [calcOpen, setCalcOpen] = useState(false);
   const [calcText, setCalcText] = useState("");
+  const [assignedStoreName, setAssignedStoreName] = useState("");
 
   const normalized = useMemo(() => normalizeDailyReportValues(values), [values]);
   const smsPreview = useMemo(() => buildSmsMessage(normalized), [normalized]);
-  const acquisitionPercent = Math.min(Math.round((normalized.totalDailyAch / DAILY_ACQUISITION_TARGET) * 100), 999);
 
   useEffect(() => {
     async function loadReport() {
       setLoading(true);
       const res = await fetch(`/api/daily-report?date=${values.date}`);
       const data = await res.json();
+      if ("storeName" in data) setAssignedStoreName(data.storeName || "No store assigned");
       if (data.report) setValues(asFormReport(data.report));
+      if (!data.report && data.storeName) setValues((current) => ({ ...current, storeName: data.storeName }));
       setReports(data.reports || []);
       setLoading(false);
     }
@@ -67,7 +68,7 @@ export default function DailyReportClient() {
     const res = await fetch("/api/daily-report", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(normalized),
+      body: JSON.stringify({ ...normalized, storeName: assignedStoreName || normalized.storeName }),
     });
 
     const data = await res.json();
@@ -109,7 +110,7 @@ export default function DailyReportClient() {
     <label className="daily-field">
       <span>{label}</span>
       <input
-        className="nox-input"
+        className="vf-input"
         type="number"
         min="0"
         inputMode="numeric"
@@ -126,38 +127,18 @@ export default function DailyReportClient() {
         <div>
           <p>Daily Report</p>
           <h1>SMS Submit</h1>
-          <span>سجل أرقام اليوم، والنظام يجمعها تلقائيا للمدير والتيم ليدر.</span>
-        </div>
-        <div className="daily-score">
-          <strong>{normalized.totalDailyAch}</strong>
-          <span>/ {DAILY_ACQUISITION_TARGET}</span>
         </div>
       </section>
 
-      <section className="nox-card daily-progress-card">
-        <div className="daily-progress-head">
-          <span>Total Daily Ach</span>
-          <strong>{acquisitionPercent}%</strong>
-        </div>
-        <div className="daily-progress-track">
-          <div style={{ width: `${Math.min(acquisitionPercent, 100)}%` }} />
-        </div>
-        <div className="daily-mini-stats">
-          <span>At Home: {normalized.atHomeAch}/{AT_HOME_REQUIRED}</span>
-          <span>ADSL: {normalized.adslAch}/1</span>
-          <span>Terminal: {normalized.terminalAch}</span>
-        </div>
-      </section>
-
-      <section className="nox-card daily-form-card">
+      <section className="vf-card daily-form-card">
         <div className="daily-form-top">
           <label className="daily-field">
             <span>Store Name</span>
-            <input className="nox-input" value={values.storeName} onChange={(event) => setField("storeName", event.target.value)} />
+            <input className="vf-input" value={assignedStoreName || values.storeName || "No store assigned"} readOnly />
           </label>
           <label className="daily-field">
             <span>Date</span>
-            <input className="nox-input" type="date" value={values.date} onChange={(event) => setField("date", event.target.value)} />
+            <input className="vf-input" type="date" value={values.date} onChange={(event) => setField("date", event.target.value)} />
           </label>
         </div>
 
@@ -177,7 +158,7 @@ export default function DailyReportClient() {
           <label className="daily-field">
             <span>At Home Type</span>
             <select
-              className="nox-input"
+              className="vf-input"
               value={values.atHomeType}
               onChange={(event) => setField("atHomeType", event.target.value as DailyReportFormValues["atHomeType"])}
             >
@@ -194,7 +175,7 @@ export default function DailyReportClient() {
           <div className="daily-section-title">*Terminal</div>
           <div className="terminal-row">
             {fieldInput("terminalAch", "Terminal Ach")}
-            <button className="nox-btn nox-btn-ghost calc-btn" type="button" onClick={() => setCalcOpen(true)} aria-label="Terminal calculator">
+            <button className="vf-btn vf-btn-ghost calc-btn" type="button" onClick={() => setCalcOpen(true)} aria-label="Terminal calculator">
               <Calculator size={20} />
             </button>
           </div>
@@ -206,36 +187,36 @@ export default function DailyReportClient() {
         </ReportSection>
 
         {message && (
-          <div className={message.includes("تم") ? "nox-alert nox-alert-success" : "nox-alert nox-alert-error"}>
+          <div className={message.includes("تم") ? "vf-alert vf-alert-success" : "vf-alert vf-alert-error"}>
             {message.includes("تم") ? <CheckCircle2 size={18} /> : null}
             {message}
           </div>
         )}
 
         <div className="daily-actions">
-          <button className="nox-btn nox-btn-ghost nox-btn-lg" type="button" onClick={clearForm}>
+          <button className="vf-btn vf-btn-ghost vf-btn-lg" type="button" onClick={clearForm}>
             <Trash2 size={18} />
             Clear Today
           </button>
-          <button className="nox-btn nox-btn-primary nox-btn-lg" type="button" onClick={submitReport} disabled={saving || loading}>
+          <button className="vf-btn vf-btn-primary vf-btn-lg" type="button" onClick={submitReport} disabled={saving || loading}>
             {saving ? <Loader2 className="daily-spin" size={18} /> : <Send size={18} />}
             Submit
           </button>
         </div>
       </section>
 
-      <section className="nox-card daily-preview">
+      <section className="vf-card daily-preview">
         <div className="daily-section-title">SMS Preview</div>
-        <textarea className="nox-input" value={smsPreview} readOnly />
+        <textarea className="vf-input" value={smsPreview} readOnly />
       </section>
 
-      <section className="nox-card daily-history">
+      <section className="vf-card daily-history">
         <div className="daily-section-title">Saved Reports</div>
         <div className="daily-history-list">
           {reports.map((report) => (
             <button key={report.id} type="button" onClick={() => setValues(asFormReport(report))}>
               <span>{report.date}</span>
-              <strong>{report.totalDailyAch}/{DAILY_ACQUISITION_TARGET}</strong>
+              <strong>{report.atHomeAch}/{AT_HOME_REQUIRED}</strong>
             </button>
           ))}
           {!reports.length && <p>{loading ? "Loading..." : "لا توجد تقارير محفوظة"}</p>}
@@ -247,15 +228,15 @@ export default function DailyReportClient() {
           <div className="daily-modal-card" onClick={(event) => event.stopPropagation()}>
             <h3>Terminal Calculator</h3>
             <textarea
-              className="nox-input"
+              className="vf-input"
               rows={6}
               value={calcText}
               onChange={(event) => setCalcText(event.target.value)}
               placeholder={"10\n20\n30"}
             />
             <div className="daily-actions">
-              <button className="nox-btn nox-btn-ghost nox-btn-lg" onClick={() => setCalcOpen(false)} type="button">Cancel</button>
-              <button className="nox-btn nox-btn-primary nox-btn-lg" onClick={applyTerminalSum} type="button">OK</button>
+              <button className="vf-btn vf-btn-ghost vf-btn-lg" onClick={() => setCalcOpen(false)} type="button">Cancel</button>
+              <button className="vf-btn vf-btn-primary vf-btn-lg" onClick={applyTerminalSum} type="button">OK</button>
             </div>
           </div>
         </div>

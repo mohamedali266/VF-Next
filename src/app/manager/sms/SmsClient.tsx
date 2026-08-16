@@ -136,11 +136,11 @@ export default function SmsClient() {
         </div>
       </section>
 
-      <section className="nox-card sms-toolbar">
+      <section className="vf-card sms-toolbar">
         <label className="daily-field">
           <span>Date</span>
           <input
-            className="nox-input"
+            className="vf-input"
             type="date"
             value={date}
             onChange={(event) => {
@@ -150,11 +150,11 @@ export default function SmsClient() {
             }}
           />
         </label>
-        <button className="nox-btn nox-btn-ghost nox-btn-lg" onClick={loadReports} type="button" disabled={loading}>
+        <button className="vf-btn vf-btn-ghost vf-btn-lg" onClick={loadReports} type="button" disabled={loading}>
           {loading ? <Loader2 className="daily-spin" size={18} /> : <RefreshCcw size={18} />}
           Refresh
         </button>
-        <button className="nox-btn nox-btn-primary nox-btn-lg" onClick={copyMessage} type="button" disabled={!reports.length}>
+        <button className="vf-btn vf-btn-primary vf-btn-lg" onClick={copyMessage} type="button" disabled={!reports.length}>
           <ClipboardCopy size={18} />
           Copy SMS
         </button>
@@ -167,21 +167,21 @@ export default function SmsClient() {
         <SummaryCard label="Terminal" value={String(totals.terminalAch)} />
       </section>
 
-      <section className="nox-card daily-preview">
+      <section className="vf-card daily-preview">
         <div className="sms-preview-head">
           <div className="daily-section-title">Final SMS Message</div>
           {copyState && <span>{copyState}</span>}
         </div>
-        <textarea className="nox-input" value={smsMessage} readOnly />
+        <textarea className="vf-input" value={smsMessage} readOnly />
       </section>
 
-      <section className="nox-card sms-table-card">
+      <section className="vf-card sms-table-card">
         <div className="sms-preview-head">
           <div className="daily-section-title">Employee Reports</div>
           <span>{loading ? "Loading..." : `${reports.length} reports`}</span>
         </div>
         <div className="sms-table-wrap">
-          <table className="nox-table">
+          <table className="vf-table">
             <thead>
               <tr>
                 <th>Employee</th>
@@ -202,7 +202,7 @@ export default function SmsClient() {
                 <tr key={report.id}>
                   <td>
                     <strong>{report.employee.name}</strong>
-                    <span className="sms-branch">{report.branch?.name || "No branch"}</span>
+                    <span className="sms-branch">{report.branch?.name || "No store"}</span>
                   </td>
                   <td>{report.pre}</td>
                   <td>{report.f52}</td>
@@ -218,7 +218,7 @@ export default function SmsClient() {
               ))}
               {!reports.length && !loading && (
                 <tr>
-                  <td colSpan={11} style={{ textAlign: "center", color: "var(--nox-text-muted)" }}>
+                  <td colSpan={11} style={{ textAlign: "center", color: "var(--vf-text-muted)" }}>
                     لا توجد تقارير لهذا اليوم
                   </td>
                 </tr>
@@ -233,7 +233,7 @@ export default function SmsClient() {
 
 function SummaryCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="nox-card sms-summary-card">
+    <div className="vf-card sms-summary-card">
       <MessageSquareText size={18} />
       <span>{label}</span>
       <strong>{value}</strong>

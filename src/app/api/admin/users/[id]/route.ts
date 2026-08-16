@@ -114,6 +114,20 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
   const { id } = await params;
 
+  const [healthChecks, dailyReports, editLogs] = await Promise.all([
+    prisma.healthCheck.count({ where: { employeeId: id } }),
+    prisma.dailyReport.count({ where: { employeeId: id } }),
+    prisma.editLog.count({ where: { editedById: id } }),
+  ]);
+
+  if (healthChecks || dailyReports || editLogs) {
+    return NextResponse.json({
+      error: "Cannot delete user with linked reports or logs. Disable the user instead.",
+    }, { status: 409 });
+  }
+
+  await prisma.session.deleteMany({ where: { userId: id } });
+  await prisma.account.deleteMany({ where: { userId: id } });
   await prisma.user.delete({ where: { id } });
   return NextResponse.json({ success: true });
 }

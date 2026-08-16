@@ -15,14 +15,14 @@ export default function EmployeeBottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="nox-bottom-nav">
+    <nav className="vf-bottom-nav">
       {navItems.map((item) => {
         const Icon = item.icon;
         return (
           <Link
             key={item.href}
             href={item.href}
-            className={`nox-bottom-nav-item ${pathname === item.href ? "active" : ""}`}
+            className={`vf-bottom-nav-item ${pathname === item.href ? "active" : ""}`}
           >
             <Icon className="nav-icon" size={22} strokeWidth={2.2} />
             <span>{item.label}</span>
@@ -30,7 +30,7 @@ export default function EmployeeBottomNav() {
         );
       })}
       <button
-        className="nox-bottom-nav-item"
+        className="vf-bottom-nav-item"
         onClick={() => signOut({ callbackUrl: "/login" })}
       >
         <LogOut className="nav-icon" size={22} strokeWidth={2.2} />

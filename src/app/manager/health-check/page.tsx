@@ -7,7 +7,7 @@ type Shift = "AM" | "PM" | "BW";
 type HealthRecord = {
   id: string;
   shift: Shift;
-  employee?: { name?: string | null } | null;
+  employee?: { name?: string | null; branch?: { name?: string | null } | null } | null;
 } & Record<`line${number}Nid`, number | null | undefined>;
 
 const SHIFT_CONFIG: Record<Shift, { label: string; icon: string; color: string; bg: string }> = {
@@ -28,6 +28,23 @@ function calcRecord(r: HealthRecord) {
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Failed to save changes";
+}
+
+function buildHealthReport(date: string, records: HealthRecord[]) {
+  const stores = Array.from(new Set(records.map((record) => record.employee?.branch?.name).filter(Boolean)));
+  const store = stores.length === 1 ? stores[0] : stores.length > 1 ? stores.join(", ") : "Unassigned";
+  const lines = ["Date", date, "Store", store || "Unassigned"];
+
+  (["AM", "PM"] as Shift[]).forEach((shift) => {
+    const shiftRecords = records.filter((record) => record.shift === shift);
+    lines.push("", `${shift}:`);
+    [1, 2, 3].forEach((line) => {
+      const total = shiftRecords.reduce((sum, record) => sum + (record[lineKey(line)] || 0), 0);
+      lines.push(`${line} ${line === 1 ? "line" : "lines"}/NID (${total})`);
+    });
+  });
+
+  return lines.join("\n");
 }
 
 export default function ManagerHealthCheckPage() {
@@ -97,6 +114,11 @@ export default function ManagerHealthCheckPage() {
     setSaving(false);
   }
 
+  async function copyHealthReport() {
+    await navigator.clipboard.writeText(buildHealthReport(date, records));
+    setMessage("Health report copied");
+  }
+
   const today = new Date(date).toLocaleDateString("ar-EG", {
     weekday: "long", year: "numeric", month: "long", day: "numeric",
   });
@@ -107,16 +129,16 @@ export default function ManagerHealthCheckPage() {
         <h1 style={{ fontSize: "1.25rem", fontWeight: "800", color: "#fff", marginBottom: "0.25rem" }}>
           Health Check - Manager
         </h1>
-        <p style={{ fontSize: "0.8125rem", color: "var(--nox-text-muted)" }}>{today}</p>
+        <p style={{ fontSize: "0.8125rem", color: "var(--vf-text-muted)" }}>{today}</p>
       </div>
 
-      <div className="nox-card animate-fade-up animate-fade-up-delay-1" style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-        <label style={{ fontSize: "0.8125rem", fontWeight: "600", color: "var(--nox-text-2)", whiteSpace: "nowrap" }}>
+      <div className="vf-card animate-fade-up animate-fade-up-delay-1" style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+        <label style={{ fontSize: "0.8125rem", fontWeight: "600", color: "var(--vf-text-2)", whiteSpace: "nowrap" }}>
           Date
         </label>
         <input
           type="date"
-          className="nox-input"
+          className="vf-input"
           style={{ flex: 1, padding: "0.5rem 0.75rem", textAlign: "center" }}
           value={date}
           onChange={(e) => setDate(e.target.value)}
@@ -124,33 +146,34 @@ export default function ManagerHealthCheckPage() {
         />
       </div>
 
-      <a
-        href={`/api/health-check/export?date=${date}`}
-        className="nox-btn nox-btn-primary nox-btn-md animate-fade-up animate-fade-up-delay-1"
-        style={{ textDecoration: "none" }}
-      >
-        Export Excel
-      </a>
+      <div className="health-actions-row animate-fade-up animate-fade-up-delay-1">
+        <a href={`/api/health-check/export?date=${date}`} className="vf-btn vf-btn-primary vf-btn-md" style={{ textDecoration: "none" }}>
+          Export Excel
+        </a>
+        <button className="vf-btn vf-btn-ghost vf-btn-md" type="button" onClick={copyHealthReport} disabled={!records.length}>
+          Copy Health Report
+        </button>
+      </div>
 
       {loading && (
-        <div className="nox-card" style={{ textAlign: "center", padding: "2rem" }}>
+        <div className="vf-card" style={{ textAlign: "center", padding: "2rem" }}>
           <div style={{
             width: 28, height: 28, borderRadius: "50%",
-            border: "3px solid var(--nox-border)",
-            borderTopColor: "var(--nox-red)",
+            border: "3px solid var(--vf-border)",
+            borderTopColor: "var(--vf-red)",
             animation: "spin 0.8s linear infinite",
             margin: "0 auto"
           }} />
-          <p style={{ color: "var(--nox-text-muted)", marginTop: "0.75rem", fontSize: "0.875rem" }}>Loading...</p>
+          <p style={{ color: "var(--vf-text-muted)", marginTop: "0.75rem", fontSize: "0.875rem" }}>Loading...</p>
         </div>
       )}
 
       {!loading && records.length === 0 && (
-        <div className="nox-card animate-fade-up" style={{
+        <div className="vf-card animate-fade-up" style={{
           textAlign: "center", padding: "2.5rem",
-          borderStyle: "dashed", borderColor: "var(--nox-border-light)"
+          borderStyle: "dashed", borderColor: "var(--vf-border-light)"
         }}>
-          <p style={{ color: "var(--nox-text-2)", fontWeight: "600" }}>No records for this day</p>
+          <p style={{ color: "var(--vf-text-2)", fontWeight: "600" }}>No records for this day</p>
         </div>
       )}
 
@@ -160,7 +183,7 @@ export default function ManagerHealthCheckPage() {
         const shiftTotalLines = recs.reduce((s, r) => s + calcRecord(r).totalLines, 0);
 
         return (
-          <div key={shift} className="nox-card animate-fade-up" style={{ padding: 0, overflow: "hidden" }}>
+          <div key={shift} className="vf-card animate-fade-up" style={{ padding: 0, overflow: "hidden" }}>
             <div style={{
               background: cfg.bg,
               borderBottom: `1px solid ${cfg.color}30`,
@@ -186,10 +209,10 @@ export default function ManagerHealthCheckPage() {
             </div>
 
             <div style={{ overflowX: "auto" }}>
-              <table className="nox-table" style={{ minWidth: "760px" }}>
+              <table className="vf-table" style={{ minWidth: "760px" }}>
                 <thead>
                   <tr>
-                    <th style={{ position: "sticky", right: 0, background: "var(--nox-surface-2)", zIndex: 1 }}>
+                    <th style={{ position: "sticky", right: 0, background: "var(--vf-surface-2)", zIndex: 1 }}>
                       Store Name-{shift} shift
                     </th>
                     {LINE_NUMS.map((n) => (
@@ -197,7 +220,7 @@ export default function ManagerHealthCheckPage() {
                         {lineHeader(n)}
                       </th>
                     ))}
-                    <th style={{ textAlign: "center", color: "var(--nox-red-light)" }}>NIDs</th>
+                    <th style={{ textAlign: "center", color: "var(--vf-red-light)" }}>NIDs</th>
                     <th style={{ textAlign: "center", color: "#fff" }}>Lines</th>
                     <th style={{ textAlign: "center" }}>Edit</th>
                   </tr>
@@ -210,7 +233,7 @@ export default function ManagerHealthCheckPage() {
                         <td style={{
                           position: "sticky",
                           right: 0,
-                          background: "var(--nox-surface)",
+                          background: "var(--vf-surface)",
                           fontWeight: "600",
                           whiteSpace: "nowrap",
                           zIndex: 1,
@@ -218,11 +241,11 @@ export default function ManagerHealthCheckPage() {
                           {r.employee?.name}
                         </td>
                         {LINE_NUMS.map((n) => (
-                          <td key={n} style={{ textAlign: "center", color: r[lineKey(n)] ? "var(--nox-text)" : "var(--nox-text-muted)" }}>
+                          <td key={n} style={{ textAlign: "center", color: r[lineKey(n)] ? "var(--vf-text)" : "var(--vf-text-muted)" }}>
                             {r[lineKey(n)] || 0}
                           </td>
                         ))}
-                        <td style={{ textAlign: "center", fontWeight: "700", color: "var(--nox-red-light)" }}>
+                        <td style={{ textAlign: "center", fontWeight: "700", color: "var(--vf-red-light)" }}>
                           {totalNids.toLocaleString()}
                         </td>
                         <td style={{ textAlign: "center", fontWeight: "700", color: "#fff" }}>
@@ -233,7 +256,7 @@ export default function ManagerHealthCheckPage() {
                             background: "rgba(196,30,58,0.1)",
                             border: "1px solid rgba(196,30,58,0.3)",
                             borderRadius: "8px",
-                            color: "var(--nox-red-light)",
+                            color: "var(--vf-red-light)",
                             padding: "0.25rem 0.625rem",
                             fontSize: "0.75rem",
                             cursor: "pointer",
@@ -248,8 +271,8 @@ export default function ManagerHealthCheckPage() {
                   })}
                 </tbody>
                 <tfoot>
-                  <tr className="nox-table-footer">
-                    <td style={{ position: "sticky", right: 0, background: "var(--nox-red-subtle)", zIndex: 1, fontWeight: "800" }}>
+                  <tr className="vf-table-footer">
+                    <td style={{ position: "sticky", right: 0, background: "var(--vf-red-subtle)", zIndex: 1, fontWeight: "800" }}>
                       Total {shift}
                     </td>
                     {LINE_NUMS.map((n) => (
@@ -257,7 +280,7 @@ export default function ManagerHealthCheckPage() {
                         {recs.reduce((s, r) => s + (r[lineKey(n)] || 0), 0)}
                       </td>
                     ))}
-                    <td style={{ textAlign: "center", fontWeight: "800", color: "var(--nox-red-light)" }}>
+                    <td style={{ textAlign: "center", fontWeight: "800", color: "var(--vf-red-light)" }}>
                       {shiftTotalNids.toLocaleString()}
                     </td>
                     <td style={{ textAlign: "center", fontWeight: "800", color: "#fff" }}>
@@ -273,19 +296,19 @@ export default function ManagerHealthCheckPage() {
       })}
 
       {!loading && records.length > 0 && (
-        <div className="nox-card animate-fade-up" style={{
+        <div className="vf-card animate-fade-up" style={{
           background: "linear-gradient(135deg, rgba(196,30,58,0.18), rgba(26,26,26,1))",
           borderColor: "rgba(196,30,58,0.4)",
         }}>
-          <div style={{ fontWeight: "800", color: "var(--nox-red-light)", fontSize: "0.875rem", marginBottom: "1rem", textTransform: "uppercase" }}>
+          <div style={{ fontWeight: "800", color: "var(--vf-red-light)", fontSize: "0.875rem", marginBottom: "1rem", textTransform: "uppercase" }}>
             Day Total
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
             <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: "2.25rem", fontWeight: "800", color: "var(--nox-red-light)", lineHeight: 1 }}>
+              <div style={{ fontSize: "2.25rem", fontWeight: "800", color: "var(--vf-red-light)", lineHeight: 1 }}>
                 {dayTotalNids.toLocaleString("ar-EG")}
               </div>
-              <div style={{ fontSize: "0.75rem", color: "var(--nox-text-muted)", marginTop: "0.375rem", fontWeight: "600" }}>
+              <div style={{ fontSize: "0.75rem", color: "var(--vf-text-muted)", marginTop: "0.375rem", fontWeight: "600" }}>
                 Total NIDs
               </div>
             </div>
@@ -293,7 +316,7 @@ export default function ManagerHealthCheckPage() {
               <div style={{ fontSize: "2.25rem", fontWeight: "800", color: "#fff", lineHeight: 1 }}>
                 {dayTotalLines.toLocaleString("ar-EG")}
               </div>
-              <div style={{ fontSize: "0.75rem", color: "var(--nox-text-muted)", marginTop: "0.375rem", fontWeight: "600" }}>
+              <div style={{ fontSize: "0.75rem", color: "var(--vf-text-muted)", marginTop: "0.375rem", fontWeight: "600" }}>
                 Total Lines
               </div>
             </div>
@@ -310,7 +333,7 @@ export default function ManagerHealthCheckPage() {
           padding: "0"
         }}>
           <div style={{
-            background: "var(--nox-surface)",
+            background: "var(--vf-surface)",
             border: "1px solid rgba(196,30,58,0.3)",
             borderRadius: "24px 24px 0 0",
             padding: "1.5rem 1.25rem",
@@ -324,24 +347,24 @@ export default function ManagerHealthCheckPage() {
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div>
                 <h3 style={{ fontSize: "1rem", fontWeight: "800", color: "#fff" }}>Edit data</h3>
-                <p style={{ fontSize: "0.75rem", color: "var(--nox-text-muted)", marginTop: "0.125rem" }}>
+                <p style={{ fontSize: "0.75rem", color: "var(--vf-text-muted)", marginTop: "0.125rem" }}>
                   {editRecord.employee?.name} - {editRecord.shift}
                 </p>
               </div>
               <button
                 onClick={() => setEditRecord(null)}
-                style={{ background: "var(--nox-surface-2)", border: "1px solid var(--nox-border)", borderRadius: "50%", width: 32, height: 32, cursor: "pointer", color: "var(--nox-text-2)", fontSize: "1rem" }}
+                style={{ background: "var(--vf-surface-2)", border: "1px solid var(--vf-border)", borderRadius: "50%", width: 32, height: 32, cursor: "pointer", color: "var(--vf-text-2)", fontSize: "1rem" }}
               >x</button>
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
               {LINE_NUMS.map((n) => (
                 <div key={n} style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}>
-                  <div className="nox-number-badge">{n}</div>
-                  <span style={{ flex: 1, fontSize: "0.8125rem", color: "var(--nox-text-2)", fontWeight: "600" }}>{n} Line / NID</span>
+                  <div className="vf-number-badge">{n}</div>
+                  <span style={{ flex: 1, fontSize: "0.8125rem", color: "var(--vf-text-2)", fontWeight: "600" }}>{n} Line / NID</span>
                   <input
                     type="number" min="0"
-                    className="nox-input"
+                    className="vf-input"
                     style={{ width: "90px", textAlign: "center", padding: "0.5rem", fontSize: "1rem", fontWeight: "700" }}
                     value={editValues[lineKey(n)] ?? 0}
                     onChange={(e) => setEditValues((p) => ({ ...p, [lineKey(n)]: parseInt(e.target.value) || 0 }))}
@@ -352,9 +375,9 @@ export default function ManagerHealthCheckPage() {
             </div>
 
             <div>
-              <label className="nox-label">Edit reason <span style={{ color: "var(--nox-red-light)" }}>*</span></label>
+              <label className="vf-label">Edit reason <span style={{ color: "var(--vf-red-light)" }}>*</span></label>
               <textarea
-                className="nox-input"
+                className="vf-input"
                 rows={3}
                 placeholder="Write the reason clearly..."
                 value={editReason}
@@ -363,13 +386,13 @@ export default function ManagerHealthCheckPage() {
               />
             </div>
 
-            {message && <div className="nox-alert nox-alert-error">{message}</div>}
+            {message && <div className="vf-alert vf-alert-error">{message}</div>}
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
-              <button className="nox-btn nox-btn-ghost nox-btn-md" onClick={() => setEditRecord(null)}>
+              <button className="vf-btn vf-btn-ghost vf-btn-md" onClick={() => setEditRecord(null)}>
                 Cancel
               </button>
-              <button className="nox-btn nox-btn-primary nox-btn-md" onClick={saveEdit} disabled={saving}>
+              <button className="vf-btn vf-btn-primary vf-btn-md" onClick={saveEdit} disabled={saving}>
                 {saving ? "Saving..." : "Save edit"}
               </button>
             </div>

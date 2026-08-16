@@ -52,7 +52,12 @@ function serializeReport(report: DailyReportRecord | DailyReportWithRelations) {
 async function getCurrentDbUser(userId: string) {
   return prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, role: true, branchId: true },
+    select: {
+      id: true,
+      role: true,
+      branchId: true,
+      branch: { select: { id: true, name: true } },
+    },
   });
 }
 
@@ -96,6 +101,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     report: todayReport ? serializeReport(todayReport) : null,
     reports: reports.map(serializeReport),
+    storeName: currentUser.branch?.name || "",
   });
 }
 
@@ -116,6 +122,7 @@ export async function POST(req: NextRequest) {
   }
 
   const values = parsed.data;
+  const storeName = currentUser.branch?.name || values.storeName;
   const atHomeAch = calculateAtHomeAch(values.atHomeType, values.atHomeCount);
   const totalDailyAch = calculateTotalDailyAch(values);
   const targetDate = dateOnly(values.date);
@@ -131,7 +138,7 @@ export async function POST(req: NextRequest) {
       employeeId: currentUser.id,
       branchId: currentUser.branchId,
       date: targetDate,
-      storeName: values.storeName,
+      storeName,
       pre: values.pre,
       f52: values.f52,
       f80: values.f80,
@@ -152,7 +159,7 @@ export async function POST(req: NextRequest) {
     },
     update: {
       branchId: currentUser.branchId,
-      storeName: values.storeName,
+      storeName,
       pre: values.pre,
       f52: values.f52,
       f80: values.f80,

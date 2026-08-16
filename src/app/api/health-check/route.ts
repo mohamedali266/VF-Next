@@ -29,7 +29,14 @@ export async function GET(req: NextRequest) {
         ...(isShift(shift) ? { shift } : {}),
       },
       include: {
-        employee: { select: { id: true, name: true, department: true } },
+        employee: {
+          select: {
+            id: true,
+            name: true,
+            department: true,
+            branch: { select: { name: true } },
+          },
+        },
       },
       orderBy: [{ shift: "asc" }, { submittedAt: "asc" }],
     });

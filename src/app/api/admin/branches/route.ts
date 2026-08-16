@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
   const code = normalizeCode(body.code);
 
   if (!name) {
-    return NextResponse.json({ error: "Branch name is required" }, { status: 400 });
+    return NextResponse.json({ error: "Store name is required" }, { status: 400 });
   }
 
   const branch = await prisma.branch.create({

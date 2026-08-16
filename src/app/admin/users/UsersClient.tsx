@@ -1,6 +1,6 @@
 "use client";
 
-import { Edit3, Plus, Search, UserCheck, X } from "lucide-react";
+import { Edit3, Plus, Search, Trash2, UserCheck, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
 type Role = "EMPLOYEE" | "TEAM_LEADER" | "MANAGER" | "ADMIN";
@@ -168,6 +168,19 @@ export default function UsersClient({ users: initialUsers, branches }: { users: 
     }
   }
 
+  async function deleteUser(user: User) {
+    if (!confirm(`Delete ${user.name}? This only works if the user has no reports or logs.`)) return;
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Could not delete user");
+      setUsers((current) => current.filter((item) => item.id !== user.id));
+      showMessage("User deleted", "success");
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : "Could not delete user", "error");
+    }
+  }
+
   return (
     <div className="users-admin-shell">
       <section className="users-admin-head">
@@ -176,19 +189,19 @@ export default function UsersClient({ users: initialUsers, branches }: { users: 
           <h1>Users</h1>
           <p>{filteredUsers.length} of {users.length} users</p>
         </div>
-        <button className="nox-btn nox-btn-primary nox-btn-md" onClick={openCreate} type="button">
+        <button className="vf-btn vf-btn-primary vf-btn-md" onClick={openCreate} type="button">
           <Plus size={18} />
           Add User
         </button>
       </section>
 
       {message && (
-        <div className={`nox-alert ${message.type === "success" ? "nox-alert-success" : "nox-alert-error"}`}>
+        <div className={`vf-alert ${message.type === "success" ? "vf-alert-success" : "vf-alert-error"}`}>
           {message.text}
         </div>
       )}
 
-      <section className="nox-card users-filters">
+      <section className="vf-card users-filters">
         <label className="users-search">
           <Search size={18} />
           <input
@@ -197,17 +210,17 @@ export default function UsersClient({ users: initialUsers, branches }: { users: 
             placeholder="Search name, username, VPN, staff ID, email..."
           />
         </label>
-        <select className="nox-input" value={branchFilter} onChange={(event) => setBranchFilter(event.target.value)}>
-          <option value="">All branches</option>
+        <select className="vf-input" value={branchFilter} onChange={(event) => setBranchFilter(event.target.value)}>
+          <option value="">All stores</option>
           {branches.map((branch) => (
             <option key={branch.id} value={branch.id}>{branch.name}{branch.code ? ` (${branch.code})` : ""}</option>
           ))}
         </select>
       </section>
 
-      <section className="nox-card users-table-card">
+      <section className="vf-card users-table-card">
         <div className="users-table-wrap">
-          <table className="nox-table users-table">
+          <table className="vf-table users-table">
             <thead>
               <tr>
                 <th>User</th>
@@ -216,7 +229,7 @@ export default function UsersClient({ users: initialUsers, branches }: { users: 
                 <th>Staff ID</th>
                 <th>Email</th>
                 <th>Role</th>
-                <th>Branch</th>
+                <th>Store</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -238,11 +251,14 @@ export default function UsersClient({ users: initialUsers, branches }: { users: 
                   </td>
                   <td>
                     <div className="users-actions">
-                      <button className="nox-btn nox-btn-ghost nox-btn-sm" type="button" onClick={() => openEdit(user)}>
+                      <button className="vf-btn vf-btn-ghost vf-btn-sm" type="button" onClick={() => openEdit(user)}>
                         <Edit3 size={15} />
                       </button>
-                      <button className="nox-btn nox-btn-ghost nox-btn-sm" type="button" onClick={() => toggleActive(user)}>
+                      <button className="vf-btn vf-btn-ghost vf-btn-sm" type="button" onClick={() => toggleActive(user)}>
                         <UserCheck size={15} />
+                      </button>
+                      <button className="vf-btn vf-btn-ghost vf-btn-sm" type="button" onClick={() => deleteUser(user)} style={{ color: "#f87171" }}>
+                        <Trash2 size={15} />
                       </button>
                     </div>
                   </td>
@@ -250,7 +266,7 @@ export default function UsersClient({ users: initialUsers, branches }: { users: 
               ))}
               {!filteredUsers.length && (
                 <tr>
-                  <td colSpan={9} style={{ textAlign: "center", color: "var(--nox-text-muted)" }}>No users found</td>
+                  <td colSpan={9} style={{ textAlign: "center", color: "var(--vf-text-muted)" }}>No users found</td>
                 </tr>
               )}
             </tbody>
@@ -292,7 +308,7 @@ export default function UsersClient({ users: initialUsers, branches }: { users: 
 
               <label className="users-field">
                 <span>Role</span>
-                <select className="nox-input" value={form.role} onChange={(event) => setForm((current) => ({ ...current, role: event.target.value as Role }))}>
+                <select className="vf-input" value={form.role} onChange={(event) => setForm((current) => ({ ...current, role: event.target.value as Role }))}>
                   <option value="EMPLOYEE">Employee</option>
                   <option value="TEAM_LEADER">Team Leader</option>
                   <option value="MANAGER">Manager</option>
@@ -301,9 +317,9 @@ export default function UsersClient({ users: initialUsers, branches }: { users: 
               </label>
 
               <label className="users-field">
-                <span>Branch</span>
-                <select className="nox-input" value={form.branchId} onChange={(event) => setForm((current) => ({ ...current, branchId: event.target.value }))}>
-                  <option value="">No branch</option>
+                <span>Store</span>
+                <select className="vf-input" value={form.branchId} onChange={(event) => setForm((current) => ({ ...current, branchId: event.target.value }))}>
+                  <option value="">No store</option>
                   {branches.map((branch) => (
                     <option key={branch.id} value={branch.id}>{branch.name}{branch.code ? ` (${branch.code})` : ""}</option>
                   ))}
@@ -312,7 +328,7 @@ export default function UsersClient({ users: initialUsers, branches }: { users: 
 
               <label className="users-field">
                 <span>Status</span>
-                <select className="nox-input" value={form.isActive ? "active" : "disabled"} onChange={(event) => setForm((current) => ({ ...current, isActive: event.target.value === "active" }))}>
+                <select className="vf-input" value={form.isActive ? "active" : "disabled"} onChange={(event) => setForm((current) => ({ ...current, isActive: event.target.value === "active" }))}>
                   <option value="active">Active</option>
                   <option value="disabled">Disabled</option>
                 </select>
@@ -335,8 +351,8 @@ export default function UsersClient({ users: initialUsers, branches }: { users: 
             </div>
 
             <div className="users-modal-actions">
-              <button className="nox-btn nox-btn-ghost nox-btn-lg" type="button" onClick={() => setModalOpen(false)}>Cancel</button>
-              <button className="nox-btn nox-btn-primary nox-btn-lg" type="submit" disabled={loading}>
+              <button className="vf-btn vf-btn-ghost vf-btn-lg" type="button" onClick={() => setModalOpen(false)}>Cancel</button>
+              <button className="vf-btn vf-btn-primary vf-btn-lg" type="submit" disabled={loading}>
                 {loading ? "Saving..." : editingUser ? "Save Changes" : "Create User"}
               </button>
             </div>
@@ -363,7 +379,7 @@ function FormInput({
   return (
     <label className="users-field">
       <span>{label}</span>
-      <input className="nox-input" type={type} value={value} onChange={(event) => onChange(event.target.value)} required={required} />
+      <input className="vf-input" type={type} value={value} onChange={(event) => onChange(event.target.value)} required={required} />
     </label>
   );
 }

@@ -164,7 +164,7 @@ export async function GET(req: NextRequest) {
   XLSX.utils.book_append_sheet(workbook, buildPerAgentSheet(records, shiftsToRender), "Per Agent");
 
   const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx", cellStyles: true });
-  const filename = `nox-health-check-${date}${shift ? `-${shift}` : ""}.xlsx`;
+  const filename = `vf-health-check-${date}${shift ? `-${shift}` : ""}.xlsx`;
 
   return new Response(new Uint8Array(buffer), {
     headers: {

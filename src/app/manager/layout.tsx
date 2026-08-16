@@ -9,8 +9,8 @@ export default async function ManagerLayout({ children }: { children: React.Reac
   if (user.role !== "MANAGER" && user.role !== "TEAM_LEADER" && user.role !== "ADMIN") redirect("/employee");
 
   return (
-    <div className="nox-page">
-      <header className="nox-header-gradient nox-safe-top" style={{ padding: "1rem 1.25rem 0.875rem" }}>
+    <div className="vf-page">
+      <header className="vf-header-gradient vf-safe-top" style={{ padding: "1rem 1.25rem 0.875rem" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
             <div style={{
@@ -22,8 +22,8 @@ export default async function ManagerLayout({ children }: { children: React.Reac
               fontSize: "1.125rem"
             }}>🛡️</div>
             <div>
-              <div style={{ fontSize: "0.625rem", color: "var(--nox-text-muted)", textTransform: "uppercase", letterSpacing: "0.1em" }}>NOX SYSTEM</div>
-              <div style={{ fontSize: "0.875rem", fontWeight: "700", color: "var(--nox-text)" }}>{user.name}</div>
+              <div style={{ fontSize: "0.625rem", color: "var(--vf-text-muted)", textTransform: "uppercase", letterSpacing: "0.1em" }}>VF-Next</div>
+              <div style={{ fontSize: "0.875rem", fontWeight: "700", color: "var(--vf-text)" }}>{user.name}</div>
             </div>
           </div>
           <div style={{
@@ -32,7 +32,7 @@ export default async function ManagerLayout({ children }: { children: React.Reac
             borderRadius: "20px",
             padding: "0.25rem 0.75rem",
             fontSize: "0.6875rem",
-            color: "var(--nox-red-light)",
+            color: "var(--vf-red-light)",
             fontWeight: "700",
             letterSpacing: "0.05em"
           }}>

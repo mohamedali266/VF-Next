@@ -127,29 +127,29 @@ export default function AdminReportsClient({ reports: initialReports, branches }
         </div>
       </section>
 
-      {message && <div className="nox-alert nox-alert-success">{message}</div>}
+      {message && <div className="vf-alert vf-alert-success">{message}</div>}
 
-      <section className="nox-card users-filters">
+      <section className="vf-card users-filters">
         <label className="users-search">
           <Search size={18} />
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search employee, VPN, staff ID, date..." />
         </label>
-        <select className="nox-input" value={branchFilter} onChange={(event) => setBranchFilter(event.target.value)}>
-          <option value="">All branches</option>
+        <select className="vf-input" value={branchFilter} onChange={(event) => setBranchFilter(event.target.value)}>
+          <option value="">All stores</option>
           {branches.map((branch) => (
             <option key={branch.id} value={branch.id}>{branch.name}{branch.code ? ` (${branch.code})` : ""}</option>
           ))}
         </select>
       </section>
 
-      <section className="nox-card users-table-card">
+      <section className="vf-card users-table-card">
         <div className="users-table-wrap">
-          <table className="nox-table admin-reports-table">
+          <table className="vf-table admin-reports-table">
             <thead>
               <tr>
                 <th>Date</th>
                 <th>Employee</th>
-                <th>Branch</th>
+                <th>Store</th>
                 <th>Total</th>
                 <th>At Home</th>
                 <th>ADSL</th>
@@ -172,15 +172,15 @@ export default function AdminReportsClient({ reports: initialReports, branches }
                   <td>{report.terminalAch}</td>
                   <td>
                     <div className="users-actions">
-                      <button className="nox-btn nox-btn-ghost nox-btn-sm" type="button" onClick={() => openEdit(report)}><Edit3 size={15} /></button>
-                      <button className="nox-btn nox-btn-ghost nox-btn-sm" type="button" onClick={() => copyReport(report)}><ClipboardCopy size={15} /></button>
-                      <button className="nox-btn nox-btn-ghost nox-btn-sm" type="button" onClick={() => deleteReport(report)}><Trash2 size={15} /></button>
+                      <button className="vf-btn vf-btn-ghost vf-btn-sm" type="button" onClick={() => openEdit(report)}><Edit3 size={15} /></button>
+                      <button className="vf-btn vf-btn-ghost vf-btn-sm" type="button" onClick={() => copyReport(report)}><ClipboardCopy size={15} /></button>
+                      <button className="vf-btn vf-btn-ghost vf-btn-sm" type="button" onClick={() => deleteReport(report)}><Trash2 size={15} /></button>
                     </div>
                   </td>
                 </tr>
               ))}
               {!filtered.length && (
-                <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--nox-text-muted)" }}>No reports found</td></tr>
+                <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--vf-text-muted)" }}>No reports found</td></tr>
               )}
             </tbody>
           </table>
@@ -201,11 +201,11 @@ export default function AdminReportsClient({ reports: initialReports, branches }
             <div className="users-form-grid">
               <label className="users-field">
                 <span>Store Name</span>
-                <input className="nox-input" value={draft.storeName} onChange={(event) => setDraft({ ...draft, storeName: event.target.value })} />
+                <input className="vf-input" value={draft.storeName} onChange={(event) => setDraft({ ...draft, storeName: event.target.value })} />
               </label>
               <label className="users-field">
                 <span>At Home Type</span>
-                <select className="nox-input" value={draft.atHomeType} onChange={(event) => setDraft({ ...draft, atHomeType: event.target.value as AdminReport["atHomeType"] })}>
+                <select className="vf-input" value={draft.atHomeType} onChange={(event) => setDraft({ ...draft, atHomeType: event.target.value as AdminReport["atHomeType"] })}>
                   <option value="FOUR_G">At Home 4G</option>
                   <option value="FIVE_G">At Home 5G</option>
                 </select>
@@ -213,14 +213,14 @@ export default function AdminReportsClient({ reports: initialReports, branches }
               {editableFields.map((field) => (
                 <label className="users-field" key={field.key}>
                   <span>{field.label}</span>
-                  <input className="nox-input" type="number" min="0" value={String(draft[field.key] || "")} onChange={(event) => setDraftNumber(field.key, event.target.value)} />
+                  <input className="vf-input" type="number" min="0" value={String(draft[field.key] || "")} onChange={(event) => setDraftNumber(field.key, event.target.value)} />
                 </label>
               ))}
             </div>
 
             <div className="users-modal-actions">
-              <button className="nox-btn nox-btn-ghost nox-btn-lg" type="button" onClick={closeEdit}>Cancel</button>
-              <button className="nox-btn nox-btn-primary nox-btn-lg" type="button" onClick={saveReport} disabled={saving}>{saving ? "Saving..." : "Save Report"}</button>
+              <button className="vf-btn vf-btn-ghost vf-btn-lg" type="button" onClick={closeEdit}>Cancel</button>
+              <button className="vf-btn vf-btn-primary vf-btn-lg" type="button" onClick={saveReport} disabled={saving}>{saving ? "Saving..." : "Save Report"}</button>
             </div>
           </div>
         </div>

@@ -48,8 +48,8 @@ export default function LoginPage() {
           <div className="login-logo">
             <div className="login-logo-icon">
               <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-                <path d="M16 2L28 9V23L16 30L4 23V9L16 2Z" fill="var(--nox-red)" opacity="0.2"/>
-                <path d="M16 2L28 9V23L16 30L4 23V9L16 2Z" stroke="var(--nox-red)" strokeWidth="1.5"/>
+                <path d="M16 2L28 9V23L16 30L4 23V9L16 2Z" fill="var(--vf-red)" opacity="0.2"/>
+                <path d="M16 2L28 9V23L16 30L4 23V9L16 2Z" stroke="var(--vf-red)" strokeWidth="1.5"/>
                 <path d="M10 16L14 20L22 12" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </div>
@@ -67,7 +67,7 @@ export default function LoginPage() {
 
           {/* Error */}
           {error && (
-            <div className="nox-alert nox-alert-error animate-fade-up">
+            <div className="vf-alert vf-alert-error animate-fade-up">
               <span>⚠️</span>
               <span>{error}</span>
             </div>
@@ -76,7 +76,7 @@ export default function LoginPage() {
           {/* Form */}
           <form onSubmit={handleSubmit} className="login-form animate-fade-up animate-fade-up-delay-2">
             <div className="login-field">
-              <label className="nox-label" htmlFor="identifier">
+              <label className="vf-label" htmlFor="identifier">
                 VPN num or Username
               </label>
               <div className="login-input-wrapper">
@@ -84,7 +84,7 @@ export default function LoginPage() {
                 <input
                   id="identifier"
                   type="text"
-                  className="nox-input login-input"
+                  className="vf-input login-input"
                   placeholder="vpn number or username"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
@@ -95,7 +95,7 @@ export default function LoginPage() {
             </div>
 
             <div className="login-field">
-              <label className="nox-label" htmlFor="password">
+              <label className="vf-label" htmlFor="password">
                 كلمة المرور
               </label>
               <div className="login-input-wrapper">
@@ -103,7 +103,7 @@ export default function LoginPage() {
                 <input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  className="nox-input login-input"
+                  className="vf-input login-input"
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -123,7 +123,7 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              className="nox-btn nox-btn-primary nox-btn-lg login-submit-btn"
+              className="vf-btn vf-btn-primary vf-btn-lg login-submit-btn"
               disabled={loading}
             >
               {loading ? (
@@ -167,13 +167,13 @@ export default function LoginPage() {
 
         .login-bg-orb-1 {
           width: 400px; height: 400px;
-          background: var(--nox-red);
+          background: var(--vf-red);
           top: -100px; right: -100px;
         }
 
         .login-bg-orb-2 {
           width: 300px; height: 300px;
-          background: var(--nox-red-dark);
+          background: var(--vf-red-dark);
           bottom: -80px; left: -80px;
         }
 
@@ -236,7 +236,7 @@ export default function LoginPage() {
 
         .login-logo-sub {
           font-size: 0.75rem;
-          color: var(--nox-text-2);
+          color: var(--vf-text-2);
           font-weight: 500;
         }
 
@@ -253,7 +253,7 @@ export default function LoginPage() {
 
         .login-subtitle {
           font-size: 0.875rem;
-          color: var(--nox-text-2);
+          color: var(--vf-text-2);
           margin-top: 0.25rem;
         }
 
@@ -314,7 +314,7 @@ export default function LoginPage() {
         .login-footer {
           text-align: center;
           font-size: 0.75rem;
-          color: var(--nox-text-muted);
+          color: var(--vf-text-muted);
         }
       `}</style>
     </div>
