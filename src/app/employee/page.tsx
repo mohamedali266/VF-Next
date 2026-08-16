@@ -26,6 +26,18 @@ export default async function EmployeeDashboard() {
       sub: "Submit NID lines",
       href: "/employee/health-check",
     },
+    {
+      icon: "👥",
+      title: "CST Data",
+      sub: "Private customer follow-up",
+      href: "/employee/cst",
+    },
+    {
+      icon: "📋",
+      title: "SR & SKU",
+      sub: "Service Requests & SKU directory",
+      href: "/employee/sr-sku",
+    },
     ...(branchId ? [{
       icon: "🏪",
       title: "My Store",

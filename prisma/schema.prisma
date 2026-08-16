@@ -46,6 +46,7 @@ model User {
   healthChecks HealthCheck[] @relation("EmployeeChecks")
   dailyReports DailyReport[] @relation("EmployeeDailyReports")
   editLogs     EditLog[]     @relation("EditorLogs")
+  cstCustomers CstCustomer[] @relation("AgentCstCustomers")
   sessions     Session[]
   accounts     Account[]
 
@@ -183,4 +184,21 @@ model VerificationToken {
 
   @@unique([identifier, token])
   @@map("verification_tokens")
+}
+
+model CstCustomer {
+  id          String   @id @default(cuid())
+  agentId     String
+  name        String
+  phone       String
+  serviceType String
+  status      String   @default("Pending")
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  agent User @relation("AgentCstCustomers", fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([agentId])
+  @@map("cst_customers")
 }

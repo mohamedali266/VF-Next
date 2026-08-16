@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
-import { ClipboardCheck, Home, LogOut, MessageSquareText, Store } from "lucide-react";
+import { ClipboardCheck, FileText, Home, LogOut, MessageSquareText, Store, Users } from "lucide-react";
 
 export default function EmployeeBottomNav() {
   const pathname = usePathname();
@@ -31,6 +31,8 @@ export default function EmployeeBottomNav() {
     { href: "/employee",              Icon: Home,              label: "Home" },
     { href: "/employee/daily-report", Icon: MessageSquareText, label: "Daily" },
     { href: "/employee/health-check", Icon: ClipboardCheck,    label: "Health" },
+    { href: "/employee/cst",          Icon: Users,             label: "CST" },
+    { href: "/employee/sr-sku",       Icon: FileText,          label: "SR/SKU" },
     ...(branchId ? [{ href: `/store/${branchId}`, Icon: Store, label: "Store" }] : []),
   ];
 
