@@ -12,9 +12,31 @@ type Member = {
   vpnNum: string | null;
 };
 
+type DailyReport = {
+  id: string;
+  pre: number;
+  f52: number;
+  f80: number;
+  aboveF115: number;
+  newVmt: number;
+  exitVmt: number;
+  newRed: number;
+  conRed: number;
+  mnp: number;
+  atHomeCount: number;
+  atHomeAch: number;
+  adslAch: number;
+  terminalAch: number;
+  enterpriseNewAcc: number;
+  enterpriseGas: number;
+  totalDailyAch: number;
+  employee: { id: string; name: string };
+};
+
 type StoreData = {
   branch: { id: string; name: string; code: string | null };
   members: Member[];
+  dailyReports: DailyReport[];
   smsMessage: string;
   healthReport: string;
   reportsCount: number;
@@ -36,7 +58,7 @@ const ROLE_COLORS: Record<Role, string> = {
   EMPLOYEE: "var(--vf-text-2)",
 };
 
-type Tab = "sms" | "health" | "team";
+type Tab = "team" | "sms" | "health" | "rpm";
 
 export default function StoreClient({ storeId }: { storeId: string }) {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -78,6 +100,48 @@ export default function StoreClient({ storeId }: { storeId: string }) {
     const order: Role[] = ["MANAGER", "TEAM_LEADER", "EMPLOYEE", "ADMIN"];
     return order.indexOf(a.role) - order.indexOf(b.role);
   }) : [];
+
+  // Calculate Store RPM Totals
+  const storeReports = data?.dailyReports || [];
+  const storeTotals = storeReports.reduce(
+    (acc, r) => {
+      const lines = (r.pre + r.f52 + r.f80 + r.aboveF115) + r.mnp + (r.newRed * 3) + r.conRed;
+      const acq = lines + r.newVmt;
+      acc.lines += lines;
+      acc.newVmt += r.newVmt;
+      acc.acquisition += acq;
+      acc.atHomeAch += r.atHomeAch;
+      acc.adslAch += r.adslAch;
+      acc.terminalAch += r.terminalAch;
+      acc.enterpriseNewAcc += r.enterpriseNewAcc;
+      acc.enterpriseGas += r.enterpriseGas;
+      acc.pre += r.pre;
+      acc.f52 += r.f52;
+      acc.f80 += r.f80;
+      acc.aboveF115 += r.aboveF115;
+      acc.newRed += r.newRed;
+      acc.conRed += r.conRed;
+      acc.mnp += r.mnp;
+      return acc;
+    },
+    {
+      lines: 0,
+      newVmt: 0,
+      acquisition: 0,
+      atHomeAch: 0,
+      adslAch: 0,
+      terminalAch: 0,
+      enterpriseNewAcc: 0,
+      enterpriseGas: 0,
+      pre: 0,
+      f52: 0,
+      f80: 0,
+      aboveF115: 0,
+      newRed: 0,
+      conRed: 0,
+      mnp: 0,
+    }
+  );
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
@@ -121,14 +185,15 @@ export default function StoreClient({ storeId }: { storeId: string }) {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: "flex", gap: "0.5rem", background: "var(--vf-surface-2)", borderRadius: "16px", padding: "0.375rem" }}>
-        {([["team", "👥 Team"], ["sms", "📱 SMS"], ["health", "🏥 Health"]] as [Tab, string][]).map(([id, label]) => (
+      <div style={{ display: "flex", gap: "0.375rem", background: "var(--vf-surface-2)", borderRadius: "16px", padding: "0.375rem", overflowX: "auto" }}>
+        {([["team", "👥 Team"], ["sms", "📱 SMS"], ["health", "🏥 Health"], ["rpm", "📊 Store RPM"]] as [Tab, string][]).map(([id, label]) => (
           <button
             key={id}
             onClick={() => setTab(id)}
             style={{
               flex: 1,
-              padding: "0.625rem",
+              whiteSpace: "nowrap",
+              padding: "0.625rem 0.5rem",
               borderRadius: "12px",
               border: "none",
               cursor: "pointer",
@@ -287,6 +352,112 @@ export default function StoreClient({ storeId }: { storeId: string }) {
               </pre>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── TAB: Store RPM ── */}
+      {!loading && tab === "rpm" && (
+        <div className="animate-fade-up" style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+
+          {/* 1) Store Total RPM Summary */}
+          <div className="vf-card" style={{
+            background: "linear-gradient(135deg, rgba(196,30,58,0.18), var(--vf-surface))",
+            borderColor: "rgba(196,30,58,0.4)",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
+              <div>
+                <h3 style={{ fontSize: "1rem", fontWeight: "800", color: "#fff" }}>📊 Store RPM (مجموع الفرع)</h3>
+                <p style={{ fontSize: "0.75rem", color: "var(--vf-text-muted)", marginTop: "0.125rem" }}>
+                  {date} · {storeReports.length} employee reports
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.625rem" }}>
+              <div style={{ background: "rgba(196,30,58,0.2)", borderRadius: "10px", padding: "0.75rem", border: "1px solid rgba(196,30,58,0.4)" }}>
+                <div style={{ fontSize: "0.6875rem", color: "var(--vf-red-light)", fontWeight: "600" }}>Acquisition</div>
+                <div style={{ fontSize: "1.375rem", fontWeight: "800", color: "#fff", marginTop: "0.125rem" }}>{storeTotals.acquisition}</div>
+              </div>
+              <div style={{ background: "var(--vf-surface-2)", borderRadius: "10px", padding: "0.75rem", border: "1px solid var(--vf-border)" }}>
+                <div style={{ fontSize: "0.6875rem", color: "var(--vf-text-muted)", fontWeight: "600" }}>Lines (F+MNP+Red)</div>
+                <div style={{ fontSize: "1.25rem", fontWeight: "800", color: "var(--vf-text)", marginTop: "0.125rem" }}>{storeTotals.lines}</div>
+              </div>
+              <div style={{ background: "var(--vf-surface-2)", borderRadius: "10px", padding: "0.75rem", border: "1px solid var(--vf-border)" }}>
+                <div style={{ fontSize: "0.6875rem", color: "var(--vf-text-muted)", fontWeight: "600" }}>New VMT</div>
+                <div style={{ fontSize: "1.25rem", fontWeight: "800", color: "var(--vf-text)", marginTop: "0.125rem" }}>{storeTotals.newVmt}</div>
+              </div>
+              <div style={{ background: "var(--vf-surface-2)", borderRadius: "10px", padding: "0.75rem", border: "1px solid var(--vf-border)" }}>
+                <div style={{ fontSize: "0.6875rem", color: "var(--vf-text-muted)", fontWeight: "600" }}>At Home Ach</div>
+                <div style={{ fontSize: "1.25rem", fontWeight: "800", color: "#f59e0b", marginTop: "0.125rem" }}>{storeTotals.atHomeAch}</div>
+              </div>
+              <div style={{ background: "var(--vf-surface-2)", borderRadius: "10px", padding: "0.75rem", border: "1px solid var(--vf-border)" }}>
+                <div style={{ fontSize: "0.6875rem", color: "var(--vf-text-muted)", fontWeight: "600" }}>ADSL Ach</div>
+                <div style={{ fontSize: "1.125rem", fontWeight: "800", color: "var(--vf-text)", marginTop: "0.125rem" }}>{storeTotals.adslAch}</div>
+              </div>
+              <div style={{ background: "var(--vf-surface-2)", borderRadius: "10px", padding: "0.75rem", border: "1px solid var(--vf-border)" }}>
+                <div style={{ fontSize: "0.6875rem", color: "var(--vf-text-muted)", fontWeight: "600" }}>Terminal Ach</div>
+                <div style={{ fontSize: "1.125rem", fontWeight: "800", color: "var(--vf-text)", marginTop: "0.125rem" }}>{storeTotals.terminalAch}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* 2) Detailed Breakdown Per Employee (المفصل لكل موظف) */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+            <div style={{ fontSize: "0.9375rem", fontWeight: "800", color: "#fff", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <span>👥</span>
+              <span>Employee RPM Breakdown (تفاصيل الموظفين)</span>
+            </div>
+
+            {storeReports.length === 0 ? (
+              <div className="vf-card" style={{ textAlign: "center", padding: "2rem", color: "var(--vf-text-muted)" }}>
+                لا توجد تقارير لهذا اليوم
+              </div>
+            ) : (
+              storeReports.map((r) => {
+                const empLines = (r.pre + r.f52 + r.f80 + r.aboveF115) + r.mnp + (r.newRed * 3) + r.conRed;
+                const empAcq = empLines + r.newVmt;
+
+                return (
+                  <div key={r.id} className="vf-card" style={{ padding: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--vf-border)", paddingBottom: "0.5rem" }}>
+                      <div style={{ fontWeight: "800", color: "#fff", fontSize: "0.9375rem" }}>
+                        {r.employee.name} RPM
+                      </div>
+                      <div style={{ fontSize: "0.75rem", fontWeight: "800", color: "var(--vf-red-light)", background: "rgba(196,30,58,0.15)", padding: "0.2rem 0.6rem", borderRadius: "999px" }}>
+                        Acq: {empAcq}
+                      </div>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem", textAlign: "center" }}>
+                      <div style={{ background: "var(--vf-surface-2)", borderRadius: "8px", padding: "0.5rem" }}>
+                        <div style={{ fontSize: "0.625rem", color: "var(--vf-text-muted)" }}>Lines</div>
+                        <div style={{ fontSize: "0.9375rem", fontWeight: "800", color: "#fff" }}>{empLines}</div>
+                      </div>
+                      <div style={{ background: "var(--vf-surface-2)", borderRadius: "8px", padding: "0.5rem" }}>
+                        <div style={{ fontSize: "0.625rem", color: "var(--vf-text-muted)" }}>New VMT</div>
+                        <div style={{ fontSize: "0.9375rem", fontWeight: "800", color: "#fff" }}>{r.newVmt}</div>
+                      </div>
+                      <div style={{ background: "var(--vf-surface-2)", borderRadius: "8px", padding: "0.5rem" }}>
+                        <div style={{ fontSize: "0.625rem", color: "var(--vf-text-muted)" }}>At Home</div>
+                        <div style={{ fontSize: "0.9375rem", fontWeight: "800", color: "#f59e0b" }}>{r.atHomeAch}</div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "0.375rem", fontSize: "0.6875rem", color: "var(--vf-text-2)", textAlign: "center" }}>
+                      <div>Pre: <strong>{r.pre}</strong></div>
+                      <div>F52: <strong>{r.f52}</strong></div>
+                      <div>F80: <strong>{r.f80}</strong></div>
+                      <div>F345: <strong>{r.aboveF115}</strong></div>
+                      <div>Red: <strong>{r.newRed}</strong></div>
+                      <div>MNP: <strong>{r.mnp}</strong></div>
+                      <div>ADSL: <strong>{r.adslAch}</strong></div>
+                      <div>Term: <strong>{r.terminalAch}</strong></div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
       )}
 

@@ -1,14 +1,13 @@
 "use client";
 
 import {
-  AT_HOME_REQUIRED,
-  DAILY_ACQUISITION_TARGET,
   DailyReportFormValues,
   buildSmsMessage,
   emptyDailyReportValues,
   normalizeDailyReportValues,
 } from "@/lib/daily-report";
-import { Calculator, CheckCircle2, Edit3, Loader2, Send, Trash2, TrendingUp } from "lucide-react";
+import { Calculator, CheckCircle2, Edit3, Loader2, Send, Trash2, BarChart3 } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { useEffect, useMemo, useState } from "react";
 
 type SavedReport = DailyReportFormValues & {
@@ -27,27 +26,43 @@ function sumField(reports: SavedReport[], field: keyof DailyReportFormValues): n
 }
 
 function calcCumulative(reports: SavedReport[]) {
+  const pre = sumField(reports, "pre");
+  const f52 = sumField(reports, "f52");
+  const f80 = sumField(reports, "f80");
+  const aboveF115 = sumField(reports, "aboveF115");
+  const newRed = sumField(reports, "newRed");
+  const conRed = sumField(reports, "conRed");
+  const mnp = sumField(reports, "mnp");
+  const newVmt = sumField(reports, "newVmt");
+
+  const lines = (pre + f52 + f80 + aboveF115) + mnp + (newRed * 3) + conRed;
+  const acquisition = lines + newVmt;
+
   return {
-    pre:              sumField(reports, "pre"),
-    f52:              sumField(reports, "f52"),
-    f80:              sumField(reports, "f80"),
-    aboveF115:        sumField(reports, "aboveF115"),
-    newVmt:           sumField(reports, "newVmt"),
-    exitVmt:          sumField(reports, "exitVmt"),
-    newRed:           sumField(reports, "newRed"),
-    conRed:           sumField(reports, "conRed"),
-    mnp:              sumField(reports, "mnp"),
-    atHomeAch:        sumField(reports, "atHomeAch"),
-    adslAch:          sumField(reports, "adslAch"),
-    terminalAch:      sumField(reports, "terminalAch"),
+    pre,
+    f52,
+    f80,
+    aboveF115,
+    newVmt,
+    exitVmt: sumField(reports, "exitVmt"),
+    newRed,
+    conRed,
+    mnp,
+    lines,
+    acquisition,
+    atHomeAch: sumField(reports, "atHomeAch"),
+    adslAch: sumField(reports, "adslAch"),
+    terminalAch: sumField(reports, "terminalAch"),
     enterpriseNewAcc: sumField(reports, "enterpriseNewAcc"),
-    enterpriseGas:    sumField(reports, "enterpriseGas"),
-    totalDailyAch:    sumField(reports, "totalDailyAch"),
-    daysCount:        reports.length,
+    enterpriseGas: sumField(reports, "enterpriseGas"),
+    daysCount: reports.length,
   };
 }
 
 export default function DailyReportClient() {
+  const { data: session } = useSession();
+  const userName = session?.user?.name || "Employee";
+
   const [values, setValues] = useState<DailyReportFormValues>(emptyDailyReportValues);
   const [reports, setReports] = useState<SavedReport[]>([]);
   const [loading, setLoading] = useState(true);
@@ -154,55 +169,64 @@ export default function DailyReportClient() {
           <p>Daily Report</p>
           <h1>SMS Submit</h1>
         </div>
-        {/* Cumulative toggle button */}
+        {/* RPM toggle button */}
         <button
           className="vf-btn vf-btn-ghost vf-btn-lg"
           type="button"
           onClick={() => setShowCumulative((v) => !v)}
           style={{ gap: "0.375rem" }}
         >
-          <TrendingUp size={18} />
-          Totals
+          <BarChart3 size={18} />
+          RPM
         </button>
       </section>
 
-      {/* ── Cumulative Totals Card ── */}
+      {/* ── Employee RPM Card ── */}
       {showCumulative && (
-        <section className="vf-card" style={{
-          background: "linear-gradient(135deg, rgba(196,30,58,0.12), var(--vf-surface))",
-          borderColor: "rgba(196,30,58,0.3)",
+        <section className="vf-card animate-fade-up" style={{
+          background: "linear-gradient(135deg, rgba(196,30,58,0.15), var(--vf-surface))",
+          borderColor: "rgba(196,30,58,0.35)",
         }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
-            <div style={{ fontWeight: "800", color: "var(--vf-red-light)", fontSize: "0.875rem", textTransform: "uppercase" }}>
-              📊 Cumulative — {cumulative.daysCount} days
+            <div style={{ fontWeight: "800", color: "#fff", fontSize: "1.125rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <span>📊</span>
+              <span>{userName} RPM</span>
+              <span style={{ fontSize: "0.75rem", color: "var(--vf-text-muted)", fontWeight: "600" }}>
+                ({cumulative.daysCount} days)
+              </span>
             </div>
             <button
               onClick={() => setShowCumulative(false)}
               style={{ background: "none", border: "none", color: "var(--vf-text-muted)", cursor: "pointer", fontSize: "1.25rem" }}
             >✕</button>
           </div>
+
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.625rem" }}>
             {[
-              ["Total Daily Ach", `${cumulative.totalDailyAch} / ${cumulative.daysCount * DAILY_ACQUISITION_TARGET}`],
-              ["At Home Ach",     `${cumulative.atHomeAch} / ${cumulative.daysCount * AT_HOME_REQUIRED}`],
-              ["Pre",             String(cumulative.pre)],
-              ["F52",             String(cumulative.f52)],
-              ["F80",             String(cumulative.f80)],
-              ["F345",            String(cumulative.aboveF115)],
-              ["New Red",         String(cumulative.newRed)],
-              ["New VMT",         String(cumulative.newVmt)],
-              ["MNP",             String(cumulative.mnp)],
-              ["ADSL",            String(cumulative.adslAch)],
-              ["Terminal",        String(cumulative.terminalAch)],
-              ["Ent. New Acc",    String(cumulative.enterpriseNewAcc)],
-            ].map(([label, val]) => (
-              <div key={label} style={{
-                background: "var(--vf-surface-2)", borderRadius: "10px",
+              ["Acquisition", String(cumulative.acquisition), true],
+              ["Lines (F+MNP+Red)", String(cumulative.lines), false],
+              ["New VMT", String(cumulative.newVmt), false],
+              ["At Home Ach", String(cumulative.atHomeAch), false],
+              ["ADSL Ach", String(cumulative.adslAch), false],
+              ["Terminal Ach", String(cumulative.terminalAch), false],
+              ["Enterprise New Acc", String(cumulative.enterpriseNewAcc), false],
+              ["Enterprise Gas", String(cumulative.enterpriseGas), false],
+              ["Pre", String(cumulative.pre), false],
+              ["F52", String(cumulative.f52), false],
+              ["F80", String(cumulative.f80), false],
+              ["F345", String(cumulative.aboveF115), false],
+              ["New Red", String(cumulative.newRed), false],
+              ["Con Red", String(cumulative.conRed), false],
+              ["MNP", String(cumulative.mnp), false],
+            ].map(([label, val, highlight]) => (
+              <div key={label as string} style={{
+                background: highlight ? "rgba(196,30,58,0.2)" : "var(--vf-surface-2)",
+                borderRadius: "10px",
                 padding: "0.625rem 0.875rem",
-                border: "1px solid var(--vf-border)"
+                border: highlight ? "1px solid rgba(196,30,58,0.4)" : "1px solid var(--vf-border)"
               }}>
-                <div style={{ fontSize: "0.6875rem", color: "var(--vf-text-muted)", fontWeight: "600" }}>{label}</div>
-                <div style={{ fontSize: "1rem", fontWeight: "800", color: "var(--vf-text)", marginTop: "0.125rem" }}>{val}</div>
+                <div style={{ fontSize: "0.6875rem", color: highlight ? "var(--vf-red-light)" : "var(--vf-text-muted)", fontWeight: "600" }}>{label}</div>
+                <div style={{ fontSize: highlight ? "1.25rem" : "1rem", fontWeight: "800", color: highlight ? "#fff" : "var(--vf-text)", marginTop: "0.125rem" }}>{val}</div>
               </div>
             ))}
           </div>
@@ -346,8 +370,8 @@ export default function DailyReportClient() {
                   Ach: {report.totalDailyAch} · AtHome: {report.atHomeAch}
                 </span>
               </div>
-              <strong style={{ color: report.atHomeAch >= AT_HOME_REQUIRED ? "var(--vf-success)" : "var(--vf-red-light)" }}>
-                {report.atHomeAch}/{AT_HOME_REQUIRED}
+              <strong style={{ color: "var(--vf-red-light)" }}>
+                {report.totalDailyAch}
               </strong>
             </button>
           ))}
@@ -370,24 +394,18 @@ export default function DailyReportClient() {
           }}>
             <div>
               <div style={{ fontSize: "0.6875rem", color: "var(--vf-text-muted)", fontWeight: "600" }}>
-                Total Ach ({cumulative.daysCount}d)
+                Acquisition ({cumulative.daysCount}d)
               </div>
               <div style={{ fontSize: "1.25rem", fontWeight: "800", color: "var(--vf-red-light)" }}>
-                {cumulative.totalDailyAch}
-                <span style={{ fontSize: "0.75rem", color: "var(--vf-text-muted)", fontWeight: "600" }}>
-                  /{cumulative.daysCount * DAILY_ACQUISITION_TARGET}
-                </span>
+                {cumulative.acquisition}
               </div>
             </div>
             <div>
               <div style={{ fontSize: "0.6875rem", color: "var(--vf-text-muted)", fontWeight: "600" }}>
                 At Home ({cumulative.daysCount}d)
               </div>
-              <div style={{ fontSize: "1.25rem", fontWeight: "800", color: cumulative.atHomeAch >= cumulative.daysCount * AT_HOME_REQUIRED ? "var(--vf-success)" : "#f59e0b" }}>
+              <div style={{ fontSize: "1.25rem", fontWeight: "800", color: "#f59e0b" }}>
                 {cumulative.atHomeAch}
-                <span style={{ fontSize: "0.75rem", color: "var(--vf-text-muted)", fontWeight: "600" }}>
-                  /{cumulative.daysCount * AT_HOME_REQUIRED}
-                </span>
               </div>
             </div>
           </div>
