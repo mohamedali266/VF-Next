@@ -48,7 +48,7 @@ export default function LoginPage() {
           {/* Logo */}
           <div className="login-logo">
             <div className="login-logo-icon">
-              <Image src="/vf-icon.svg" alt="VF-Next" width={36} height={36} priority />
+              <img src="/vf-icon.svg" alt="VF-Next" width={38} height={38} style={{ display: "block" }} />
             </div>
             <div>
               <h1 className="login-logo-title">VF-Next</h1>
@@ -214,19 +214,21 @@ export default function LoginPage() {
 
         .login-logo-icon {
           width: 52px; height: 52px;
-          background: #fff;
-          border: 1px solid rgba(196,30,58,0.3);
+          background: rgba(196,30,58,0.12);
+          border: 1.5px solid rgba(196,30,58,0.4);
           border-radius: 14px;
           display: flex;
           align-items: center;
           justify-content: center;
           flex-shrink: 0;
+          box-shadow: 0 4px 14px rgba(196,30,58,0.2);
         }
 
         .login-logo-icon img {
           width: 36px;
           height: 36px;
           display: block;
+          object-fit: contain;
         }
 
         .login-logo-title {
