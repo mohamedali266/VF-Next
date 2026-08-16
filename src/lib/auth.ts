@@ -1,11 +1,11 @@
-import NextAuth from "next-auth";
+import NextAuth, { type User as AuthUser } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 
 const loginSchema = z.object({
-  email: z.string().email(),
+  identifier: z.string().trim().min(1),
   password: z.string().min(6),
 });
 
@@ -18,7 +18,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.role = (user as any).role;
+        token.role = (user as AuthUser).role;
         token.name = user.name;
       }
       return token;
@@ -26,7 +26,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async session({ session, token }) {
       if (token) {
         session.user.id = token.id as string;
-        (session.user as any).role = token.role;
+        session.user.role = token.role as AuthUser["role"];
         session.user.name = token.name;
       }
       return session;
@@ -36,17 +36,23 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     Credentials({
       name: "credentials",
       credentials: {
-        email: { label: "Email", type: "email" },
+        identifier: { label: "VPN num or Username", type: "text" },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
         const parsed = loginSchema.safeParse(credentials);
         if (!parsed.success) return null;
 
-        const { email, password } = parsed.data;
+        const { identifier, password } = parsed.data;
 
-        const user = await prisma.user.findUnique({
-          where: { email, isActive: true },
+        const user = await prisma.user.findFirst({
+          where: {
+            isActive: true,
+            OR: [
+              { vpnNum: identifier },
+              { username: identifier.toLowerCase() },
+            ],
+          },
         });
 
         if (!user) return null;

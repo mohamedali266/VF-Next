@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -18,13 +18,13 @@ export default function LoginPage() {
     setError("");
 
     const res = await signIn("credentials", {
-      email,
+      identifier,
       password,
       redirect: false,
     });
 
     if (res?.error) {
-      setError("البريد الإلكتروني أو كلمة المرور غير صحيحة");
+      setError("VPN num / Username أو كلمة المرور غير صحيحة");
       setLoading(false);
     } else {
       router.push("/");
@@ -54,8 +54,8 @@ export default function LoginPage() {
               </svg>
             </div>
             <div>
-              <h1 className="login-logo-title">NOX SYSTEM</h1>
-              <p className="login-logo-sub">نظام إدارة الموظفين</p>
+              <h1 className="login-logo-title">VF-Next</h1>
+              <p className="login-logo-sub">Vodafone daily operations</p>
             </div>
           </div>
 
@@ -76,21 +76,20 @@ export default function LoginPage() {
           {/* Form */}
           <form onSubmit={handleSubmit} className="login-form animate-fade-up animate-fade-up-delay-2">
             <div className="login-field">
-              <label className="nox-label" htmlFor="email">
-                البريد الإلكتروني
+              <label className="nox-label" htmlFor="identifier">
+                VPN num or Username
               </label>
               <div className="login-input-wrapper">
-                <span className="login-input-icon">✉️</span>
+                <span className="login-input-icon">#</span>
                 <input
-                  id="email"
-                  type="email"
+                  id="identifier"
+                  type="text"
                   className="nox-input login-input"
-                  placeholder="example@company.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="vpn number or username"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
                   required
-                  autoComplete="email"
-                  inputMode="email"
+                  autoComplete="username"
                 />
               </div>
             </div>
@@ -137,7 +136,7 @@ export default function LoginPage() {
 
           {/* Footer */}
           <p className="login-footer animate-fade-up animate-fade-up-delay-3">
-            NOX System v1.0 — جميع الحقوق محفوظة
+            VF-Next v1.0
           </p>
         </div>
       </div>

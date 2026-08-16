@@ -15,8 +15,10 @@ type SmsReport = DailyReportFormValues & {
     id: string;
     name: string;
     email: string;
+    username: string | null;
+    vpnNum: string | null;
+    staffId: string | null;
     role: string;
-    department: string | null;
   };
   branch: {
     id: string;

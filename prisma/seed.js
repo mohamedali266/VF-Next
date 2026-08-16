@@ -9,14 +9,16 @@ async function main() {
   const hashedPassword = await bcrypt.hash("Admin@123", 12);
 
   const admin = await prisma.user.upsert({
-    where: { email: "admin@vf-next.local" },
+    where: { email: "admin@vodafone.com.eg" },
     update: {},
     create: {
       name: "Admin VF-Next",
-      email: "admin@vf-next.local",
+      email: "admin@vodafone.com.eg",
+      username: "admin",
+      vpnNum: "1000",
+      staffId: "ADM1000",
       password: hashedPassword,
       role: "ADMIN",
-      department: "Management",
       isActive: true,
     },
   });
@@ -26,14 +28,16 @@ async function main() {
   // Create a test Manager
   const managerPass = await bcrypt.hash("Manager@123", 12);
   const manager = await prisma.user.upsert({
-    where: { email: "manager@vf-next.local" },
+    where: { email: "manager@vodafone.com.eg" },
     update: {},
     create: {
       name: "مدير القسم",
-      email: "manager@vf-next.local",
+      email: "manager@vodafone.com.eg",
+      username: "manager",
+      vpnNum: "2000",
+      staffId: "MGR2000",
       password: managerPass,
       role: "MANAGER",
-      department: "Operations",
       isActive: true,
     },
   });
@@ -42,14 +46,16 @@ async function main() {
   // Create a test Employee
   const empPass = await bcrypt.hash("Employee@123", 12);
   const employee = await prisma.user.upsert({
-    where: { email: "employee@vf-next.local" },
+    where: { email: "employee@vodafone.com.eg" },
     update: {},
     create: {
       name: "موظف تجريبي",
-      email: "employee@vf-next.local",
+      email: "employee@vodafone.com.eg",
+      username: "employee",
+      vpnNum: "3000",
+      staffId: "EMP3000",
       password: empPass,
       role: "EMPLOYEE",
-      department: "Operations",
       isActive: true,
     },
   });
@@ -57,9 +63,9 @@ async function main() {
 
   console.log("\n🎉 Seed completed successfully!");
   console.log("─────────────────────────────────");
-  console.log("Admin    → admin@vf-next.local    / Admin@123");
-  console.log("Manager  → manager@vf-next.local  / Manager@123");
-  console.log("Employee → employee@vf-next.local / Employee@123");
+  console.log("Admin    → admin or 1000    / Admin@123");
+  console.log("Manager  → manager or 2000  / Manager@123");
+  console.log("Employee → employee or 3000 / Employee@123");
   console.log("─────────────────────────────────");
 }
 

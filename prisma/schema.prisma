@@ -30,6 +30,9 @@ model User {
   id          String   @id @default(cuid())
   name        String
   email       String   @unique
+  username    String?  @unique
+  vpnNum      String?  @unique
+  staffId     String?  @unique
   password    String
   role        Role     @default(EMPLOYEE)
   department  String?

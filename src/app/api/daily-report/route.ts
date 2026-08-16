@@ -35,7 +35,7 @@ function toDateInput(value: Date) {
 
 type DailyReportWithRelations = Prisma.DailyReportGetPayload<{
   include: {
-    employee: { select: { id: true; name: true; email: true; role: true; department: true } };
+    employee: { select: { id: true; name: true; email: true; username: true; vpnNum: true; staffId: true; role: true } };
     branch: { select: { id: true; name: true; code: true } };
   };
 }>;
@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
         ...(scopedBranchId ? { branchId: scopedBranchId } : {}),
       },
       include: {
-        employee: { select: { id: true, name: true, email: true, role: true, department: true } },
+        employee: { select: { id: true, name: true, email: true, username: true, vpnNum: true, staffId: true, role: true } },
         branch: { select: { id: true, name: true, code: true } },
       },
       orderBy: [{ branch: { name: "asc" } }, { employee: { name: "asc" } }],
@@ -172,7 +172,7 @@ export async function POST(req: NextRequest) {
       totalDailyAch,
     },
     include: {
-      employee: { select: { id: true, name: true, email: true, role: true, department: true } },
+      employee: { select: { id: true, name: true, email: true, username: true, vpnNum: true, staffId: true, role: true } },
       branch: { select: { id: true, name: true, code: true } },
     },
   });
