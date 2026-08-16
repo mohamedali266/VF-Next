@@ -92,12 +92,53 @@ export async function GET(
 
   const targetDate = new Date(`${date}T00:00:00.000Z`);
 
-  // Daily reports for this branch
+  // Daily reports for target date
   const dailyReports = await prisma.dailyReport.findMany({
     where: { branchId: id, date: targetDate },
     include: { employee: { select: { id: true, name: true } } },
     orderBy: { employee: { name: "asc" } },
   });
+
+  // Calculate Month Ranges
+  const year = targetDate.getUTCFullYear();
+  const month = targetDate.getUTCMonth(); // 0-indexed
+
+  const currentMonthStart = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0));
+  const currentMonthEnd = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59, 999));
+
+  const lastMonthStart = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0));
+  const lastMonthEnd = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
+
+  const todayDayOfMonth = new Date().getDate();
+  const lastMonthExpired = todayDayOfMonth > 25;
+
+  // Monthly reports for current month (1st of month to end of month)
+  const monthlyReports = await prisma.dailyReport.findMany({
+    where: {
+      branchId: id,
+      date: {
+        gte: currentMonthStart,
+        lte: currentMonthEnd,
+      },
+    },
+    include: { employee: { select: { id: true, name: true } } },
+    orderBy: [{ date: "asc" }, { employee: { name: "asc" } }],
+  });
+
+  // Monthly reports for last month (unless expired after day 25)
+  const lastMonthReports = lastMonthExpired
+    ? []
+    : await prisma.dailyReport.findMany({
+        where: {
+          branchId: id,
+          date: {
+            gte: lastMonthStart,
+            lte: lastMonthEnd,
+          },
+        },
+        include: { employee: { select: { id: true, name: true } } },
+        orderBy: [{ date: "asc" }, { employee: { name: "asc" } }],
+      });
 
   // Health checks for employees of this branch
   const healthChecks = await prisma.healthCheck.findMany({
@@ -124,13 +165,29 @@ export async function GET(
     healthChecks as Array<Record<string, unknown>>
   );
 
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+  const currentMonthLabel = `${monthNames[month]} ${year}`;
+  const lastMonthIndex = (month + 11) % 12;
+  const lastMonthYear = month === 0 ? year - 1 : year;
+  const lastMonthLabel = `${monthNames[lastMonthIndex]} ${lastMonthYear}`;
+
+  const serialize = (r: typeof dailyReports[number]) => ({
+    ...r,
+    date: r.date.toISOString().slice(0, 10),
+  });
+
   return NextResponse.json({
     branch: { id: branch.id, name: branch.name, code: branch.code },
     members: branch.users,
-    dailyReports: dailyReports.map((r) => ({
-      ...r,
-      date: r.date.toISOString().slice(0, 10),
-    })),
+    dailyReports: dailyReports.map(serialize),
+    monthlyReports: monthlyReports.map(serialize),
+    lastMonthReports: lastMonthReports.map(serialize),
+    lastMonthExpired,
+    currentMonthLabel,
+    lastMonthLabel,
     healthChecks,
     smsMessage,
     healthReport,
