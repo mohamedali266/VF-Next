@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   if (!session) redirect("/login");
-  const user = session.user as any;
+  const user = session.user;
   if (user.role !== "ADMIN") redirect("/employee");
 
   return (
@@ -22,7 +22,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               fontSize: "1.125rem"
             }}>⚡</div>
             <div>
-              <div style={{ fontSize: "0.625rem", color: "var(--nox-text-muted)", textTransform: "uppercase", letterSpacing: "0.1em" }}>NOX SYSTEM</div>
+              <div style={{ fontSize: "0.625rem", color: "var(--nox-text-muted)", textTransform: "uppercase", letterSpacing: "0.1em" }}>VF-Next</div>
               <div style={{ fontSize: "0.875rem", fontWeight: "700", color: "var(--nox-text)" }}>{user.name}</div>
             </div>
           </div>
