@@ -2,12 +2,13 @@
 
 import {
   AT_HOME_REQUIRED,
+  DAILY_ACQUISITION_TARGET,
   DailyReportFormValues,
   buildSmsMessage,
   emptyDailyReportValues,
   normalizeDailyReportValues,
 } from "@/lib/daily-report";
-import { Calculator, CheckCircle2, Loader2, Send, Trash2 } from "lucide-react";
+import { Calculator, CheckCircle2, Edit3, Loader2, Send, Trash2, TrendingUp } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 type SavedReport = DailyReportFormValues & {
@@ -17,10 +18,32 @@ type SavedReport = DailyReportFormValues & {
 };
 
 function asFormReport(report: SavedReport): DailyReportFormValues {
+  return { ...emptyDailyReportValues, ...report, date: report.date };
+}
+
+/** Sum a numeric field across all saved reports */
+function sumField(reports: SavedReport[], field: keyof DailyReportFormValues): number {
+  return reports.reduce((s, r) => s + ((r[field] as number) || 0), 0);
+}
+
+function calcCumulative(reports: SavedReport[]) {
   return {
-    ...emptyDailyReportValues,
-    ...report,
-    date: report.date,
+    pre:              sumField(reports, "pre"),
+    f52:              sumField(reports, "f52"),
+    f80:              sumField(reports, "f80"),
+    aboveF115:        sumField(reports, "aboveF115"),
+    newVmt:           sumField(reports, "newVmt"),
+    exitVmt:          sumField(reports, "exitVmt"),
+    newRed:           sumField(reports, "newRed"),
+    conRed:           sumField(reports, "conRed"),
+    mnp:              sumField(reports, "mnp"),
+    atHomeAch:        sumField(reports, "atHomeAch"),
+    adslAch:          sumField(reports, "adslAch"),
+    terminalAch:      sumField(reports, "terminalAch"),
+    enterpriseNewAcc: sumField(reports, "enterpriseNewAcc"),
+    enterpriseGas:    sumField(reports, "enterpriseGas"),
+    totalDailyAch:    sumField(reports, "totalDailyAch"),
+    daysCount:        reports.length,
   };
 }
 
@@ -33,9 +56,16 @@ export default function DailyReportClient() {
   const [calcOpen, setCalcOpen] = useState(false);
   const [calcText, setCalcText] = useState("");
   const [assignedStoreName, setAssignedStoreName] = useState("");
+  const [showCumulative, setShowCumulative] = useState(false);
 
   const normalized = useMemo(() => normalizeDailyReportValues(values), [values]);
   const smsPreview = useMemo(() => buildSmsMessage(normalized), [normalized]);
+  const cumulative = useMemo(() => calcCumulative(reports), [reports]);
+
+  // Check if today's report already exists (editing mode)
+  const today = new Date().toISOString().slice(0, 10);
+  const isEditMode = reports.some((r) => r.date === values.date);
+  const isToday = values.date === today;
 
   useEffect(() => {
     async function loadReport() {
@@ -44,16 +74,16 @@ export default function DailyReportClient() {
       const data = await res.json();
       if ("storeName" in data) setAssignedStoreName(data.storeName || "No store assigned");
       if (data.report) setValues(asFormReport(data.report));
-      if (!data.report && data.storeName) setValues((current) => ({ ...current, storeName: data.storeName }));
+      if (!data.report && data.storeName) setValues((c) => ({ ...c, storeName: data.storeName }));
       setReports(data.reports || []);
       setLoading(false);
     }
-
     loadReport();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [values.date]);
 
   function setField<K extends keyof DailyReportFormValues>(field: K, value: DailyReportFormValues[K]) {
-    setValues((current) => normalizeDailyReportValues({ ...current, [field]: value }));
+    setValues((c) => normalizeDailyReportValues({ ...c, [field]: value }));
   }
 
   function setNumericField(field: keyof DailyReportFormValues, rawValue: string) {
@@ -82,32 +112,28 @@ export default function DailyReportClient() {
     const reload = await fetch(`/api/daily-report?date=${normalized.date}`);
     const reloaded = await reload.json();
     setReports(reloaded.reports || []);
-    setMessage("تم إرسال التقرير وحفظه");
+    setMessage(isEditMode ? "✅ تم تحديث التقرير" : "✅ تم إرسال التقرير");
     setSaving(false);
   }
 
   function clearForm() {
-    setValues({
-      ...emptyDailyReportValues,
-      date: values.date,
-      storeName: values.storeName || emptyDailyReportValues.storeName,
-    });
+    setValues({ ...emptyDailyReportValues, date: values.date, storeName: assignedStoreName || values.storeName });
     setMessage("");
   }
 
   function applyTerminalSum() {
     const sum = calcText
       .split(/\r?\n/)
-      .map((line) => Number(line.trim()))
-      .filter((num) => Number.isFinite(num))
-      .reduce((total, num) => total + num, 0);
+      .map((l) => Number(l.trim()))
+      .filter((n) => Number.isFinite(n))
+      .reduce((t, n) => t + n, 0);
     setNumericField("terminalAch", String(sum));
     setCalcText("");
     setCalcOpen(false);
   }
 
   const fieldInput = (field: keyof DailyReportFormValues, label: string, readOnly = false) => (
-    <label className="daily-field">
+    <label className="daily-field" key={field}>
       <span>{label}</span>
       <input
         className="vf-input"
@@ -116,7 +142,7 @@ export default function DailyReportClient() {
         inputMode="numeric"
         value={String(values[field] || "")}
         readOnly={readOnly}
-        onChange={(event) => setNumericField(field, event.target.value)}
+        onChange={(e) => setNumericField(field, e.target.value)}
       />
     </label>
   );
@@ -128,8 +154,62 @@ export default function DailyReportClient() {
           <p>Daily Report</p>
           <h1>SMS Submit</h1>
         </div>
+        {/* Cumulative toggle button */}
+        <button
+          className="vf-btn vf-btn-ghost vf-btn-lg"
+          type="button"
+          onClick={() => setShowCumulative((v) => !v)}
+          style={{ gap: "0.375rem" }}
+        >
+          <TrendingUp size={18} />
+          Totals
+        </button>
       </section>
 
+      {/* ── Cumulative Totals Card ── */}
+      {showCumulative && (
+        <section className="vf-card" style={{
+          background: "linear-gradient(135deg, rgba(196,30,58,0.12), var(--vf-surface))",
+          borderColor: "rgba(196,30,58,0.3)",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
+            <div style={{ fontWeight: "800", color: "var(--vf-red-light)", fontSize: "0.875rem", textTransform: "uppercase" }}>
+              📊 Cumulative — {cumulative.daysCount} days
+            </div>
+            <button
+              onClick={() => setShowCumulative(false)}
+              style={{ background: "none", border: "none", color: "var(--vf-text-muted)", cursor: "pointer", fontSize: "1.25rem" }}
+            >✕</button>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.625rem" }}>
+            {[
+              ["Total Daily Ach", `${cumulative.totalDailyAch} / ${cumulative.daysCount * DAILY_ACQUISITION_TARGET}`],
+              ["At Home Ach",     `${cumulative.atHomeAch} / ${cumulative.daysCount * AT_HOME_REQUIRED}`],
+              ["Pre",             String(cumulative.pre)],
+              ["F52",             String(cumulative.f52)],
+              ["F80",             String(cumulative.f80)],
+              ["F345",            String(cumulative.aboveF115)],
+              ["New Red",         String(cumulative.newRed)],
+              ["New VMT",         String(cumulative.newVmt)],
+              ["MNP",             String(cumulative.mnp)],
+              ["ADSL",            String(cumulative.adslAch)],
+              ["Terminal",        String(cumulative.terminalAch)],
+              ["Ent. New Acc",    String(cumulative.enterpriseNewAcc)],
+            ].map(([label, val]) => (
+              <div key={label} style={{
+                background: "var(--vf-surface-2)", borderRadius: "10px",
+                padding: "0.625rem 0.875rem",
+                border: "1px solid var(--vf-border)"
+              }}>
+                <div style={{ fontSize: "0.6875rem", color: "var(--vf-text-muted)", fontWeight: "600" }}>{label}</div>
+                <div style={{ fontSize: "1rem", fontWeight: "800", color: "var(--vf-text)", marginTop: "0.125rem" }}>{val}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── Form Card ── */}
       <section className="vf-card daily-form-card">
         <div className="daily-form-top">
           <label className="daily-field">
@@ -138,9 +218,28 @@ export default function DailyReportClient() {
           </label>
           <label className="daily-field">
             <span>Date</span>
-            <input className="vf-input" type="date" value={values.date} onChange={(event) => setField("date", event.target.value)} />
+            <input
+              className="vf-input"
+              type="date"
+              value={values.date}
+              max={today}
+              onChange={(e) => setField("date", e.target.value)}
+            />
           </label>
         </div>
+
+        {/* Edit mode badge */}
+        {isEditMode && (
+          <div style={{
+            display: "flex", alignItems: "center", gap: "0.5rem",
+            background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.3)",
+            borderRadius: "10px", padding: "0.5rem 0.875rem", marginBottom: "0.5rem",
+            fontSize: "0.8125rem", color: "#f59e0b", fontWeight: "600"
+          }}>
+            <Edit3 size={15} />
+            {isToday ? "Editing today's report — changes will overwrite" : "Editing saved report"}
+          </div>
+        )}
 
         <ReportSection title="Acquisition">
           {fieldInput("pre", "Pre")}
@@ -160,7 +259,7 @@ export default function DailyReportClient() {
             <select
               className="vf-input"
               value={values.atHomeType}
-              onChange={(event) => setField("atHomeType", event.target.value as DailyReportFormValues["atHomeType"])}
+              onChange={(e) => setField("atHomeType", e.target.value as DailyReportFormValues["atHomeType"])}
             >
               <option value="FOUR_G">At Home 4G (58)</option>
               <option value="FIVE_G">At Home 5G (105)</option>
@@ -175,7 +274,7 @@ export default function DailyReportClient() {
           <div className="daily-section-title">*Terminal</div>
           <div className="terminal-row">
             {fieldInput("terminalAch", "Terminal Ach")}
-            <button className="vf-btn vf-btn-ghost calc-btn" type="button" onClick={() => setCalcOpen(true)} aria-label="Terminal calculator">
+            <button className="vf-btn vf-btn-ghost calc-btn" type="button" onClick={() => setCalcOpen(true)}>
               <Calculator size={20} />
             </button>
           </div>
@@ -196,42 +295,115 @@ export default function DailyReportClient() {
         <div className="daily-actions">
           <button className="vf-btn vf-btn-ghost vf-btn-lg" type="button" onClick={clearForm}>
             <Trash2 size={18} />
-            Clear Today
+            Clear
           </button>
-          <button className="vf-btn vf-btn-primary vf-btn-lg" type="button" onClick={submitReport} disabled={saving || loading}>
-            {saving ? <Loader2 className="daily-spin" size={18} /> : <Send size={18} />}
-            Submit
+          <button
+            className="vf-btn vf-btn-primary vf-btn-lg"
+            type="button"
+            onClick={submitReport}
+            disabled={saving || loading}
+          >
+            {saving ? <Loader2 className="daily-spin" size={18} /> : isEditMode ? <Edit3 size={18} /> : <Send size={18} />}
+            {isEditMode ? "Update" : "Submit"}
           </button>
         </div>
       </section>
 
+      {/* ── SMS Preview ── */}
       <section className="vf-card daily-preview">
         <div className="daily-section-title">SMS Preview</div>
         <textarea className="vf-input" value={smsPreview} readOnly />
       </section>
 
+      {/* ── Saved Reports ── */}
       <section className="vf-card daily-history">
-        <div className="daily-section-title">Saved Reports</div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.875rem" }}>
+          <div className="daily-section-title" style={{ marginBottom: 0 }}>
+            Saved Reports ({reports.length})
+          </div>
+          {cumulative.daysCount > 0 && (
+            <span style={{ fontSize: "0.75rem", color: "var(--vf-text-muted)", fontWeight: "600" }}>
+              Tap to edit
+            </span>
+          )}
+        </div>
         <div className="daily-history-list">
           {reports.map((report) => (
-            <button key={report.id} type="button" onClick={() => setValues(asFormReport(report))}>
-              <span>{report.date}</span>
-              <strong>{report.atHomeAch}/{AT_HOME_REQUIRED}</strong>
+            <button
+              key={report.id}
+              type="button"
+              onClick={() => setValues(asFormReport(report))}
+              style={{
+                borderColor: values.date === report.date ? "rgba(196,30,58,0.5)" : undefined,
+                background: values.date === report.date ? "rgba(196,30,58,0.08)" : undefined,
+              }}
+            >
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "0.125rem" }}>
+                <span style={{ fontSize: "0.875rem", fontWeight: "700", color: "var(--vf-text)" }}>
+                  {report.date}
+                </span>
+                <span style={{ fontSize: "0.6875rem", color: "var(--vf-text-muted)" }}>
+                  Ach: {report.totalDailyAch} · AtHome: {report.atHomeAch}
+                </span>
+              </div>
+              <strong style={{ color: report.atHomeAch >= AT_HOME_REQUIRED ? "var(--vf-success)" : "var(--vf-red-light)" }}>
+                {report.atHomeAch}/{AT_HOME_REQUIRED}
+              </strong>
             </button>
           ))}
-          {!reports.length && <p>{loading ? "Loading..." : "لا توجد تقارير محفوظة"}</p>}
+          {!reports.length && (
+            <p>{loading ? "Loading..." : "لا توجد تقارير محفوظة"}</p>
+          )}
         </div>
+
+        {/* Running cumulative summary at bottom */}
+        {cumulative.daysCount > 0 && (
+          <div style={{
+            marginTop: "1rem",
+            padding: "0.875rem",
+            background: "var(--vf-surface-2)",
+            borderRadius: "12px",
+            border: "1px solid var(--vf-border)",
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "0.625rem",
+          }}>
+            <div>
+              <div style={{ fontSize: "0.6875rem", color: "var(--vf-text-muted)", fontWeight: "600" }}>
+                Total Ach ({cumulative.daysCount}d)
+              </div>
+              <div style={{ fontSize: "1.25rem", fontWeight: "800", color: "var(--vf-red-light)" }}>
+                {cumulative.totalDailyAch}
+                <span style={{ fontSize: "0.75rem", color: "var(--vf-text-muted)", fontWeight: "600" }}>
+                  /{cumulative.daysCount * DAILY_ACQUISITION_TARGET}
+                </span>
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: "0.6875rem", color: "var(--vf-text-muted)", fontWeight: "600" }}>
+                At Home ({cumulative.daysCount}d)
+              </div>
+              <div style={{ fontSize: "1.25rem", fontWeight: "800", color: cumulative.atHomeAch >= cumulative.daysCount * AT_HOME_REQUIRED ? "var(--vf-success)" : "#f59e0b" }}>
+                {cumulative.atHomeAch}
+                <span style={{ fontSize: "0.75rem", color: "var(--vf-text-muted)", fontWeight: "600" }}>
+                  /{cumulative.daysCount * AT_HOME_REQUIRED}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
       </section>
 
+      {/* Terminal Calculator Modal */}
       {calcOpen && (
         <div className="daily-modal" onClick={() => setCalcOpen(false)}>
-          <div className="daily-modal-card" onClick={(event) => event.stopPropagation()}>
+          <div className="daily-modal-card" onClick={(e) => e.stopPropagation()}>
             <h3>Terminal Calculator</h3>
             <textarea
               className="vf-input"
               rows={6}
               value={calcText}
-              onChange={(event) => setCalcText(event.target.value)}
+              onChange={(e) => setCalcText(e.target.value)}
               placeholder={"10\n20\n30"}
             />
             <div className="daily-actions">

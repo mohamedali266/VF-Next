@@ -7,12 +7,5 @@ export default async function StorePage({ params }: { params: Promise<{ id: stri
   if (!session) redirect("/login");
 
   const { id } = await params;
-
-  return (
-    <div className="vf-page" style={{ paddingBottom: "2rem" }}>
-      <div style={{ padding: "1.25rem" }}>
-        <StoreClient storeId={id} />
-      </div>
-    </div>
-  );
+  return <StoreClient storeId={id} />;
 }
