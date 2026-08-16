@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import Image from "next/image";
 import ManagerBottomNav from "@/components/layout/ManagerBottomNav";
 
 export default async function ManagerLayout({ children }: { children: React.ReactNode }) {
@@ -19,8 +20,9 @@ export default async function ManagerLayout({ children }: { children: React.Reac
               border: "1px solid rgba(196,30,58,0.4)",
               borderRadius: "10px",
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: "1.125rem"
-            }}>🛡️</div>
+              fontSize: "1.125rem",
+              overflow: "hidden"
+            }}><Image src="/vf-icon.svg" alt="VF-Next" width={28} height={28} /></div>
             <div>
               <div style={{ fontSize: "0.625rem", color: "var(--vf-text-muted)", textTransform: "uppercase", letterSpacing: "0.1em" }}>VF-Next</div>
               <div style={{ fontSize: "0.875rem", fontWeight: "700", color: "var(--vf-text)" }}>{user.name}</div>

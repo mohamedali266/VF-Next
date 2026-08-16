@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
@@ -47,11 +48,7 @@ export default function LoginPage() {
           {/* Logo */}
           <div className="login-logo">
             <div className="login-logo-icon">
-              <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-                <path d="M16 2L28 9V23L16 30L4 23V9L16 2Z" fill="var(--vf-red)" opacity="0.2"/>
-                <path d="M16 2L28 9V23L16 30L4 23V9L16 2Z" stroke="var(--vf-red)" strokeWidth="1.5"/>
-                <path d="M10 16L14 20L22 12" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+              <Image src="/vf-icon.svg" alt="VF-Next" width={36} height={36} priority />
             </div>
             <div>
               <h1 className="login-logo-title">VF-Next</h1>
@@ -217,13 +214,19 @@ export default function LoginPage() {
 
         .login-logo-icon {
           width: 52px; height: 52px;
-          background: rgba(196,30,58,0.1);
+          background: #fff;
           border: 1px solid rgba(196,30,58,0.3);
           border-radius: 14px;
           display: flex;
           align-items: center;
           justify-content: center;
           flex-shrink: 0;
+        }
+
+        .login-logo-icon img {
+          width: 36px;
+          height: 36px;
+          display: block;
         }
 
         .login-logo-title {

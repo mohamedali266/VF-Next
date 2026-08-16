@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import Image from "next/image";
 import EmployeeBottomNav from "@/components/layout/EmployeeBottomNav";
 
 export default async function EmployeeLayout({
@@ -25,9 +26,10 @@ export default async function EmployeeLayout({
               border: "1px solid rgba(196,30,58,0.4)",
               borderRadius: "10px",
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: "1.125rem"
+              fontSize: "1.125rem",
+              overflow: "hidden"
             }}>
-              🛡️
+              <Image src="/vf-icon.svg" alt="VF-Next" width={28} height={28} />
             </div>
             <div>
               <div style={{ fontSize: "0.625rem", color: "var(--vf-text-muted)", textTransform: "uppercase", letterSpacing: "0.1em" }}>VF-Next</div>
