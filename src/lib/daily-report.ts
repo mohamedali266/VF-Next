@@ -22,7 +22,7 @@ export type DailyReportFormValues = {
   totalDailyAch: number;
 };
 
-export const DAILY_ACQUISITION_TARGET = 137;
+export const DAILY_ACQUISITION_TARGET = 49;
 export const AT_HOME_REQUIRED = 90;
 export const ADSL_REQUIRED = 1;
 export const TERMINAL_REQUIRED = 32000;
