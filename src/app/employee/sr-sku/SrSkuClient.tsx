@@ -139,9 +139,8 @@ export default function SrSkuClient() {
       {/* Hero */}
       <div className="daily-hero animate-fade-up">
         <div>
-          <p>Service Requests & SKU Directory</p>
+          <p>Service Requests & SKU</p>
           <h1>📋 SR & SKU</h1>
-          <span>دليل طلبات الخدمة ورموز الـ SKU والباكات المتاحة.</span>
         </div>
       </div>
 
@@ -159,7 +158,7 @@ export default function SrSkuClient() {
           }}
         >
           <FileText size={18} />
-          📝 SR (Service Requests)
+          SR
         </button>
 
         <button
@@ -174,7 +173,7 @@ export default function SrSkuClient() {
           }}
         >
           <Package size={18} />
-          🏷️ SKU Directory
+          SKU
         </button>
       </div>
 

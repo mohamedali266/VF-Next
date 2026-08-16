@@ -270,7 +270,7 @@ export default function StoreClient({ storeId }: { storeId: string }) {
           [
             ["team", "👥 Team"],
             ["sms", "📱 SMS"],
-            ["health", "🏥 Health"],
+            ["health", "📋 Health"],
             ["rpm", "📊 Store RPM"],
             ["lastMonth", "🗓️ Last Month"],
           ] as [Tab, string][]
@@ -406,7 +406,7 @@ export default function StoreClient({ storeId }: { storeId: string }) {
         <div className="animate-fade-up" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           <div className="vf-card" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem" }}>
             <div>
-              <div style={{ fontSize: "0.875rem", fontWeight: "700", color: "#fff" }}>🏥 Health Report</div>
+              <div style={{ fontSize: "0.875rem", fontWeight: "700", color: "#fff" }}>📋 Health Report</div>
               <div style={{ fontSize: "0.75rem", color: "var(--vf-text-muted)", marginTop: "0.125rem" }}>
                 {data?.checksCount ?? 0} health checks · Read-only
               </div>
