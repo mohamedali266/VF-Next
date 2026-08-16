@@ -245,8 +245,6 @@ export default function StoreClient({ storeId }: { storeId: string }) {
         </div>
         <div style={{ display: "flex", gap: "1rem", fontSize: "0.75rem", color: "var(--vf-text-muted)" }}>
           <span>👥 {data?.members.length ?? "—"} members</span>
-          <span>📊 {data?.reportsCount ?? "—"} reports today</span>
-          <span>🏥 {data?.checksCount ?? "—"} checks</span>
         </div>
       </div>
 
