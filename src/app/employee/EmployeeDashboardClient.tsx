@@ -76,6 +76,40 @@ export default function EmployeeDashboardClient({ userName, todayText, branchId 
           <div className="vf-section-line" />
         </div>
 
+        {/* Telegram Bot Highlight Banner */}
+        <div
+          onClick={() => setTelegramModalOpen(true)}
+          className="vf-card animate-fade-up"
+          style={{
+            marginBottom: "0.875rem",
+            padding: "1rem 1.25rem",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "1rem",
+            borderColor: "rgba(56,189,248,0.4)",
+            background: "linear-gradient(135deg, rgba(56,189,248,0.15) 0%, var(--vf-surface) 100%)",
+            cursor: "pointer",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}>
+            <div className="vf-number-badge" style={{ width: 44, height: 44, color: "#38bdf8", background: "rgba(56,189,248,0.15)" }}>
+              <Send size={22} />
+            </div>
+            <div>
+              <div style={{ fontSize: "1rem", fontWeight: "800", color: "#fff" }}>
+                🤖 Telegram Bot Notifications
+              </div>
+              <div style={{ fontSize: "0.78125rem", color: "var(--vf-text-2)", marginTop: "0.125rem" }}>
+                ربط حساب التليجرام لتلقي التنبيهات والاستعلامات
+              </div>
+            </div>
+          </div>
+          <span className="vf-btn vf-btn-ghost vf-btn-sm" style={{ color: "#38bdf8", border: "1px solid rgba(56,189,248,0.4)" }}>
+            ربط الآن
+          </span>
+        </div>
+
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.875rem" }}>
           {actions.map((item, index) => (
             <Link key={item.id} href={item.href} style={{ textDecoration: "none" }}>
