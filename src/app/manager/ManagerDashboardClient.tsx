@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { KeyRound } from "lucide-react";
+import { KeyRound, Send } from "lucide-react";
 import ResetPasswordModal from "@/components/auth/ResetPasswordModal";
+import TelegramLinkModal from "@/components/auth/TelegramLinkModal";
 
 type DashboardProps = {
   userName: string;
@@ -13,6 +14,7 @@ type DashboardProps = {
 
 export default function ManagerDashboardClient({ userName, todayText, branchId }: DashboardProps) {
   const [resetModalOpen, setResetModalOpen] = useState(false);
+  const [telegramModalOpen, setTelegramModalOpen] = useState(false);
 
   const actions = [
     // 1) My Store (FIRST if branchId exists)
@@ -86,6 +88,33 @@ export default function ManagerDashboardClient({ userName, todayText, branchId }
             </Link>
           ))}
 
+          {/* Telegram Bot Card */}
+          <div
+            onClick={() => setTelegramModalOpen(true)}
+            className="vf-card animate-fade-up"
+            style={{
+              minHeight: 140,
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              borderColor: "rgba(56,189,248,0.3)",
+              background: "linear-gradient(135deg, rgba(56,189,248,0.08), var(--vf-surface))",
+              cursor: "pointer",
+            }}
+          >
+            <div className="vf-number-badge" style={{ width: 42, height: 42, color: "#38bdf8" }}>
+              <Send size={20} />
+            </div>
+            <div>
+              <div style={{ fontSize: "0.95rem", fontWeight: "800", color: "var(--vf-text)" }}>
+                Telegram Bot
+              </div>
+              <div style={{ fontSize: "0.75rem", color: "var(--vf-text-muted)", marginTop: "0.25rem" }}>
+                ربط حساب التليجرام والتنبيهات
+              </div>
+            </div>
+          </div>
+
           {/* Reset Password Card */}
           <div
             onClick={() => setResetModalOpen(true)}
@@ -116,6 +145,7 @@ export default function ManagerDashboardClient({ userName, todayText, branchId }
       </div>
 
       <ResetPasswordModal isOpen={resetModalOpen} onClose={() => setResetModalOpen(false)} />
+      <TelegramLinkModal isOpen={telegramModalOpen} onClose={() => setTelegramModalOpen(false)} />
     </div>
   );
 }

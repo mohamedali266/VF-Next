@@ -37,8 +37,10 @@ model User {
   role        Role     @default(EMPLOYEE)
   department  String?
   branchId    String?
-  avatarUrl   String?
-  isActive    Boolean  @default(true)
+  avatarUrl        String?
+  telegramChatId   String?  @unique
+  telegramLinkCode String?
+  isActive         Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -192,9 +194,10 @@ model CstCustomer {
   name        String
   phone       String
   serviceType String
-  status      String   @default("Pending")
+  status      String    @default("Pending")
   notes       String?
-  createdAt   DateTime @default(now())
+  followUpDate DateTime?
+  createdAt   DateTime  @default(now())
   updatedAt   DateTime @updatedAt
 
   agent User @relation("AgentCstCustomers", fields: [agentId], references: [id], onDelete: Cascade)

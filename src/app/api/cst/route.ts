@@ -9,6 +9,7 @@ const cstSchema = z.object({
   serviceType: z.string().trim().min(1, "نوع الخدمة مطلوب"),
   status: z.enum(["Pending", "In Progress", "Completed", "Cancelled"]).default("Pending"),
   notes: z.string().optional(),
+  followUpDate: z.string().nullable().optional().transform((val) => val ? new Date(val) : null),
 });
 
 // GET: fetch CST customers for currently logged-in agent (STRICT ISOLATION)

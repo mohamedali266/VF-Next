@@ -9,6 +9,7 @@ const updateSchema = z.object({
   serviceType: z.string().trim().min(1).optional(),
   status: z.enum(["Pending", "In Progress", "Completed", "Cancelled"]).optional(),
   notes: z.string().nullable().optional(),
+  followUpDate: z.string().nullable().optional().transform((val) => val ? new Date(val) : null),
 });
 
 // PUT: update CST customer owned by logged-in agent

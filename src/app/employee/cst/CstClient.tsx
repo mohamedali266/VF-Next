@@ -21,6 +21,7 @@ type CstCustomer = {
   serviceType: string;
   status: "Pending" | "In Progress" | "Completed" | "Cancelled";
   notes: string | null;
+  followUpDate: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -61,6 +62,7 @@ export default function CstClient() {
     serviceType: "Postpaid",
     status: "Pending" as CstCustomer["status"],
     notes: "",
+    followUpDate: "",
   });
 
   const load = useCallback(async () => {
@@ -80,7 +82,7 @@ export default function CstClient() {
 
   function openCreate() {
     setEditingItem(null);
-    setForm({ name: "", phone: "", serviceType: "Postpaid", status: "Pending", notes: "" });
+    setForm({ name: "", phone: "", serviceType: "Postpaid", status: "Pending", notes: "", followUpDate: "" });
     setMessage("");
     setModalOpen(true);
   }
@@ -93,6 +95,7 @@ export default function CstClient() {
       serviceType: item.serviceType,
       status: item.status,
       notes: item.notes || "",
+      followUpDate: item.followUpDate ? item.followUpDate.slice(0, 10) : "",
     });
     setMessage("");
     setModalOpen(true);
@@ -247,13 +250,21 @@ export default function CstClient() {
                     </span>
                   </div>
 
-                  <div style={{ marginTop: "0.625rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <div style={{ marginTop: "0.625rem", display: "flex", flexWrap: "wrap", alignItems: "center", gap: "0.5rem" }}>
                     <span style={{
                       fontSize: "0.6875rem", fontWeight: "700", padding: "0.15rem 0.5rem",
                       borderRadius: "8px", background: "var(--vf-surface-2)", border: "1px solid var(--vf-border)", color: "var(--vf-text-2)"
                     }}>
                       {c.serviceType}
                     </span>
+                    {c.followUpDate && (
+                      <span style={{
+                        fontSize: "0.6875rem", fontWeight: "700", padding: "0.15rem 0.5rem",
+                        borderRadius: "8px", background: "rgba(245,158,11,0.15)", border: "1px solid rgba(245,158,11,0.35)", color: "#f59e0b"
+                      }}>
+                        🗓️ متابعة: {c.followUpDate.slice(0, 10)}
+                      </span>
+                    )}
                     <span style={{ fontSize: "0.6875rem", color: "var(--vf-text-muted)" }}>
                       {new Date(c.createdAt).toLocaleDateString("ar-EG")}
                     </span>
@@ -385,6 +396,16 @@ export default function CstClient() {
                   </select>
                 </label>
               </div>
+
+              <label className="daily-field">
+                <span>تاريخ المتابعة (Follow-Up Date)</span>
+                <input
+                  type="date"
+                  className="vf-input"
+                  value={form.followUpDate}
+                  onChange={(e) => setForm((p) => ({ ...p, followUpDate: e.target.value }))}
+                />
+              </label>
 
               <label className="daily-field">
                 <span>ملاحظات</span>
