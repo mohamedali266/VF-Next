@@ -36,6 +36,26 @@ Set the Telegram webhook to the deployed app URL:
 https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook?url=https://vf-next-delta.vercel.app/api/telegram/webhook
 ```
 
+Or run the protected setup endpoint after deployment to set both the webhook and the bot command menu:
+
+```bash
+curl -X POST https://vf-next-delta.vercel.app/api/telegram/setup \
+  -H "Authorization: Bearer <CRON_SECRET>"
+```
+
+Supported bot commands:
+
+```text
+/help   - show commands
+/me     - linked account and store
+/today  - today's submission status
+/daily  - last daily report summary
+/health - today's health check summary
+/rpm    - monthly RPM summary
+/cst    - customer follow-ups
+/links  - quick VF-Next links
+```
+
 After changing Vercel environment variables, redeploy the project.
 
 ## Learn More

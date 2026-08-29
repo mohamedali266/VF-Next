@@ -1,9 +1,12 @@
 import { prisma } from "@/lib/db";
+import { calculateTotalDailyAch } from "@/lib/daily-report";
 import { NextRequest, NextResponse } from "next/server";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const APP_URL = process.env.NEXTAUTH_URL || "https://vf-next-delta.vercel.app";
 
 type TelegramReplyMarkup = Record<string, unknown>;
+type LinkedTelegramUser = NonNullable<Awaited<ReturnType<typeof getLinkedUser>>>;
 
 async function sendTelegramMessage(chatId: string | number, text: string, replyMarkup?: TelegramReplyMarkup) {
   if (!BOT_TOKEN) return;
@@ -50,6 +53,239 @@ async function linkTelegramAccount(chatId: string | number, code: string) {
   return user;
 }
 
+async function getLinkedUser(chatId: string | number) {
+  return prisma.user.findFirst({
+    where: { telegramChatId: chatId.toString(), isActive: true },
+    include: { branch: true },
+  });
+}
+
+function escapeHtml(value: string | null | undefined) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function getEgyptDate(value = new Date()) {
+  return new Date(value.toLocaleString("en-US", { timeZone: "Africa/Cairo" }));
+}
+
+function getTodayRange() {
+  const egyptNow = getEgyptDate();
+  const start = new Date(egyptNow.getFullYear(), egyptNow.getMonth(), egyptNow.getDate(), 0, 0, 0, 0);
+  const end = new Date(egyptNow.getFullYear(), egyptNow.getMonth(), egyptNow.getDate(), 23, 59, 59, 999);
+
+  return { start, end, label: start.toISOString().slice(0, 10) };
+}
+
+function getMonthRange() {
+  const egyptNow = getEgyptDate();
+  return {
+    start: new Date(egyptNow.getFullYear(), egyptNow.getMonth(), 1, 0, 0, 0, 0),
+    end: new Date(egyptNow.getFullYear(), egyptNow.getMonth() + 1, 0, 23, 59, 59, 999),
+  };
+}
+
+function getCommand(text: string) {
+  const firstToken = text.trim().split(/\s+/)[0] || "";
+  return firstToken.split("@")[0].toLowerCase();
+}
+
+function getHelpText() {
+  return `ℹ️ <b>VF-Next Bot Commands</b>\n\n` +
+    `• <code>/help</code> - عرض الأوامر\n` +
+    `• <code>/me</code> - بيانات حسابك والـ Store\n` +
+    `• <code>/today</code> - حالة تقارير اليوم\n` +
+    `• <code>/daily</code> - آخر Daily Report مرسل\n` +
+    `• <code>/health</code> - Health Check اليوم\n` +
+    `• <code>/rpm</code> - ملخص الشهر للموظف والـ Store\n` +
+    `• <code>/cst</code> - آخر العملاء والمتابعات\n` +
+    `• <code>/links</code> - روابط سريعة للموقع\n` +
+    `• <code>/link CODE</code> - ربط الحساب بكود جديد`;
+}
+
+function getLinksText() {
+  return `🔗 <b>VF-Next Quick Links</b>\n\n` +
+    `Home:\n${APP_URL}\n\n` +
+    `Daily Report:\n${APP_URL}/employee/daily-report\n\n` +
+    `Health Check:\n${APP_URL}/employee/health-check\n\n` +
+    `CST Data:\n${APP_URL}/employee/cst\n\n` +
+    `SR & SKU:\n${APP_URL}/employee/sr-sku`;
+}
+
+async function buildTodayStatus(user: LinkedTelegramUser) {
+  const { start, end, label } = getTodayRange();
+  const [dailyReport, healthChecks, cstDueCount] = await Promise.all([
+    prisma.dailyReport.findFirst({
+      where: { employeeId: user.id, date: { gte: start, lte: end } },
+      orderBy: { submittedAt: "desc" },
+    }),
+    prisma.healthCheck.findMany({
+      where: { employeeId: user.id, date: { gte: start, lte: end } },
+      orderBy: { shift: "asc" },
+    }),
+    prisma.cstCustomer.count({
+      where: { agentId: user.id, followUpDate: { gte: start, lte: end } },
+    }),
+  ]);
+
+  const shifts = healthChecks.map((item) => item.shift).join(", ") || "No shifts";
+  const dailyStatus = dailyReport ? `Submitted (${dailyReport.totalDailyAch}/${49})` : "Not submitted";
+
+  return `📌 <b>Today Status - ${label}</b>\n\n` +
+    `User: <b>${escapeHtml(user.name)}</b>\n` +
+    `Store: <b>${escapeHtml(user.branch?.name || "Not assigned")}</b>\n\n` +
+    `Daily Report: <b>${dailyStatus}</b>\n` +
+    `Health Check: <b>${healthChecks.length ? "Submitted" : "Not submitted"}</b> (${shifts})\n` +
+    `CST follow-ups today: <b>${cstDueCount}</b>\n\n` +
+    `Use <code>/links</code> to open submission pages.`;
+}
+
+async function buildDailyReportSummary(user: LinkedTelegramUser) {
+  const report = await prisma.dailyReport.findFirst({
+    where: { employeeId: user.id },
+    orderBy: { submittedAt: "desc" },
+  });
+
+  if (!report) {
+    return `📱 <b>Daily Report</b>\n\nNo daily report submitted yet.\n\nOpen:\n${APP_URL}/employee/daily-report`;
+  }
+
+  const totalLines = calculateTotalDailyAch({
+    pre: report.pre,
+    f52: report.f52,
+    f80: report.f80,
+    aboveF115: report.aboveF115,
+    newVmt: 0,
+    mnp: report.mnp,
+    newRed: report.newRed,
+    conRed: report.conRed,
+  });
+
+  return `📱 <b>Last Daily Report</b>\n\n` +
+    `Date: <b>${report.date.toISOString().slice(0, 10)}</b>\n` +
+    `Store: <b>${escapeHtml(report.storeName)}</b>\n` +
+    `Total Daily Ach: <b>${report.totalDailyAch}/49</b>\n` +
+    `Lines: <b>${totalLines}</b>\n` +
+    `New VMT: <b>${report.newVmt}</b>\n` +
+    `At Home Ach: <b>${report.atHomeAch}</b>\n` +
+    `ADSL Ach: <b>${report.adslAch}</b>\n` +
+    `Terminal Ach: <b>${report.terminalAch}</b>`;
+}
+
+async function buildHealthSummary(user: LinkedTelegramUser) {
+  const { start, end, label } = getTodayRange();
+  const records = await prisma.healthCheck.findMany({
+    where: { employeeId: user.id, date: { gte: start, lte: end } },
+    orderBy: { shift: "asc" },
+  });
+
+  if (!records.length) {
+    return `🩺 <b>Health Check - ${label}</b>\n\nNo health check submitted today.\n\nOpen:\n${APP_URL}/employee/health-check`;
+  }
+
+  const lines = records.map((record) => {
+    const total =
+      record.line1Nid + record.line2Nid + record.line3Nid + record.line4Nid + record.line5Nid +
+      record.line6Nid + record.line7Nid + record.line8Nid + record.line9Nid + record.line10Nid;
+
+    return `<b>${record.shift}</b>: ${total} total NID lines ` +
+      `(1L: ${record.line1Nid}, 2L: ${record.line2Nid}, 3L: ${record.line3Nid})`;
+  });
+
+  return `🩺 <b>Health Check - ${label}</b>\n\n${lines.join("\n")}`;
+}
+
+async function buildRpmSummary(user: LinkedTelegramUser) {
+  const { start, end } = getMonthRange();
+  const reports = await prisma.dailyReport.findMany({
+    where: {
+      employeeId: user.id,
+      date: { gte: start, lte: end },
+    },
+  });
+
+  let totalF = 0;
+  let totalMnp = 0;
+  let totalRed = 0;
+  let totalLines = 0;
+  let totalNewVmt = 0;
+  let totalAcquisition = 0;
+
+  reports.forEach((report) => {
+    const fSum = report.pre + report.f52 + report.f80 + report.aboveF115;
+    const redSum = report.newRed * 3 + report.conRed;
+    const linesSum = fSum + report.mnp + redSum;
+
+    totalF += fSum;
+    totalMnp += report.mnp;
+    totalRed += redSum;
+    totalLines += linesSum;
+    totalNewVmt += report.newVmt;
+    totalAcquisition += linesSum + report.newVmt;
+  });
+
+  let responseText = `📊 <b>${escapeHtml(user.name)} RPM (Monthly)</b>\n\n` +
+    `Days submitted: <b>${reports.length}</b>\n` +
+    `Acquisition: <b>${totalAcquisition}</b>\n` +
+    `Lines: <b>${totalLines}</b> (F: ${totalF} | MNP: ${totalMnp} | Red: ${totalRed})\n` +
+    `New VMT: <b>${totalNewVmt}</b>\n`;
+
+  if (user.branchId && user.branch) {
+    const storeReports = await prisma.dailyReport.findMany({
+      where: {
+        branchId: user.branchId,
+        date: { gte: start, lte: end },
+      },
+    });
+
+    let storeAcq = 0;
+    let storeLines = 0;
+    storeReports.forEach((report) => {
+      const lines = report.pre + report.f52 + report.f80 + report.aboveF115 + report.mnp + (report.newRed * 3 + report.conRed);
+      storeLines += lines;
+      storeAcq += lines + report.newVmt;
+    });
+
+    responseText += `\n🏪 <b>Store RPM (${escapeHtml(user.branch.name)}):</b>\n` +
+      `Store reports: <b>${storeReports.length}</b>\n` +
+      `Total Store Acquisition: <b>${storeAcq}</b>\n` +
+      `Total Store Lines: <b>${storeLines}</b>`;
+  }
+
+  return responseText;
+}
+
+async function buildCstSummary(user: LinkedTelegramUser) {
+  const { start, end } = getTodayRange();
+  const customers = await prisma.cstCustomer.findMany({
+    where: { agentId: user.id },
+    orderBy: [
+      { followUpDate: "asc" },
+      { createdAt: "desc" },
+    ],
+    take: 10,
+  });
+
+  if (customers.length === 0) {
+    return "👥 You don't have any customers registered in CST Data yet.";
+  }
+
+  let msg = `👥 <b>Your CST Customers (Nearest 10)</b>\n\n`;
+  customers.forEach((customer, index) => {
+    const followUp = customer.followUpDate ? customer.followUpDate.toISOString().slice(0, 10) : null;
+    const isToday = customer.followUpDate ? customer.followUpDate >= start && customer.followUpDate <= end : false;
+
+    msg += `${index + 1}. <b>${escapeHtml(customer.name)}</b> (${escapeHtml(customer.serviceType)})\n` +
+      `Phone: <code>${escapeHtml(customer.phone)}</code> | Status: ${escapeHtml(customer.status)}\n` +
+      (followUp ? `Follow-up: <b>${followUp}</b> ${isToday ? "(TODAY)" : ""}\n` : "") +
+      `-------------------------------\n`;
+  });
+
+  return msg;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const update = await req.json();
@@ -60,9 +296,10 @@ export async function POST(req: NextRequest) {
 
     const chatId = message.chat.id;
     const text = message.text.trim();
+    const command = getCommand(text);
 
     // 1) /start command
-    if (text.startsWith("/start")) {
+    if (command === "/start") {
       const startPayload = text.split(" ")[1]?.trim();
       const linkCode = startPayload?.startsWith("link_") ? startPayload.replace("link_", "") : null;
 
@@ -82,17 +319,14 @@ export async function POST(req: NextRequest) {
         `1. Open VF-Next Dashboard on your phone/PC.\n` +
         `2. Click <b>Telegram Bot</b> card to get your 6-digit code.\n` +
         `3. Send <code>/link 123456</code> here in chat.\n\n` +
-        `<b>Available Commands:</b>\n` +
-        `• 📊 <code>/rpm</code> - View your personal & store RPM\n` +
-        `• 👥 <code>/cst</code> - View customer follow-ups for today\n` +
-        `• ℹ️ <code>/help</code> - Show commands guide`;
+        getHelpText();
 
       await sendTelegramMessage(chatId, welcomeText);
       return NextResponse.json({ ok: true });
     }
 
     // 2) /link <code> command
-    if (text.startsWith("/link")) {
+    if (command === "/link") {
       const parts = text.split(" ");
       const code = parts[1]?.trim();
 
@@ -112,117 +346,61 @@ export async function POST(req: NextRequest) {
     }
 
     // Check linked user for other commands
-    const user = await prisma.user.findFirst({
-      where: { telegramChatId: chatId.toString() },
-      include: { branch: true },
-    });
+    const user = await getLinkedUser(chatId);
 
     if (!user) {
       await sendTelegramMessage(chatId, "⚠️ <b>Account Not Linked!</b>\nPlease link your VF-Next account first by sending <code>/link &lt;code&gt;</code>.");
       return NextResponse.json({ ok: true });
     }
 
-    // 3) /rpm command
-    if (text === "/rpm" || text === "/status") {
-      const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
-      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-
-      const reports = await prisma.dailyReport.findMany({
-        where: {
-          employeeId: user.id,
-          date: { gte: startOfMonth, lte: endOfMonth },
-        },
-      });
-
-      let totalF = 0, totalMnp = 0, totalRed = 0, totalLines = 0, totalNewVmt = 0, totalAcquisition = 0;
-
-      reports.forEach((r) => {
-        const pre = r.pre || 0;
-        const f52 = r.f52 || 0;
-        const f80 = r.f80 || 0;
-        const aboveF115 = r.aboveF115 || 0;
-        const mnp = r.mnp || 0;
-        const newRed = r.newRed || 0;
-        const conRed = r.conRed || 0;
-        const newVmt = r.newVmt || 0;
-
-        const fSum = pre + f52 + f80 + aboveF115;
-        const redSum = newRed * 3 + conRed;
-        const linesSum = fSum + mnp + redSum;
-        const acqSum = linesSum + newVmt;
-
-        totalF += fSum;
-        totalMnp += mnp;
-        totalRed += redSum;
-        totalLines += linesSum;
-        totalNewVmt += newVmt;
-        totalAcquisition += acqSum;
-      });
-
-      let responseText = `📊 <b>${user.name} RPM (Monthly Cumulative)</b>\n\n` +
-        `📈 <b>Acquisition:</b> ${totalAcquisition}\n` +
-        `📦 <b>Lines:</b> ${totalLines} (F: ${totalF} | MNP: ${totalMnp} | Red: ${totalRed})\n` +
-        `📡 <b>New VMT:</b> ${totalNewVmt}\n`;
-
-      if (user.branchId && user.branch) {
-        const storeReports = await prisma.dailyReport.findMany({
-          where: {
-            branchId: user.branchId,
-            date: { gte: startOfMonth, lte: endOfMonth },
-          },
-        });
-
-        let storeAcq = 0, storeLines = 0;
-        storeReports.forEach((r) => {
-          const lines = (r.pre || 0) + (r.f52 || 0) + (r.f80 || 0) + (r.aboveF115 || 0) + (r.mnp || 0) + ((r.newRed || 0) * 3 + (r.conRed || 0));
-          storeLines += lines;
-          storeAcq += lines + (r.newVmt || 0);
-        });
-
-        responseText += `\n🏪 <b>Store RPM (${user.branch.name}):</b>\n` +
-          `📈 Total Store Acquisition: <b>${storeAcq}</b>\n` +
-          `📦 Total Store Lines: <b>${storeLines}</b>`;
-      }
-
-      await sendTelegramMessage(chatId, responseText);
+    if (command === "/help" || command === "/commands") {
+      await sendTelegramMessage(chatId, getHelpText());
       return NextResponse.json({ ok: true });
     }
 
-    // 4) /cst command
-    if (text.startsWith("/cst") || text.startsWith("/customer")) {
-      const todayStr = new Date().toISOString().slice(0, 10);
-      const customers = await prisma.cstCustomer.findMany({
-        where: { agentId: user.id },
-        orderBy: { createdAt: "desc" },
-        take: 10,
-      });
-
-      if (customers.length === 0) {
-        await sendTelegramMessage(chatId, "👥 You don't have any customers registered in CST Data yet.");
-        return NextResponse.json({ ok: true });
-      }
-
-      let msg = `👥 <b>Your CST Customers (Recent 10)</b>\n\n`;
-      customers.forEach((c, idx) => {
-        const followUp = c.followUpDate ? c.followUpDate.toISOString().slice(0, 10) : null;
-        const isToday = followUp === todayStr;
-
-        msg += `${idx + 1}. <b>${c.name}</b> (${c.serviceType})\n` +
-          `   📞 Phone: <code>${c.phone}</code> | Status: ${c.status}\n` +
-          (followUp ? `   🗓️ Follow-up: <b>${followUp}</b> ${isToday ? "⚠️ (TODAY)" : ""}\n` : "") +
-          `-------------------------------\n`;
-      });
-
-      await sendTelegramMessage(chatId, msg);
+    if (command === "/me" || command === "/profile") {
+      await sendTelegramMessage(chatId,
+        `👤 <b>VF-Next Account</b>\n\n` +
+        `Name: <b>${escapeHtml(user.name)}</b>\n` +
+        `Role: <b>${escapeHtml(user.role)}</b>\n` +
+        `Store: <b>${escapeHtml(user.branch?.name || "Not assigned")}</b>\n` +
+        `Username: <code>${escapeHtml(user.username || "-")}</code>\n` +
+        `VPN: <code>${escapeHtml(user.vpnNum || "-")}</code>`
+      );
       return NextResponse.json({ ok: true });
     }
 
-    // 5) /help command
-    await sendTelegramMessage(chatId, `ℹ️ <b>VF-Next Bot Commands Guide</b>\n\n` +
-      `• 📊 <code>/rpm</code> - Check your monthly Acquisition & Lines breakdown\n` +
-      `• 👥 <code>/cst</code> - View customer follow-ups and phone contacts\n` +
-      `• 🔗 <code>/link &lt;code&gt;</code> - Re-link account with code from web dashboard`);
+    if (command === "/today" || command === "/status") {
+      await sendTelegramMessage(chatId, await buildTodayStatus(user));
+      return NextResponse.json({ ok: true });
+    }
+
+    if (command === "/daily" || command === "/report") {
+      await sendTelegramMessage(chatId, await buildDailyReportSummary(user));
+      return NextResponse.json({ ok: true });
+    }
+
+    if (command === "/health") {
+      await sendTelegramMessage(chatId, await buildHealthSummary(user));
+      return NextResponse.json({ ok: true });
+    }
+
+    if (command === "/rpm") {
+      await sendTelegramMessage(chatId, await buildRpmSummary(user));
+      return NextResponse.json({ ok: true });
+    }
+
+    if (command === "/cst" || command === "/customer" || command === "/customers") {
+      await sendTelegramMessage(chatId, await buildCstSummary(user));
+      return NextResponse.json({ ok: true });
+    }
+
+    if (command === "/links") {
+      await sendTelegramMessage(chatId, getLinksText());
+      return NextResponse.json({ ok: true });
+    }
+
+    await sendTelegramMessage(chatId, `لم أفهم الأمر.\n\n${getHelpText()}`);
 
     return NextResponse.json({ ok: true });
   } catch (error) {
