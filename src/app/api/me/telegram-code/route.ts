@@ -2,8 +2,25 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { NextResponse } from "next/server";
 
+const botUsername = process.env.TELEGRAM_BOT_USERNAME || process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || null;
+const botUrl = botUsername ? `https://t.me/${botUsername.replace(/^@/, "")}` : null;
+
 function generateCode() {
   return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+async function generateUniqueCode() {
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const code = generateCode();
+    const existingUser = await prisma.user.findFirst({
+      where: { telegramLinkCode: code },
+      select: { id: true },
+    });
+
+    if (!existingUser) return code;
+  }
+
+  throw new Error("Could not generate a unique Telegram link code");
 }
 
 export async function GET() {
@@ -18,30 +35,30 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
   if (user.telegramChatId) {
-    return NextResponse.json({ isLinked: true, telegramChatId: user.telegramChatId });
+    return NextResponse.json({ isLinked: true, telegramChatId: user.telegramChatId, botUsername, botUrl });
   }
 
   let code = user.telegramLinkCode;
   if (!code) {
-    code = generateCode();
+    code = await generateUniqueCode();
     await prisma.user.update({
       where: { id: session.user.id },
       data: { telegramLinkCode: code },
     });
   }
 
-  return NextResponse.json({ isLinked: false, code });
+  return NextResponse.json({ isLinked: false, code, botUsername, botUrl });
 }
 
 export async function POST() {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const code = generateCode();
+  const code = await generateUniqueCode();
   await prisma.user.update({
     where: { id: session.user.id },
     data: { telegramLinkCode: code },
   });
 
-  return NextResponse.json({ isLinked: false, code });
+  return NextResponse.json({ isLinked: false, code, botUsername, botUrl });
 }

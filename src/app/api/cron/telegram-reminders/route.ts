@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
     // Secret protection for cron jobs
     const authHeader = req.headers.get("authorization");
     if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      // Allow execution for testing if CRON_SECRET is not configured or matched
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const now = new Date();

@@ -20,6 +20,24 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Telegram Bot Setup
+
+Add these environment variables in Vercel for Production and Preview:
+
+```bash
+TELEGRAM_BOT_TOKEN=your_bot_token_from_botfather
+TELEGRAM_BOT_USERNAME=your_bot_username_without_t.me
+CRON_SECRET=any_long_random_secret
+```
+
+Set the Telegram webhook to the deployed app URL:
+
+```bash
+https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook?url=https://vf-next-delta.vercel.app/api/telegram/webhook
+```
+
+After changing Vercel environment variables, redeploy the project.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

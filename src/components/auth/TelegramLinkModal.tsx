@@ -1,7 +1,16 @@
 "use client";
 
-import { CheckCircle2, Copy, Loader2, RefreshCw, Send, X } from "lucide-react";
+import { CheckCircle2, Copy, ExternalLink, Loader2, RefreshCw, Send, X } from "lucide-react";
 import { useEffect, useState } from "react";
+
+type TelegramCodeResponse = {
+  isLinked?: boolean;
+  telegramChatId?: string;
+  code?: string;
+  botUsername?: string | null;
+  botUrl?: string | null;
+  error?: string;
+};
 
 export default function TelegramLinkModal({
   isOpen,
@@ -13,38 +22,51 @@ export default function TelegramLinkModal({
   const [loading, setLoading] = useState(true);
   const [isLinked, setIsLinked] = useState(false);
   const [code, setCode] = useState("");
+  const [botUrl, setBotUrl] = useState<string | null>(null);
+  const [botUsername, setBotUsername] = useState<string | null>(null);
+  const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const deepLinkUrl = botUrl && code ? `${botUrl}?start=link_${code}` : botUrl;
+
+  async function loadTelegramCode(method: "GET" | "POST" = "GET") {
+    setLoading(true);
+    setError("");
+
+    try {
+      const res = await fetch("/api/me/telegram-code", { method });
+      const data = (await res.json()) as TelegramCodeResponse;
+
+      if (!res.ok || data.error) {
+        throw new Error(data.error || "Failed to load Telegram link code");
+      }
+
+      setBotUrl(data.botUrl || null);
+      setBotUsername(data.botUsername || null);
+      setIsLinked(Boolean(data.isLinked));
+      setCode(data.code || "");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load Telegram link code");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
     if (!isOpen) return;
-    setLoading(true);
-    fetch("/api/me/telegram-code")
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.isLinked) {
-          setIsLinked(true);
-        } else {
-          setIsLinked(false);
-          setCode(d.code || "");
-        }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    const timer = window.setTimeout(() => {
+      void loadTelegramCode();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [isOpen]);
 
   async function handleRefresh() {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/me/telegram-code", { method: "POST" });
-      const d = await res.json();
-      if (d.code) setCode(d.code);
-    } catch {}
-    setLoading(false);
+    await loadTelegramCode("POST");
   }
 
-  function handleCopy() {
+  async function handleCopy() {
     if (!code) return;
-    navigator.clipboard.writeText(`/link ${code}`);
+    await navigator.clipboard.writeText(`/link ${code}`);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
@@ -89,6 +111,21 @@ export default function TelegramLinkModal({
           <div style={{ textAlign: "center", padding: "2rem" }}>
             <Loader2 className="daily-spin" size={28} style={{ margin: "0 auto", color: "#38bdf8" }} />
           </div>
+        ) : error ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginTop: "1rem" }}>
+            <div className="vf-alert vf-alert-error">
+              <span>!</span>
+              <span>تعذر تحميل بيانات ربط تليجرام: {error}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => void loadTelegramCode()}
+              className="vf-btn vf-btn-primary vf-btn-md"
+            >
+              <RefreshCw size={14} />
+              إعادة المحاولة
+            </button>
+          </div>
         ) : isLinked ? (
           <div style={{ textAlign: "center", padding: "1.5rem 0", display: "flex", flexDirection: "column", gap: "0.75rem", alignItems: "center" }}>
             <CheckCircle2 size={48} style={{ color: "#22c55e" }} />
@@ -102,6 +139,24 @@ export default function TelegramLinkModal({
             <p style={{ fontSize: "0.8125rem", color: "var(--vf-text-2)", lineHeight: 1.6 }}>
               لربط حسابك ووصول التنبيهات، افتح البوت وأرسل الأمر التالي:
             </p>
+
+            {botUrl ? (
+              <a
+                href={deepLinkUrl || botUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="vf-btn vf-btn-primary vf-btn-md"
+                style={{ justifyContent: "center", textDecoration: "none" }}
+              >
+                <ExternalLink size={16} />
+                فتح وربط بوت تليجرام {botUsername ? `@${botUsername}` : ""}
+              </a>
+            ) : (
+              <div className="vf-alert vf-alert-error">
+                <span>!</span>
+                <span>اسم بوت تليجرام غير مضبوط في إعدادات السيرفر. أضف TELEGRAM_BOT_USERNAME في Vercel.</span>
+              </div>
+            )}
 
             <div style={{
               background: "var(--vf-surface-2)",

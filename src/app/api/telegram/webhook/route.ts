@@ -3,7 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
-async function sendTelegramMessage(chatId: string | number, text: string, replyMarkup?: any) {
+type TelegramReplyMarkup = Record<string, unknown>;
+
+async function sendTelegramMessage(chatId: string | number, text: string, replyMarkup?: TelegramReplyMarkup) {
   if (!BOT_TOKEN) return;
   try {
     await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
@@ -21,6 +23,33 @@ async function sendTelegramMessage(chatId: string | number, text: string, replyM
   }
 }
 
+async function linkTelegramAccount(chatId: string | number, code: string) {
+  const user = await prisma.user.findFirst({
+    where: { telegramLinkCode: code },
+  });
+
+  if (!user) return null;
+
+  await prisma.$transaction([
+    prisma.user.updateMany({
+      where: {
+        telegramChatId: chatId.toString(),
+        id: { not: user.id },
+      },
+      data: { telegramChatId: null },
+    }),
+    prisma.user.update({
+      where: { id: user.id },
+      data: {
+        telegramChatId: chatId.toString(),
+        telegramLinkCode: null,
+      },
+    }),
+  ]);
+
+  return user;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const update = await req.json();
@@ -34,6 +63,20 @@ export async function POST(req: NextRequest) {
 
     // 1) /start command
     if (text.startsWith("/start")) {
+      const startPayload = text.split(" ")[1]?.trim();
+      const linkCode = startPayload?.startsWith("link_") ? startPayload.replace("link_", "") : null;
+
+      if (linkCode) {
+        const user = await linkTelegramAccount(chatId, linkCode);
+        if (!user) {
+          await sendTelegramMessage(chatId, "❌ Invalid or expired link code. Please generate a new code on VF-Next dashboard.");
+          return NextResponse.json({ ok: true });
+        }
+
+        await sendTelegramMessage(chatId, `✅ <b>Account Linked Successfully!</b>\n\nWelcome <b>${user.name}</b>! You will now receive automated shift reminders and customer follow-up alerts.`);
+        return NextResponse.json({ ok: true });
+      }
+
       const welcomeText = `👋 <b>Welcome to VF-Next Assistant Bot!</b>\n\n` +
         `To start receiving shift reminders and querying your RPM or customers, please link your account:\n\n` +
         `1. Open VF-Next Dashboard on your phone/PC.\n` +
@@ -58,23 +101,11 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
-      const user = await prisma.user.findFirst({
-        where: { telegramLinkCode: code },
-      });
-
+      const user = await linkTelegramAccount(chatId, code);
       if (!user) {
         await sendTelegramMessage(chatId, "❌ Invalid or expired link code. Please generate a new code on VF-Next dashboard.");
         return NextResponse.json({ ok: true });
       }
-
-      // Link account
-      await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          telegramChatId: chatId.toString(),
-          telegramLinkCode: null,
-        },
-      });
 
       await sendTelegramMessage(chatId, `✅ <b>Account Linked Successfully!</b>\n\nWelcome <b>${user.name}</b>! You will now receive automated shift reminders and customer follow-up alerts.`);
       return NextResponse.json({ ok: true });
