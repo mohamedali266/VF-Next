@@ -68,41 +68,33 @@ export default function ManagerDashboardClient({ userName, todayText, branchId }
           <div className="vf-section-line" />
         </div>
 
-        {/* Telegram Bot Highlight Banner */}
-        <div
-          onClick={() => setTelegramModalOpen(true)}
-          className="vf-card animate-fade-up"
-          style={{
-            marginBottom: "0.875rem",
-            padding: "1rem 1.25rem",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: "1rem",
-            borderColor: "rgba(56,189,248,0.4)",
-            background: "linear-gradient(135deg, rgba(56,189,248,0.15) 0%, var(--vf-surface) 100%)",
-            cursor: "pointer",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}>
-            <div className="vf-number-badge" style={{ width: 44, height: 44, color: "#38bdf8", background: "rgba(56,189,248,0.15)" }}>
-              <Send size={22} />
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.875rem" }}>
+          <button
+            type="button"
+            onClick={() => setTelegramModalOpen(true)}
+            className="vf-card animate-fade-up"
+            style={{
+              minHeight: 140,
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              textAlign: "inherit",
+              borderColor: "rgba(56,189,248,0.4)",
+              background: "linear-gradient(135deg, rgba(56,189,248,0.12), var(--vf-surface))",
+              cursor: "pointer",
+            }}
+          >
+            <div className="vf-number-badge" style={{ width: 42, height: 42, color: "#38bdf8", background: "rgba(56,189,248,0.15)" }}>
+              <Send size={20} />
             </div>
             <div>
-              <div style={{ fontSize: "1rem", fontWeight: "800", color: "#fff" }}>
-                🤖 Telegram Bot Notifications
-              </div>
-              <div style={{ fontSize: "0.78125rem", color: "var(--vf-text-2)", marginTop: "0.125rem" }}>
-                ربط حساب التليجرام لتلقي التنبيهات والاستعلامات
+              <div style={{ fontSize: "0.95rem", fontWeight: "800", color: "var(--vf-text)" }}>Telegram Bot</div>
+              <div style={{ fontSize: "0.75rem", color: "var(--vf-text-muted)", marginTop: "0.25rem" }}>
+                ربط الحساب والتنبيهات
               </div>
             </div>
-          </div>
-          <span className="vf-btn vf-btn-ghost vf-btn-sm" style={{ color: "#38bdf8", border: "1px solid rgba(56,189,248,0.4)" }}>
-            ربط الآن
-          </span>
-        </div>
+          </button>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.875rem" }}>
           {actions.map((item, index) => (
             <Link key={item.id} href={item.href} style={{ textDecoration: "none" }}>
               <div className={`vf-card animate-fade-up animate-fade-up-delay-${index + 1}`} style={{
