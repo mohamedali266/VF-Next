@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { sendEmail } from "@/lib/email";
 import { NextRequest, NextResponse } from "next/server";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -27,7 +28,7 @@ function getDateRangeFromLabel(dateLabel: string) {
   };
 }
 
-async function sendTelegramMessage(chatId: string, text: string) {
+async function sendTelegramMessage(chatId: string | null | undefined, text: string) {
   if (!BOT_TOKEN || !chatId) return false;
   try {
     const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
@@ -52,6 +53,26 @@ async function sendTelegramMessage(chatId: string, text: string) {
   }
 }
 
+function plainTextFromTelegram(text: string) {
+  return text
+    .replace(/<b>/g, "")
+    .replace(/<\/b>/g, "")
+    .replace(/<code>/g, "")
+    .replace(/<\/code>/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
+}
+
+function emailHtmlFromText(title: string, text: string) {
+  return (
+    "<div style=\"font-family:Arial,sans-serif;line-height:1.7;color:#111827\">" +
+    `<h2 style="margin:0 0 16px">${escapeHtml(title)}</h2>` +
+    `<pre style="white-space:pre-wrap;font-family:Arial,sans-serif;margin:0">${escapeHtml(plainTextFromTelegram(text))}</pre>` +
+    "</div>"
+  );
+}
+
 export async function GET(req: NextRequest) {
   try {
     // Secret protection for cron jobs
@@ -60,22 +81,20 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (!BOT_TOKEN) {
-      return NextResponse.json({ error: "TELEGRAM_BOT_TOKEN is not configured" }, { status: 500 });
-    }
-
     const dateLabel = req.nextUrl.searchParams.get("date") || getEgyptDateLabel();
     const { start: todayStart, end: todayEnd } = getDateRangeFromLabel(dateLabel);
 
     let sentHealthReminders = 0;
+    let sentHealthEmailReminders = 0;
     let skippedCompletedUsers = 0;
     let sentFollowUpReminders = 0;
+    let sentFollowUpEmailReminders = 0;
+    let emailFailures = 0;
 
     // 1) Daily Health/Daily Report reminders.
     // Vercel Hobby only allows one cron per day, so this reminder intentionally runs on every scheduled invocation.
-    const employeesWithTelegram = await prisma.user.findMany({
+    const employeesWithContacts = await prisma.user.findMany({
       where: {
-        telegramChatId: { not: null },
         isActive: true,
         role: "EMPLOYEE",
       },
@@ -83,9 +102,7 @@ export async function GET(req: NextRequest) {
       orderBy: { name: "asc" },
     });
 
-    for (const user of employeesWithTelegram) {
-      if (!user.telegramChatId) continue;
-
+    for (const user of employeesWithContacts) {
       const [healthCount, dailyCount] = await Promise.all([
         prisma.healthCheck.count({
           where: { employeeId: user.id, date: { gte: todayStart, lte: todayEnd } },
@@ -116,13 +133,26 @@ export async function GET(req: NextRequest) {
       if (await sendTelegramMessage(user.telegramChatId, reminderText)) {
         sentHealthReminders++;
       }
+
+      const emailResult = await sendEmail({
+        to: user.email,
+        subject: `VF-Next Daily Reminder - ${dateLabel}`,
+        text: plainTextFromTelegram(reminderText),
+        html: emailHtmlFromText("VF-Next Daily Reminder", reminderText),
+      });
+
+      if (emailResult.ok) {
+        sentHealthEmailReminders++;
+      } else if (!emailResult.skipped) {
+        emailFailures++;
+      }
     }
 
     // 2) Customer Follow-Up Reminders for Today
     const followUpsToday = await prisma.cstCustomer.findMany({
       where: {
         followUpDate: { gte: todayStart, lte: todayEnd },
-        agent: { telegramChatId: { not: null } },
+        agent: { isActive: true },
       },
       include: { agent: true },
       orderBy: [{ agentId: "asc" }, { followUpDate: "asc" }, { createdAt: "desc" }],
@@ -130,7 +160,6 @@ export async function GET(req: NextRequest) {
 
     const followUpsByAgent = new Map<string, typeof followUpsToday>();
     for (const customer of followUpsToday) {
-      if (!customer.agent.telegramChatId) continue;
       const list = followUpsByAgent.get(customer.agentId) || [];
       list.push(customer);
       followUpsByAgent.set(customer.agentId, list);
@@ -138,7 +167,7 @@ export async function GET(req: NextRequest) {
 
     for (const customers of followUpsByAgent.values()) {
       const agent = customers[0]?.agent;
-      if (!agent?.telegramChatId) continue;
+      if (!agent) continue;
 
       const customerLines = customers.slice(0, 12).map((customer, index) => {
         const digits = customer.phone.replace(/\D/g, "");
@@ -159,15 +188,32 @@ export async function GET(req: NextRequest) {
       if (await sendTelegramMessage(agent.telegramChatId, followUpText)) {
         sentFollowUpReminders++;
       }
+
+      const emailResult = await sendEmail({
+        to: agent.email,
+        subject: `VF-Next CST Follow-Up Reminder - ${dateLabel}`,
+        text: plainTextFromTelegram(followUpText),
+        html: emailHtmlFromText("VF-Next CST Follow-Up Reminder", followUpText),
+      });
+
+      if (emailResult.ok) {
+        sentFollowUpEmailReminders++;
+      } else if (!emailResult.skipped) {
+        emailFailures++;
+      }
     }
 
     return NextResponse.json({
       success: true,
       date: dateLabel,
-      checkedEmployees: employeesWithTelegram.length,
+      telegramConfigured: Boolean(BOT_TOKEN),
+      checkedEmployees: employeesWithContacts.length,
       skippedCompletedUsers,
       sentHealthReminders,
+      sentHealthEmailReminders,
       sentFollowUpReminders,
+      sentFollowUpEmailReminders,
+      emailFailures,
       followUpsFound: followUpsToday.length,
     });
   } catch (error) {
