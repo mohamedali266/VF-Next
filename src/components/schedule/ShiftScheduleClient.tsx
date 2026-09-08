@@ -46,6 +46,7 @@ type Props = {
   defaultBranchId: string | null;
   canEdit: boolean;
   isAdmin?: boolean;
+  viewerEmployeeId?: string | null;
 };
 
 function emptyEntries(days: { date: string }[], members: ScheduleMember[]) {
@@ -87,6 +88,7 @@ export default function ShiftScheduleClient({
   defaultBranchId,
   canEdit,
   isAdmin = false,
+  viewerEmployeeId = null,
 }: Props) {
   const [branchId, setBranchId] = useState(defaultBranchId || branches[0]?.id || "");
   const [month, setMonth] = useState(monthKeyFromDate());
@@ -95,6 +97,7 @@ export default function ShiftScheduleClient({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState<"save" | "submit" | "edit" | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [viewMode, setViewMode] = useState<"mine" | "store">(viewerEmployeeId ? "mine" : "store");
 
   useEffect(() => {
     if (!branchId || !month) return;
@@ -128,13 +131,18 @@ export default function ShiftScheduleClient({
 
   const days = useMemo(() => data?.days || getMonthDays(month), [data?.days, month]);
   const members = useMemo(() => data?.members || [], [data?.members]);
+  const visibleMembers = useMemo(() => (
+    viewerEmployeeId && viewMode === "mine"
+      ? members.filter((member) => member.id === viewerEmployeeId)
+      : members
+  ), [members, viewMode, viewerEmployeeId]);
   const displayNameMap = useMemo(() => buildDisplayNameMap(members), [members]);
   const entryMap = useMemo(() => buildEntryMap(entries), [entries]);
   const validations = useMemo(() => (
     data ? validateScheduleDays(days, members, entries, data.branch.terminalCount) : []
   ), [data, days, entries, members]);
   const validationMap = useMemo(() => new Map(validations.map((item) => [item.date, item])), [validations]);
-  const invalidDays = validations.filter((day) => !day.valid);
+  const invalidDays = canEdit ? validations.filter((day) => !day.valid) : [];
   const locked = data?.schedule?.status === "SUBMITTED";
   const editable = canEdit && !locked;
 
@@ -253,6 +261,16 @@ export default function ShiftScheduleClient({
             <span>{data ? `${data.branch.terminalCount} terminals | ${data.schedule?.status || "DRAFT"}` : "Loading schedule"}</span>
           </div>
         </div>
+        {viewerEmployeeId && data?.schedule?.status === "SUBMITTED" && (
+          <div className="schedule-view-toggle">
+            <button type="button" className={viewMode === "mine" ? "active" : ""} onClick={() => setViewMode("mine")}>
+              My Schedule
+            </button>
+            <button type="button" className={viewMode === "store" ? "active" : ""} onClick={() => setViewMode("store")}>
+              Store Schedule
+            </button>
+          </div>
+        )}
       </section>
 
       {message && <div className={`vf-alert ${message.type === "success" ? "vf-alert-success" : "vf-alert-error"} schedule-no-print`}>{message.text}</div>}
@@ -262,7 +280,7 @@ export default function ShiftScheduleClient({
           <ShieldAlert size={20} />
           <div>
             <strong>{invalidDays.length} day(s) need attention</strong>
-            <span>Every AM/PM shift must include at least one Master employee and match the store terminal count. BW does not need Master coverage.</span>
+            <span>Regular days need valid AM and PM coverage. Friday needs one working shift with at least 3 employees including 1 Master.</span>
           </div>
         </section>
       )}
@@ -280,6 +298,8 @@ export default function ShiftScheduleClient({
           <div className="schedule-loading">Loading schedule...</div>
         ) : !data ? (
           <div className="schedule-loading">Select a store and month.</div>
+        ) : viewerEmployeeId && data.schedule?.status !== "SUBMITTED" ? (
+          <div className="schedule-loading">Monthly schedule is not submitted yet.</div>
         ) : (
           <>
             <div className="schedule-table-wrap">
@@ -287,7 +307,7 @@ export default function ShiftScheduleClient({
                 <thead>
                   <tr>
                     <th className="schedule-date-col" colSpan={2}>DATE</th>
-                    {members.map((member) => (
+                    {visibleMembers.map((member) => (
                       <th key={member.id} className="schedule-person-head">
                         <span>{member.role === "MANAGER" ? "S.M" : member.role === "TEAM_LEADER" ? "TL" : "AGENT"}</span>
                         <strong title={member.name}>{displayNameMap.get(member.id) || member.name}</strong>
@@ -309,7 +329,7 @@ export default function ShiftScheduleClient({
                       <tr key={day.date} className={`${weekdayClass(day.weekday)} ${rowInvalid ? "schedule-invalid-row" : ""}`}>
                         <td className="schedule-day-num">{day.day}</td>
                         <td className="schedule-weekday">{day.weekday}</td>
-                        {members.map((member) => {
+                        {visibleMembers.map((member) => {
                           const shift = entryMap.get(`${day.date}:${member.id}`) || "OFF";
                           return (
                             <td key={`${day.date}:${member.id}`} className={`schedule-shift-cell shift-cell-${shift.toLowerCase()}`}>
@@ -333,8 +353,8 @@ export default function ShiftScheduleClient({
                             </td>
                           );
                         })}
-                        <td className={validation?.amValid ? "" : "schedule-count-bad"}>{validation?.amCount || 0}</td>
-                        <td className={validation?.pmValid ? "" : "schedule-count-bad"}>{validation?.pmCount || 0}</td>
+                        <td className={day.isFriday ? validation?.fridayValid ? "" : "schedule-count-bad" : validation?.amValid ? "" : "schedule-count-bad"}>{validation?.amCount || 0}</td>
+                        <td className={day.isFriday ? validation?.fridayValid ? "" : "schedule-count-bad" : validation?.pmValid ? "" : "schedule-count-bad"}>{validation?.pmCount || 0}</td>
                         <td>{validation?.bwCount || 0}</td>
                         <td>{validation?.sumCount || 0}</td>
                         <td>{validation?.offCount || 0}</td>
@@ -346,7 +366,7 @@ export default function ShiftScheduleClient({
                   {(["ANN", "AM", "PM", "BW", "OFF"] as const).map((shiftKey) => (
                     <tr key={shiftKey}>
                       <td colSpan={2}>{shiftKey}</td>
-                      {members.map((member) => {
+                      {visibleMembers.map((member) => {
                         const totals = countMemberShifts(member.id, entries);
                         return <td key={`${shiftKey}:${member.id}`}>{totals[shiftKey]}</td>;
                       })}
@@ -367,7 +387,7 @@ export default function ShiftScheduleClient({
                       <span>AM {validation?.amCount || 0} | PM {validation?.pmCount || 0} | OFF {validation?.offCount || 0}</span>
                     </header>
                     <div className="schedule-day-card-grid">
-                      {members.map((member) => {
+                      {visibleMembers.map((member) => {
                         const shift = entryMap.get(`${day.date}:${member.id}`) || "OFF";
                         return (
                           <label key={`${day.date}:mobile:${member.id}`}>

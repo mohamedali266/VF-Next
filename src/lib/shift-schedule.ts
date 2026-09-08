@@ -19,14 +19,17 @@ export type DayValidation = {
   date: string;
   amCount: number;
   pmCount: number;
+  workCount: number;
   bwCount: number;
   offCount: number;
   annCount: number;
   sumCount: number;
   amHasMaster: boolean;
   pmHasMaster: boolean;
+  workHasMaster: boolean;
   amValid: boolean;
   pmValid: boolean;
+  fridayValid: boolean;
   valid: boolean;
 };
 
@@ -113,7 +116,7 @@ export function buildEntryMap(entries: ScheduleEntryInput[]) {
 }
 
 export function validateScheduleDays(
-  days: { date: string }[],
+  days: { date: string; isFriday?: boolean }[],
   members: ScheduleMember[],
   entries: ScheduleEntryInput[],
   terminalCount: number,
@@ -124,14 +127,20 @@ export function validateScheduleDays(
   return days.map<DayValidation>((day) => {
     let amCount = 0;
     let pmCount = 0;
+    let workCount = 0;
     let bwCount = 0;
     let offCount = 0;
     let annCount = 0;
     let amHasMaster = false;
     let pmHasMaster = false;
+    let workHasMaster = false;
 
     for (const member of employeeMembers) {
       const shift = entriesMap.get(`${day.date}:${member.id}`);
+      if (shift === "AM" || shift === "PM" || shift === "FULL" || shift === "BW") {
+        workCount += 1;
+        if (member.isMaster) workHasMaster = true;
+      }
       if (shift === "AM" || shift === "FULL") {
         amCount += 1;
         if (member.isMaster) amHasMaster = true;
@@ -147,20 +156,24 @@ export function validateScheduleDays(
 
     const amValid = amCount >= terminalCount && amHasMaster;
     const pmValid = pmCount >= terminalCount && pmHasMaster;
+    const fridayValid = workCount >= 3 && workHasMaster;
 
     return {
       date: day.date,
       amCount,
       pmCount,
+      workCount,
       bwCount,
       offCount,
       annCount,
       sumCount: amCount + pmCount + bwCount,
       amHasMaster,
       pmHasMaster,
+      workHasMaster,
       amValid,
       pmValid,
-      valid: amValid && pmValid,
+      fridayValid,
+      valid: day.isFriday ? fridayValid : amValid && pmValid,
     };
   });
 }

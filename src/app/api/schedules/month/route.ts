@@ -55,7 +55,7 @@ function serializeEntry(entry: { employeeId: string; date: Date; shift: Schedule
   };
 }
 
-async function getSchedulePayload(branchId: string, month: string) {
+async function getSchedulePayload(branchId: string, month: string, options?: { submittedOnly?: boolean }) {
   const monthStart = monthStartFromInput(month);
   if (!monthStart) {
     return { error: NextResponse.json({ error: "Invalid month" }, { status: 400 }) };
@@ -76,7 +76,10 @@ async function getSchedulePayload(branchId: string, month: string) {
         select: { id: true, name: true, role: true, isMaster: true, isActive: true },
       },
       shiftSchedules: {
-        where: { month: monthStart },
+        where: {
+          month: monthStart,
+          ...(options?.submittedOnly ? { status: "SUBMITTED" as const } : {}),
+        },
         take: 1,
         select: {
           id: true,
@@ -134,7 +137,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "No store selected" }, { status: 400 });
   }
 
-  const result = await getSchedulePayload(branchId, month);
+  const result = await getSchedulePayload(branchId, month, { submittedOnly: user.role === "EMPLOYEE" });
   if (result.error) return result.error;
   return NextResponse.json(result.payload);
 }

@@ -1345,6 +1345,34 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 0.76rem;
 }
 
+.schedule-view-toggle {
+  min-height: 48px;
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--radius-md);
+  background: var(--vf-surface-2);
+}
+
+.schedule-view-toggle button {
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--vf-text-muted);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 0 0.8rem;
+  cursor: pointer;
+}
+
+.schedule-view-toggle button.active {
+  background: var(--vf-red-subtle);
+  color: var(--vf-red-light);
+}
+
 .schedule-warning {
   display: flex;
   align-items: center;
@@ -1560,8 +1588,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .shift-cell-off {
-  background: rgba(239, 68, 68, 0.12);
-  color: #fca5a5;
+  background: rgba(20, 184, 166, 0.15);
+  color: #5eead4;
 }
 
 .shift-cell-ann {
@@ -1861,7 +1889,7 @@ h1, h2, h3, h4, h5, h6 {
 
   .shift-cell-off,
   .schedule-table tfoot tr:nth-child(5) td {
-    background: #ffb3b3 !important;
+    background: #b7f2e9 !important;
   }
 
   .shift-cell-ann,

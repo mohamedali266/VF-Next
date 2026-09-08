@@ -22,6 +22,7 @@ export default async function EmployeeSchedulePage() {
       branches={branch ? [branch] : []}
       defaultBranchId={branch?.id || null}
       canEdit={false}
+      viewerEmployeeId={session.user.id}
     />
   );
 }

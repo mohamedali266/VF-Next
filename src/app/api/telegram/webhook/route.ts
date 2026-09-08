@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { calculateAcqHighAch, calculateAcqLowAch, calculateNewTotalAcqAch, calculateTotalDailyAch } from "@/lib/daily-report";
+import { countMemberShifts, monthStartFromInput, sortScheduleMembers, type ScheduleEntryInput } from "@/lib/shift-schedule";
 import { NextRequest, NextResponse } from "next/server";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -87,6 +88,23 @@ function getMonthRange() {
   };
 }
 
+function getEgyptScheduleDate(offsetDays = 0) {
+  const egyptNow = getEgyptDate();
+  egyptNow.setDate(egyptNow.getDate() + offsetDays);
+  const year = egyptNow.getFullYear();
+  const month = egyptNow.getMonth() + 1;
+  const day = egyptNow.getDate();
+  const monthKey = `${year}-${String(month).padStart(2, "0")}`;
+  const dateKey = `${monthKey}-${String(day).padStart(2, "0")}`;
+
+  return {
+    dateKey,
+    monthKey,
+    date: new Date(`${dateKey}T00:00:00.000Z`),
+    monthStart: monthStartFromInput(monthKey),
+  };
+}
+
 function getCommand(text: string) {
   const firstToken = text.trim().split(/\s+/)[0] || "";
   return firstToken.split("@")[0].toLowerCase();
@@ -99,6 +117,9 @@ function getHelpText() {
     `• <code>/today</code> - حالة تقارير اليوم\n` +
     `• <code>/daily</code> - آخر Daily Report مرسل\n` +
     `• <code>/health</code> - Health Check اليوم\n` +
+    `• <code>/shift_today</code> - جدول شفت اليوم\n` +
+    `• <code>/shift_tomorrow</code> - جدول شفت بكرة\n` +
+    `• <code>/vacations</code> - ملخص الإجازات الشهرية\n` +
     `• <code>/rpm</code> - ملخص الشهر للموظف والـ Store\n` +
     `• <code>/cst</code> - آخر العملاء والمتابعات\n` +
     `• <code>/links</code> - روابط سريعة للموقع\n` +
@@ -110,8 +131,100 @@ function getLinksText() {
     `Home:\n${APP_URL}\n\n` +
     `Daily Report:\n${APP_URL}/employee/daily-report\n\n` +
     `Health Check:\n${APP_URL}/employee/health-check\n\n` +
+    `Shift Schedule:\n${APP_URL}/employee/schedule\n\n` +
     `CST Data:\n${APP_URL}/employee/cst\n\n` +
     `SR & SKU:\n${APP_URL}/employee/sr-sku`;
+}
+
+async function buildShiftScheduleForDate(user: LinkedTelegramUser, offsetDays = 0) {
+  if (!user.branchId || !user.branch) {
+    return "📅 <b>Shift Schedule</b>\n\nYour account is not assigned to a Store.";
+  }
+
+  const target = getEgyptScheduleDate(offsetDays);
+  if (!target.monthStart) {
+    return "📅 <b>Shift Schedule</b>\n\nCould not read the target month.";
+  }
+
+  const schedule = await prisma.shiftSchedule.findUnique({
+    where: { branchId_month: { branchId: user.branchId, month: target.monthStart } },
+    select: {
+      status: true,
+      entries: {
+        where: { date: target.date },
+        select: {
+          shift: true,
+          employee: {
+            select: { id: true, name: true, role: true, isMaster: true, isActive: true },
+          },
+        },
+      },
+    },
+  });
+
+  if (!schedule || schedule.status !== "SUBMITTED") {
+    return `📅 <b>Shift Schedule - ${target.dateKey}</b>\n\nNo submitted schedule for ${escapeHtml(user.branch.name)} yet.`;
+  }
+
+  const members = sortScheduleMembers(schedule.entries.map((entry) => entry.employee));
+  const entryByEmployee = new Map(schedule.entries.map((entry) => [entry.employee.id, entry.shift]));
+  const lines = members.map((member) => {
+    const shift = entryByEmployee.get(member.id) || "OFF";
+    const master = member.role === "EMPLOYEE" && member.isMaster ? " ⭐" : "";
+    const marker = member.id === user.id ? " ← أنت" : "";
+    return `• <b>${escapeHtml(member.name)}</b>${master}: <code>${shift}</code>${marker}`;
+  });
+
+  const userShift = entryByEmployee.get(user.id) || "OFF";
+
+  return `📅 <b>${offsetDays ? "Tomorrow" : "Today"} Shift - ${target.dateKey}</b>\n` +
+    `Store: <b>${escapeHtml(user.branch.name)}</b>\n` +
+    `Your shift: <b>${userShift}</b>\n\n` +
+    lines.join("\n");
+}
+
+async function buildVacationSummary(user: LinkedTelegramUser) {
+  if (!user.branchId || !user.branch) {
+    return "🏖️ <b>Vacations</b>\n\nYour account is not assigned to a Store.";
+  }
+
+  const target = getEgyptScheduleDate(0);
+  if (!target.monthStart) {
+    return "🏖️ <b>Vacations</b>\n\nCould not read the current month.";
+  }
+
+  const schedule = await prisma.shiftSchedule.findUnique({
+    where: { branchId_month: { branchId: user.branchId, month: target.monthStart } },
+    select: {
+      status: true,
+      entries: {
+        where: { employeeId: user.id },
+        orderBy: { date: "asc" },
+        select: { employeeId: true, date: true, shift: true },
+      },
+    },
+  });
+
+  if (!schedule || schedule.status !== "SUBMITTED") {
+    return `🏖️ <b>Vacations - ${target.monthKey}</b>\n\nNo submitted schedule yet.`;
+  }
+
+  const entries: ScheduleEntryInput[] = schedule.entries.map((entry) => ({
+    employeeId: entry.employeeId,
+    date: entry.date.toISOString().slice(0, 10),
+    shift: entry.shift,
+  }));
+  const totals = countMemberShifts(user.id, entries);
+  const offDays = entries.filter((entry) => entry.shift === "OFF").map((entry) => entry.date.slice(8, 10)).join(", ") || "-";
+  const annDays = entries.filter((entry) => entry.shift === "ANN").map((entry) => entry.date.slice(8, 10)).join(", ") || "-";
+
+  return `🏖️ <b>Vacation Summary - ${target.monthKey}</b>\n\n` +
+    `User: <b>${escapeHtml(user.name)}</b>\n` +
+    `Store: <b>${escapeHtml(user.branch.name)}</b>\n\n` +
+    `OFF weekly days: <b>${totals.OFF}</b>\n` +
+    `OFF dates: <code>${offDays}</code>\n\n` +
+    `ANN annual leave: <b>${totals.ANN}</b>\n` +
+    `ANN dates: <code>${annDays}</code>`;
 }
 
 async function buildTodayStatus(user: LinkedTelegramUser) {
@@ -446,6 +559,21 @@ export async function POST(req: NextRequest) {
 
     if (command === "/health") {
       await sendTelegramMessage(chatId, await buildHealthSummary(user));
+      return NextResponse.json({ ok: true });
+    }
+
+    if (command === "/shift_today" || command === "/today_shift" || command === "/schedule_today" || command === "/shift") {
+      await sendTelegramMessage(chatId, await buildShiftScheduleForDate(user, 0));
+      return NextResponse.json({ ok: true });
+    }
+
+    if (command === "/shift_tomorrow" || command === "/tomorrow_shift" || command === "/schedule_tomorrow") {
+      await sendTelegramMessage(chatId, await buildShiftScheduleForDate(user, 1));
+      return NextResponse.json({ ok: true });
+    }
+
+    if (command === "/vacations" || command === "/leaves" || command === "/offs") {
+      await sendTelegramMessage(chatId, await buildVacationSummary(user));
       return NextResponse.json({ ok: true });
     }
 
