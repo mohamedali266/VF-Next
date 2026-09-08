@@ -55,7 +55,29 @@ function emptyEntries(days: { date: string }[], members: ScheduleMember[]) {
 }
 
 function weekdayClass(weekday: string) {
-  return weekday === "FRI" ? "schedule-day-friday" : "";
+  return weekday === "FR" ? "schedule-day-friday" : "";
+}
+
+function nameParts(name: string) {
+  return name.trim().split(/\s+/).filter(Boolean);
+}
+
+function buildDisplayNameMap(members: ScheduleMember[]) {
+  const firstNameCounts = new Map<string, number>();
+
+  for (const member of members) {
+    const first = nameParts(member.name)[0] || member.name;
+    firstNameCounts.set(first.toLowerCase(), (firstNameCounts.get(first.toLowerCase()) || 0) + 1);
+  }
+
+  return new Map(members.map((member) => {
+    const parts = nameParts(member.name);
+    const first = parts[0] || member.name;
+    const second = parts[1];
+    const hasDuplicateFirstName = (firstNameCounts.get(first.toLowerCase()) || 0) > 1;
+    const displayName = hasDuplicateFirstName && second ? `${first.charAt(0)}. ${second}` : first;
+    return [member.id, displayName];
+  }));
 }
 
 export default function ShiftScheduleClient({
@@ -106,6 +128,7 @@ export default function ShiftScheduleClient({
 
   const days = useMemo(() => data?.days || getMonthDays(month), [data?.days, month]);
   const members = useMemo(() => data?.members || [], [data?.members]);
+  const displayNameMap = useMemo(() => buildDisplayNameMap(members), [members]);
   const entryMap = useMemo(() => buildEntryMap(entries), [entries]);
   const validations = useMemo(() => (
     data ? validateScheduleDays(days, members, entries, data.branch.terminalCount) : []
@@ -267,7 +290,7 @@ export default function ShiftScheduleClient({
                     {members.map((member) => (
                       <th key={member.id} className="schedule-person-head">
                         <span>{member.role === "MANAGER" ? "S.M" : member.role === "TEAM_LEADER" ? "TL" : "AGENT"}</span>
-                        <strong>{member.name}</strong>
+                        <strong title={member.name}>{displayNameMap.get(member.id) || member.name}</strong>
                         {member.role === "EMPLOYEE" && member.isMaster && <em>Master</em>}
                       </th>
                     ))}
@@ -294,7 +317,7 @@ export default function ShiftScheduleClient({
                                 <select
                                   value={shift}
                                   onChange={(event) => setCell(member.id, day.date, event.target.value as ScheduleShiftValue)}
-                                  aria-label={`${member.name} ${day.date}`}
+                                  aria-label={`${displayNameMap.get(member.id) || member.name} ${day.date}`}
                                 >
                                   {SCHEDULE_SHIFTS.map((option) => (
                                     <option key={option} value={option}>{SHIFT_LABELS[option]}</option>
@@ -344,7 +367,7 @@ export default function ShiftScheduleClient({
                         const shift = entryMap.get(`${day.date}:${member.id}`) || "OFF";
                         return (
                           <label key={`${day.date}:mobile:${member.id}`}>
-                            <span>{member.name}</span>
+                            <span title={member.name}>{displayNameMap.get(member.id) || member.name}</span>
                             {editable ? (
                               <select value={shift} onChange={(event) => setCell(member.id, day.date, event.target.value as ScheduleShiftValue)}>
                                 {SCHEDULE_SHIFTS.map((option) => <option key={option} value={option}>{SHIFT_LABELS[option]}</option>)}

@@ -58,6 +58,16 @@ export function dateKey(date: Date) {
   return date.toISOString().slice(0, 10);
 }
 
+const WEEKDAY_SHORT: Record<number, string> = {
+  0: "SU",
+  1: "MO",
+  2: "TU",
+  3: "WE",
+  4: "TH",
+  5: "FR",
+  6: "SA",
+};
+
 export function getMonthDays(month: string) {
   const start = monthStartFromInput(month);
   if (!start) return [];
@@ -70,7 +80,7 @@ export function getMonthDays(month: string) {
     return {
       date: dateKey(date),
       day: index + 1,
-      weekday: date.toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" }).toUpperCase(),
+      weekday: WEEKDAY_SHORT[date.getUTCDay()],
       isFriday: date.getUTCDay() === 5,
     };
   });
