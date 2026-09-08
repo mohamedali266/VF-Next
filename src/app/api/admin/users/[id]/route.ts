@@ -16,6 +16,7 @@ const updateUserSchema = z.object({
   password: z.string().min(6).optional().or(z.literal("")),
   confirmPassword: z.string().min(6).optional().or(z.literal("")),
   role: z.enum(ROLES).optional(),
+  isMaster: z.boolean().optional(),
   isActive: z.boolean().optional(),
   branchId: z.string().trim().optional().nullable(),
 }).refine((data) => !data.password || data.password === data.confirmPassword, {
@@ -42,6 +43,7 @@ const userSelect = {
   role: true,
   branchId: true,
   branch: { select: { id: true, name: true, code: true } },
+  isMaster: true,
   isActive: true,
   createdAt: true,
 } as const;
@@ -67,6 +69,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     staffId?: string;
     password?: string;
     role?: (typeof ROLES)[number];
+    isMaster?: boolean;
     isActive?: boolean;
     branchId?: string | null;
   } = {};
@@ -77,6 +80,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (body.staffId !== undefined) updateData.staffId = body.staffId;
   if (body.emailLocalPart !== undefined) updateData.email = buildVodafoneEmail(body.emailLocalPart);
   if (body.role !== undefined) updateData.role = body.role;
+  if (body.isMaster !== undefined) updateData.isMaster = body.isMaster;
   if (body.isActive !== undefined) updateData.isActive = body.isActive;
   if (body.branchId !== undefined) updateData.branchId = normalizeBranchId(body.branchId) ?? null;
   if (body.password) updateData.password = await bcrypt.hash(body.password, 12);

@@ -17,6 +17,7 @@ const createUserSchema = z.object({
   confirmPassword: z.string().min(6),
   role: z.enum(ROLES).default("EMPLOYEE"),
   branchId: z.string().trim().optional().nullable(),
+  isMaster: z.boolean().default(false),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords do not match",
   path: ["confirmPassword"],
@@ -40,6 +41,7 @@ const userSelect = {
   role: true,
   branchId: true,
   branch: { select: { id: true, name: true, code: true } },
+  isMaster: true,
   isActive: true,
   createdAt: true,
 } as const;
@@ -101,6 +103,7 @@ export async function POST(req: NextRequest) {
       password: hashedPassword,
       role: data.role,
       branchId: normalizeBranchId(data.branchId),
+      isMaster: data.isMaster,
       isActive: true,
     },
     select: userSelect,

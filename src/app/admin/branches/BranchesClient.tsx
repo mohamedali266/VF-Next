@@ -17,6 +17,7 @@ type StoreItem = {
   id: string;
   name: string;
   code: string | null;
+  terminalCount: number;
   isActive: boolean;
   users: StoreUser[];
 };
@@ -32,7 +33,7 @@ const ROLE_ORDER: Role[] = ["MANAGER", "TEAM_LEADER", "EMPLOYEE", "ADMIN"];
 
 export default function BranchesClient({ branches: initialStores }: { branches: StoreItem[] }) {
   const [stores, setStores] = useState(initialStores);
-  const [form, setForm] = useState({ name: "", code: "", isActive: true });
+  const [form, setForm] = useState({ name: "", code: "", terminalCount: 2, isActive: true });
   const [editing, setEditing] = useState<StoreItem | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -40,14 +41,14 @@ export default function BranchesClient({ branches: initialStores }: { branches: 
 
   function openCreate() {
     setEditing(null);
-    setForm({ name: "", code: "", isActive: true });
+    setForm({ name: "", code: "", terminalCount: 2, isActive: true });
     setMessage("");
     setModalOpen(true);
   }
 
   function openEdit(store: StoreItem) {
     setEditing(store);
-    setForm({ name: store.name, code: store.code || "", isActive: store.isActive });
+    setForm({ name: store.name, code: store.code || "", terminalCount: store.terminalCount, isActive: store.isActive });
     setMessage("");
     setModalOpen(true);
   }
@@ -111,7 +112,7 @@ export default function BranchesClient({ branches: initialStores }: { branches: 
               <div className="store-icon"><Store size={20} /></div>
               <div>
                 <h2>{store.name}</h2>
-                <p>{store.code || "No code"} | {store.users.length} users</p>
+                <p>{store.code || "No code"} | {store.terminalCount} terminals | {store.users.length} users</p>
               </div>
               <span className={store.isActive ? "users-status active" : "users-status disabled"}>
                 {store.isActive ? "Active" : "Inactive"}
@@ -176,6 +177,13 @@ export default function BranchesClient({ branches: initialStores }: { branches: 
                 <select className="vf-input" value={form.isActive ? "active" : "inactive"} onChange={(event) => setForm((current) => ({ ...current, isActive: event.target.value === "active" }))}>
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
+                </select>
+              </label>
+              <label className="users-field">
+                <span>Terminal setup</span>
+                <select className="vf-input" value={form.terminalCount} onChange={(event) => setForm((current) => ({ ...current, terminalCount: Number(event.target.value) }))}>
+                  <option value={2}>2 Terminals</option>
+                  <option value={3}>3 Terminals</option>
                 </select>
               </label>
             </div>

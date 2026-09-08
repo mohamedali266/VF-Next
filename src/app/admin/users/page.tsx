@@ -20,6 +20,7 @@ export default async function AdminUsersPage() {
         role: true,
         branchId: true,
         branch: { select: { id: true, name: true, code: true } },
+        isMaster: true,
         isActive: true,
         createdAt: true,
       },

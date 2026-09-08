@@ -8,6 +8,11 @@ function normalizeCode(value: unknown) {
   return trimmed || null;
 }
 
+function normalizeTerminalCount(value: unknown) {
+  const count = Number(value);
+  return count === 2 || count === 3 ? count : null;
+}
+
 export async function GET() {
   const session = await auth();
   if (!session || session.user.role !== "ADMIN") {
@@ -36,13 +41,17 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const name = typeof body.name === "string" ? body.name.trim() : "";
   const code = normalizeCode(body.code);
+  const terminalCount = normalizeTerminalCount(body.terminalCount);
 
   if (!name) {
     return NextResponse.json({ error: "Store name is required" }, { status: 400 });
   }
+  if (!terminalCount) {
+    return NextResponse.json({ error: "Store terminals must be 2 or 3" }, { status: 400 });
+  }
 
   const branch = await prisma.branch.create({
-    data: { name, code },
+    data: { name, code, terminalCount },
     include: {
       users: {
         select: { id: true, name: true, email: true, role: true, isActive: true },

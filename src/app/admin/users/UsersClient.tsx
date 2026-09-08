@@ -21,6 +21,7 @@ type User = {
   role: Role;
   branchId: string | null;
   branch: Branch | null;
+  isMaster: boolean;
   isActive: boolean;
   createdAt: string | Date;
 };
@@ -35,6 +36,7 @@ type UserForm = {
   confirmPassword: string;
   role: Role;
   branchId: string;
+  isMaster: boolean;
   isActive: boolean;
 };
 
@@ -48,6 +50,7 @@ const emptyForm: UserForm = {
   confirmPassword: "",
   role: "EMPLOYEE",
   branchId: "",
+  isMaster: false,
   isActive: true,
 };
 
@@ -73,6 +76,7 @@ function userToForm(user: User): UserForm {
     confirmPassword: "",
     role: user.role,
     branchId: user.branchId || "",
+    isMaster: user.isMaster,
     isActive: user.isActive,
   };
 }
@@ -229,6 +233,7 @@ export default function UsersClient({ users: initialUsers, branches }: { users: 
                 <th>Staff ID</th>
                 <th>Email</th>
                 <th>Role</th>
+                <th>Class</th>
                 <th>Store</th>
                 <th>Status</th>
                 <th>Actions</th>
@@ -243,6 +248,13 @@ export default function UsersClient({ users: initialUsers, branches }: { users: 
                   <td>{user.staffId || "-"}</td>
                   <td>{user.email}</td>
                   <td><span className="users-role-pill">{roleLabels[user.role]}</span></td>
+                  <td>
+                    {user.isMaster ? (
+                      <span className="users-master-pill">Master</span>
+                    ) : (
+                      <span className="users-muted-pill">Standard</span>
+                    )}
+                  </td>
                   <td>{user.branch?.name || "Unassigned"}</td>
                   <td>
                     <span className={user.isActive ? "users-status active" : "users-status disabled"}>
@@ -266,7 +278,7 @@ export default function UsersClient({ users: initialUsers, branches }: { users: 
               ))}
               {!filteredUsers.length && (
                 <tr>
-                  <td colSpan={9} style={{ textAlign: "center", color: "var(--vf-text-muted)" }}>No users found</td>
+                  <td colSpan={10} style={{ textAlign: "center", color: "var(--vf-text-muted)" }}>No users found</td>
                 </tr>
               )}
             </tbody>
@@ -332,6 +344,18 @@ export default function UsersClient({ users: initialUsers, branches }: { users: 
                   <option value="active">Active</option>
                   <option value="disabled">Disabled</option>
                 </select>
+              </label>
+
+              <label className="users-check-field">
+                <input
+                  type="checkbox"
+                  checked={form.isMaster}
+                  onChange={(event) => setForm((current) => ({ ...current, isMaster: event.target.checked }))}
+                />
+                <span>
+                  <strong>Master class</strong>
+                  <em>Used later in monthly shift schedule rules.</em>
+                </span>
               </label>
 
               <FormInput

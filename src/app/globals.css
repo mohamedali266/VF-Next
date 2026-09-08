@@ -1055,6 +1055,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .users-role-pill,
+.users-master-pill,
+.users-muted-pill,
 .users-status {
   display: inline-flex;
   align-items: center;
@@ -1070,6 +1072,18 @@ h1, h2, h3, h4, h5, h6 {
   background: var(--vf-red-subtle);
   color: var(--vf-red-light);
   border: 1px solid rgba(196, 30, 58, 0.28);
+}
+
+.users-master-pill {
+  background: rgba(245, 158, 11, 0.13);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.users-muted-pill {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--vf-text-muted);
+  border: 1px solid var(--vf-border);
 }
 
 .users-status.active {
@@ -1150,6 +1164,47 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--vf-text-2);
   font-size: 0.78rem;
   font-weight: 800;
+}
+
+.users-check-field {
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.85rem;
+  background: var(--vf-surface-2);
+  border: 1.5px solid var(--vf-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.users-check-field:focus-within {
+  border-color: var(--vf-red);
+  box-shadow: 0 0 0 3px var(--vf-red-glow);
+}
+
+.users-check-field input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--vf-red);
+  flex: 0 0 20px;
+}
+
+.users-check-field span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.users-check-field strong {
+  color: var(--vf-text);
+  font-size: 0.9rem;
+}
+
+.users-check-field em {
+  color: var(--vf-text-muted);
+  font-size: 0.74rem;
+  font-style: normal;
 }
 
 .users-email-input {

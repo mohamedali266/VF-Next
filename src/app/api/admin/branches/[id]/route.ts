@@ -10,6 +10,12 @@ function normalizeCode(value: unknown) {
   return trimmed || null;
 }
 
+function normalizeTerminalCount(value: unknown) {
+  if (value === undefined) return undefined;
+  const count = Number(value);
+  return count === 2 || count === 3 ? count : null;
+}
+
 const branchInclude = {
   users: {
     orderBy: [{ role: "asc" }, { name: "asc" }],
@@ -27,10 +33,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const body = await req.json();
   const name = typeof body.name === "string" ? body.name.trim() : undefined;
   const code = normalizeCode(body.code);
+  const terminalCount = normalizeTerminalCount(body.terminalCount);
   const isActive = typeof body.isActive === "boolean" ? body.isActive : undefined;
 
   if (name !== undefined && !name) {
     return NextResponse.json({ error: "Store name is required" }, { status: 400 });
+  }
+  if (terminalCount === null) {
+    return NextResponse.json({ error: "Store terminals must be 2 or 3" }, { status: 400 });
   }
 
   const store = await prisma.branch.update({
@@ -38,6 +48,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     data: {
       ...(name !== undefined ? { name } : {}),
       ...(code !== undefined ? { code } : {}),
+      ...(terminalCount !== undefined ? { terminalCount } : {}),
       ...(isActive !== undefined ? { isActive } : {}),
     },
     include: branchInclude,
