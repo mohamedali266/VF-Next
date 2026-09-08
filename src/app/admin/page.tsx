@@ -34,6 +34,7 @@ export default async function AdminDashboard() {
     { icon: "Users", title: "Users", sub: "Create, edit, activate, and assign users", href: "/admin/users", color: "rgba(196,30,58,0.15)", border: "rgba(196,30,58,0.3)" },
     { icon: "Reports", title: "Daily Reports", sub: "Edit, copy, and delete submitted SMS reports", href: "/admin/reports", color: "rgba(245,158,11,0.1)", border: "rgba(245,158,11,0.25)" },
     { icon: "Stores", title: "Stores", sub: "Create stores and review teams", href: "/admin/branches", color: "rgba(139,92,246,0.1)", border: "rgba(139,92,246,0.25)" },
+    { icon: "Shift", title: "Shift Schedule", sub: "Create, validate, submit, and print monthly shifts", href: "/admin/schedule", color: "rgba(14,165,233,0.1)", border: "rgba(14,165,233,0.25)" },
     { icon: "Health", title: "Health Check", sub: "Review and edit shift health check data", href: "/admin/health-check", color: "rgba(59,130,246,0.1)", border: "rgba(59,130,246,0.25)" },
     { icon: "Logs", title: "Edit Logs", sub: "Review and delete audit log entries", href: "/admin/edit-logs", color: "rgba(34,197,94,0.08)", border: "rgba(34,197,94,0.25)" },
   ];

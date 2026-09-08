@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
-import { ClipboardCheck, LayoutDashboard, LogOut, MessageSquareText, Store } from "lucide-react";
+import { CalendarDays, ClipboardCheck, LayoutDashboard, LogOut, MessageSquareText, Store } from "lucide-react";
 
 export default function ManagerBottomNav() {
   const pathname = usePathname();
@@ -29,6 +29,7 @@ export default function ManagerBottomNav() {
   const navItems = [
     { href: "/manager",              Icon: LayoutDashboard,   label: "Dashboard" },
     { href: "/manager/sms",          Icon: MessageSquareText, label: "SMS" },
+    { href: "/manager/schedule",     Icon: CalendarDays,      label: "Schedule" },
     { href: "/manager/health-check", Icon: ClipboardCheck,    label: "Health" },
     ...(branchId ? [{ href: `/store/${branchId}`, Icon: Store, label: "Store" }] : []),
   ];

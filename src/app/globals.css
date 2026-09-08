@@ -1285,3 +1285,538 @@ h1, h2, h3, h4, h5, h6 {
     max-height: 90dvh;
   }
 }
+
+/* Monthly shift schedule */
+.schedule-shell {
+  max-width: 1360px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.schedule-head-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.schedule-filters {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(180px, 260px) minmax(220px, 320px);
+  gap: 0.8rem;
+  align-items: end;
+}
+
+.schedule-filters .users-field:only-child {
+  max-width: 260px;
+}
+
+.schedule-status-card {
+  min-height: 74px;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--radius-md);
+  background: var(--vf-surface-2);
+}
+
+.schedule-status-card svg {
+  color: var(--vf-red-light);
+  flex: 0 0 auto;
+}
+
+.schedule-status-card strong,
+.schedule-status-card span {
+  display: block;
+}
+
+.schedule-status-card strong {
+  color: #fff;
+  font-size: 0.92rem;
+}
+
+.schedule-status-card span {
+  color: var(--vf-text-muted);
+  font-size: 0.76rem;
+}
+
+.schedule-warning {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  border-color: rgba(239, 68, 68, 0.34);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.schedule-warning svg {
+  color: #f87171;
+  flex: 0 0 auto;
+}
+
+.schedule-warning strong,
+.schedule-warning span {
+  display: block;
+}
+
+.schedule-warning strong {
+  color: #fecaca;
+  font-size: 0.92rem;
+}
+
+.schedule-warning span {
+  color: var(--vf-text-2);
+  font-size: 0.78rem;
+}
+
+.schedule-print-area {
+  padding: 0;
+  overflow: hidden;
+}
+
+.schedule-print-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  border-bottom: 1px solid var(--vf-border);
+  background: linear-gradient(135deg, rgba(196, 30, 58, 0.14), rgba(24, 24, 24, 0.98));
+}
+
+.schedule-print-title span {
+  color: var(--vf-red-light);
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.schedule-print-title h2 {
+  color: #fff;
+  font-size: 1.2rem;
+  letter-spacing: 0;
+}
+
+.schedule-print-title strong {
+  color: var(--vf-text-2);
+  font-size: 0.92rem;
+  direction: ltr;
+}
+
+.schedule-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.schedule-table {
+  width: 100%;
+  min-width: 1220px;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 0.78rem;
+  direction: ltr;
+}
+
+.schedule-table th,
+.schedule-table td {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0.28rem;
+  text-align: center;
+  color: var(--vf-text);
+  vertical-align: middle;
+}
+
+.schedule-table th {
+  background: var(--vf-surface-2);
+  color: var(--vf-text-2);
+  font-weight: 800;
+}
+
+.schedule-date-col,
+.schedule-day-num,
+.schedule-weekday {
+  width: 46px;
+}
+
+.schedule-day-num,
+.schedule-weekday {
+  background: rgba(245, 158, 11, 0.14);
+  color: #fbbf24;
+  font-weight: 900;
+}
+
+.schedule-day-friday .schedule-day-num,
+.schedule-day-friday .schedule-weekday {
+  background: rgba(239, 68, 68, 0.22);
+  color: #fca5a5;
+}
+
+.schedule-person-head {
+  min-width: 92px;
+}
+
+.schedule-person-head span,
+.schedule-person-head strong,
+.schedule-person-head em {
+  display: block;
+}
+
+.schedule-person-head span {
+  color: var(--vf-text-muted);
+  font-size: 0.64rem;
+  letter-spacing: 0.08em;
+}
+
+.schedule-person-head strong {
+  color: #fff;
+  font-size: 0.78rem;
+  margin-top: 0.12rem;
+}
+
+.schedule-person-head em {
+  width: fit-content;
+  margin: 0.18rem auto 0;
+  padding: 0.05rem 0.38rem;
+  border-radius: var(--radius-full);
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.12);
+  font-style: normal;
+  font-size: 0.58rem;
+}
+
+.schedule-shift-cell {
+  height: 34px;
+  padding: 0;
+}
+
+.schedule-shift-cell select,
+.schedule-day-card select {
+  width: 100%;
+  min-height: 30px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 900;
+  text-align: center;
+  outline: 0;
+  cursor: pointer;
+}
+
+.schedule-shift-cell select option,
+.schedule-day-card select option {
+  background: var(--vf-surface-2);
+  color: var(--vf-text);
+}
+
+.schedule-shift-cell span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  width: 100%;
+  font-weight: 900;
+}
+
+.shift-cell-am {
+  background: rgba(245, 158, 11, 0.26);
+  color: #fde68a;
+}
+
+.shift-cell-pm {
+  background: rgba(59, 130, 246, 0.18);
+  color: #bfdbfe;
+}
+
+.shift-cell-full {
+  background: rgba(250, 204, 21, 0.35);
+  color: #fef3c7;
+}
+
+.shift-cell-off {
+  background: rgba(239, 68, 68, 0.12);
+  color: #fca5a5;
+}
+
+.shift-cell-ann {
+  background: rgba(34, 197, 94, 0.14);
+  color: #86efac;
+}
+
+.shift-cell-bw {
+  background: rgba(139, 92, 246, 0.18);
+  color: #ddd6fe;
+}
+
+.schedule-invalid-row td {
+  border-top-color: rgba(239, 68, 68, 0.65);
+  border-bottom-color: rgba(239, 68, 68, 0.65);
+}
+
+.schedule-invalid-row .schedule-day-num,
+.schedule-invalid-row .schedule-weekday,
+.schedule-count-bad {
+  background: rgba(239, 68, 68, 0.35) !important;
+  color: #fff !important;
+}
+
+.schedule-table tfoot td {
+  background: var(--vf-surface-2);
+  font-weight: 900;
+}
+
+.schedule-table tfoot tr:nth-child(1) td {
+  background: rgba(34, 197, 94, 0.15);
+  color: #86efac;
+}
+
+.schedule-table tfoot tr:nth-child(2) td {
+  background: rgba(245, 158, 11, 0.26);
+  color: #fde68a;
+}
+
+.schedule-table tfoot tr:nth-child(3) td {
+  background: rgba(59, 130, 246, 0.18);
+  color: #bfdbfe;
+}
+
+.schedule-table tfoot tr:nth-child(5) td {
+  background: rgba(239, 68, 68, 0.18);
+  color: #fca5a5;
+}
+
+.schedule-loading {
+  min-height: 240px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--vf-text-muted);
+}
+
+.schedule-mobile-list {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .schedule-head-actions,
+  .schedule-filters {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .schedule-head-actions .vf-btn {
+    width: 100%;
+  }
+
+  .schedule-print-title {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .schedule-table-wrap {
+    display: none;
+  }
+
+  .schedule-mobile-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.85rem;
+  }
+
+  .schedule-day-card {
+    border: 1px solid var(--vf-border);
+    border-radius: var(--radius-md);
+    background: var(--vf-surface-2);
+    overflow: hidden;
+  }
+
+  .schedule-day-card.is-invalid {
+    border-color: rgba(239, 68, 68, 0.55);
+    box-shadow: inset 4px 0 0 rgba(239, 68, 68, 0.75);
+  }
+
+  .schedule-day-card header {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--vf-border);
+  }
+
+  .schedule-day-card header strong {
+    color: #fff;
+  }
+
+  .schedule-day-card header span {
+    color: var(--vf-text-muted);
+    font-size: 0.75rem;
+  }
+
+  .schedule-day-card-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .schedule-day-card-grid label {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 92px;
+    align-items: center;
+    gap: 0.75rem;
+    min-height: 46px;
+    padding: 0.55rem 0.75rem;
+    border-bottom: 1px solid var(--vf-border);
+  }
+
+  .schedule-day-card-grid label:last-child {
+    border-bottom: 0;
+  }
+
+  .schedule-day-card-grid span {
+    color: var(--vf-text);
+    font-size: 0.84rem;
+    font-weight: 800;
+  }
+
+  .schedule-day-card-grid em {
+    color: var(--vf-red-light);
+    font-style: normal;
+    font-weight: 900;
+    text-align: center;
+  }
+}
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 6mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    color: #111 !important;
+    direction: ltr;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .schedule-print-area,
+  .schedule-print-area * {
+    visibility: visible;
+  }
+
+  .schedule-no-print,
+  .vf-bottom-nav,
+  header {
+    display: none !important;
+  }
+
+  .vf-page,
+  main {
+    padding: 0 !important;
+    min-height: auto !important;
+  }
+
+  .schedule-shell {
+    max-width: none;
+    margin: 0;
+    display: block;
+  }
+
+  .schedule-print-area {
+    position: absolute;
+    inset: 0;
+    border: 0 !important;
+    background: #fff !important;
+    color: #111 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  .schedule-print-title {
+    padding: 0 0 4mm !important;
+    background: #fff !important;
+    border-bottom: 1px solid #111 !important;
+    color: #111 !important;
+  }
+
+  .schedule-print-title span,
+  .schedule-print-title h2,
+  .schedule-print-title strong {
+    color: #111 !important;
+  }
+
+  .schedule-table-wrap {
+    display: block !important;
+    overflow: visible !important;
+  }
+
+  .schedule-mobile-list {
+    display: none !important;
+  }
+
+  .schedule-table {
+    min-width: 0 !important;
+    width: 100% !important;
+    font-size: 7px !important;
+    color: #111 !important;
+  }
+
+  .schedule-table th,
+  .schedule-table td {
+    border: 1px solid #555 !important;
+    color: #111 !important;
+    padding: 1.5px !important;
+    background: #fff !important;
+  }
+
+  .schedule-table th {
+    background: #d9d9d9 !important;
+  }
+
+  .schedule-day-num,
+  .schedule-weekday,
+  .shift-cell-am,
+  .schedule-table tfoot tr:nth-child(2) td {
+    background: #fff36a !important;
+  }
+
+  .shift-cell-pm,
+  .schedule-table tfoot tr:nth-child(3) td {
+    background: #d7e8ff !important;
+  }
+
+  .shift-cell-full {
+    background: #fff36a !important;
+  }
+
+  .shift-cell-off,
+  .schedule-table tfoot tr:nth-child(5) td {
+    background: #ffb3b3 !important;
+  }
+
+  .shift-cell-ann,
+  .schedule-table tfoot tr:nth-child(1) td {
+    background: #c8f3c8 !important;
+  }
+
+  .shift-cell-bw {
+    background: #e5d7ff !important;
+  }
+
+  .schedule-invalid-row .schedule-day-num,
+  .schedule-invalid-row .schedule-weekday,
+  .schedule-count-bad {
+    background: #ff4d4d !important;
+    color: #111 !important;
+  }
+}

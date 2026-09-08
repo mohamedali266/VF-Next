@@ -33,6 +33,13 @@ export default function ManagerDashboardClient({ userName, todayText, branchId }
       href: "/manager/sms",
     },
     {
+      id: "schedule",
+      icon: "📅",
+      title: "Shift Schedule",
+      sub: "Monthly shift planning",
+      href: "/manager/schedule",
+    },
+    {
       id: "health",
       icon: "HC",
       title: "Health Check",

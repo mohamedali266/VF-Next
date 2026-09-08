@@ -26,6 +26,20 @@ enum AtHomeType {
   FIVE_G
 }
 
+enum ScheduleStatus {
+  DRAFT
+  SUBMITTED
+}
+
+enum ScheduleShift {
+  AM
+  PM
+  FULL
+  OFF
+  ANN
+  BW
+}
+
 model User {
   id          String   @id @default(cuid())
   name        String
@@ -50,6 +64,10 @@ model User {
   dailyReports DailyReport[] @relation("EmployeeDailyReports")
   editLogs     EditLog[]     @relation("EditorLogs")
   cstCustomers CstCustomer[] @relation("AgentCstCustomers")
+  scheduleEntries ShiftScheduleEntry[] @relation("ScheduleEmployeeEntries")
+  createdSchedules ShiftSchedule[] @relation("ScheduleCreatedBy")
+  updatedSchedules ShiftSchedule[] @relation("ScheduleUpdatedBy")
+  submittedSchedules ShiftSchedule[] @relation("ScheduleSubmittedBy")
   sessions     Session[]
   accounts     Account[]
 
@@ -67,8 +85,49 @@ model Branch {
 
   users        User[]
   dailyReports DailyReport[]
+  shiftSchedules ShiftSchedule[]
 
   @@map("branches")
+}
+
+model ShiftSchedule {
+  id            String         @id @default(cuid())
+  branchId      String
+  month         DateTime       @db.Date
+  status        ScheduleStatus @default(DRAFT)
+  submittedAt   DateTime?
+  submittedById String?
+  createdById   String
+  updatedById   String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  branch      Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  createdBy   User   @relation("ScheduleCreatedBy", fields: [createdById], references: [id])
+  updatedBy   User?  @relation("ScheduleUpdatedBy", fields: [updatedById], references: [id])
+  submittedBy User?  @relation("ScheduleSubmittedBy", fields: [submittedById], references: [id])
+  entries     ShiftScheduleEntry[]
+
+  @@unique([branchId, month])
+  @@index([month])
+  @@map("shift_schedules")
+}
+
+model ShiftScheduleEntry {
+  id         String        @id @default(cuid())
+  scheduleId String
+  employeeId String
+  date       DateTime      @db.Date
+  shift      ScheduleShift
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  schedule ShiftSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  employee User          @relation("ScheduleEmployeeEntries", fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([scheduleId, employeeId, date])
+  @@index([employeeId, date])
+  @@map("shift_schedule_entries")
 }
 
 model HealthCheck {
