@@ -94,7 +94,6 @@ export default function DailyReportClient() {
       setLoading(false);
     }
     loadReport();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [values.date]);
 
   function setField<K extends keyof DailyReportFormValues>(field: K, value: DailyReportFormValues[K]) {

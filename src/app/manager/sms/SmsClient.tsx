@@ -3,6 +3,7 @@
 import {
   DailyReportFormValues,
   buildSmsMessage,
+  buildSmsHealthBreakdown,
   emptyDailyReportValues,
 } from "@/lib/daily-report";
 import { BarChart3, ClipboardCopy, Loader2, MessageSquareText, RefreshCcw } from "lucide-react";
@@ -24,6 +25,14 @@ type SmsReport = DailyReportFormValues & {
     name: string;
     code: string | null;
   } | null;
+};
+
+type HealthRecord = {
+  id: string;
+  shift: "AM" | "PM" | "BW";
+  line1Nid: number;
+  line2Nid: number;
+  line3Nid: number;
 };
 
 function todayInput() {
@@ -82,12 +91,14 @@ function aggregateReports(reports: SmsReport[], date: string): DailyReportFormVa
 export default function SmsClient() {
   const [date, setDate] = useState(todayInput());
   const [reports, setReports] = useState<SmsReport[]>([]);
+  const [healthRecords, setHealthRecords] = useState<HealthRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [copyState, setCopyState] = useState("");
   const [showRpmModal, setShowRpmModal] = useState(false);
 
   const totals = useMemo(() => aggregateReports(reports, date), [reports, date]);
-  const smsMessage = useMemo(() => buildSmsMessage(totals), [totals]);
+  const healthBreakdown = useMemo(() => buildSmsHealthBreakdown(healthRecords), [healthRecords]);
+  const smsMessage = useMemo(() => buildSmsMessage(totals, healthBreakdown), [totals, healthBreakdown]);
 
   const storeLines = (totals.pre + totals.f52 + totals.f80 + totals.aboveF115) + totals.mnp + (totals.newRed * 3) + totals.conRed;
   const storeAcquisition = storeLines + totals.newVmt;
@@ -95,19 +106,27 @@ export default function SmsClient() {
   const loadReports = useCallback(async () => {
     setLoading(true);
     setCopyState("");
-    const res = await fetch(`/api/daily-report?date=${date}`);
-    const data = await res.json();
-    setReports(data.reports || []);
+    const [reportsRes, healthRes] = await Promise.all([
+      fetch(`/api/daily-report?date=${date}`),
+      fetch(`/api/health-check?date=${date}`),
+    ]);
+    const [reportsData, healthData] = await Promise.all([reportsRes.json(), healthRes.json()]);
+    setReports(reportsData.reports || []);
+    setHealthRecords(healthData.records || []);
     setLoading(false);
   }, [date]);
 
   useEffect(() => {
     let active = true;
 
-    fetch(`/api/daily-report?date=${date}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (active) setReports(data.reports || []);
+    Promise.all([
+      fetch(`/api/daily-report?date=${date}`).then((res) => res.json()),
+      fetch(`/api/health-check?date=${date}`).then((res) => res.json()),
+    ])
+      .then(([reportsData, healthData]) => {
+        if (!active) return;
+        setReports(reportsData.reports || []);
+        setHealthRecords(healthData.records || []);
       })
       .finally(() => {
         if (active) setLoading(false);

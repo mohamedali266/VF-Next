@@ -1,11 +1,11 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { buildSmsMessage, emptyDailyReportValues } from "@/lib/daily-report";
+import { buildSmsHealthBreakdown, buildSmsMessage, emptyDailyReportValues } from "@/lib/daily-report";
 import type { DailyReportFormValues } from "@/lib/daily-report";
 import { NextRequest, NextResponse } from "next/server";
 
-const LINE_NUMS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
-type LineKey = `line${typeof LINE_NUMS[number]}Nid`;
+type HealthLineNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
+type LineKey = `line${HealthLineNumber}Nid`;
 
 function lineKey(n: number): LineKey {
   return `line${n}Nid` as LineKey;
@@ -156,7 +156,7 @@ export async function GET(
     date,
     branch.name
   );
-  const smsMessage = buildSmsMessage(aggregated);
+  const smsMessage = buildSmsMessage(aggregated, buildSmsHealthBreakdown(healthChecks));
 
   // Build health report text
   const healthReport = buildHealthReportText(
