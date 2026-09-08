@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { calculateTotalDailyAch } from "@/lib/daily-report";
+import { calculateAcqHighAch, calculateAcqLowAch, calculateNewTotalAcqAch, calculateTotalDailyAch } from "@/lib/daily-report";
 import { NextRequest, NextResponse } from "next/server";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -206,31 +206,68 @@ async function buildRpmSummary(user: LinkedTelegramUser) {
     },
   });
 
-  let totalF = 0;
+  let totalPre = 0;
+  let totalF52 = 0;
+  let totalF80 = 0;
+  let totalAboveF115 = 0;
+  let totalNewRed = 0;
+  let totalConRed = 0;
   let totalMnp = 0;
-  let totalRed = 0;
-  let totalLines = 0;
+  let totalExitVmt = 0;
   let totalNewVmt = 0;
-  let totalAcquisition = 0;
+  let totalAtHomeAch = 0;
+  let totalAdslAch = 0;
+  let totalTerminalAch = 0;
+  let totalEnterpriseNewAcc = 0;
+  let totalEnterpriseGas = 0;
 
   reports.forEach((report) => {
-    const fSum = report.pre + report.f52 + report.f80 + report.aboveF115;
-    const redSum = report.newRed * 3 + report.conRed;
-    const linesSum = fSum + report.mnp + redSum;
-
-    totalF += fSum;
+    totalPre += report.pre;
+    totalF52 += report.f52;
+    totalF80 += report.f80;
+    totalAboveF115 += report.aboveF115;
+    totalNewRed += report.newRed;
+    totalConRed += report.conRed;
     totalMnp += report.mnp;
-    totalRed += redSum;
-    totalLines += linesSum;
+    totalExitVmt += report.exitVmt;
     totalNewVmt += report.newVmt;
-    totalAcquisition += linesSum + report.newVmt;
+    totalAtHomeAch += report.atHomeAch;
+    totalAdslAch += report.adslAch;
+    totalTerminalAch += report.terminalAch;
+    totalEnterpriseNewAcc += report.enterpriseNewAcc;
+    totalEnterpriseGas += report.enterpriseGas;
   });
+
+  const personalTotals = {
+    pre: totalPre,
+    f52: totalF52,
+    f80: totalF80,
+    aboveF115: totalAboveF115,
+    newRed: totalNewRed,
+    conRed: totalConRed,
+    newVmt: totalNewVmt,
+  };
+  const acqLowAch = calculateAcqLowAch(personalTotals);
+  const acqHighAch = calculateAcqHighAch(personalTotals);
+  const totalAcqAch = calculateNewTotalAcqAch(personalTotals);
+  const averageDailyAcq = reports.length ? (totalAcqAch / reports.length).toFixed(1) : "0";
 
   let responseText = `📊 <b>${escapeHtml(user.name)} RPM (Monthly)</b>\n\n` +
     `Days submitted: <b>${reports.length}</b>\n` +
-    `Acquisition: <b>${totalAcquisition}</b>\n` +
-    `Lines: <b>${totalLines}</b> (F: ${totalF} | MNP: ${totalMnp} | Red: ${totalRed})\n` +
-    `New VMT: <b>${totalNewVmt}</b>\n`;
+    `Average daily Acq: <b>${averageDailyAcq}</b>\n\n` +
+    `<b>Acquisition Box</b>\n` +
+    `Acq Low: <b>${acqLowAch}</b> (Pre ${totalPre} + F52 ${totalF52} + F80 ${totalF80} + Con Red ${totalConRed})\n` +
+    `Acq High: <b>${acqHighAch}</b> (Above F115 ${totalAboveF115} + New Red ${totalNewRed})\n` +
+    `Cash New: <b>${totalNewVmt}</b>\n` +
+    `Total Acq: <b>${totalAcqAch}</b>\n\n` +
+    `<b>Other Details</b>\n` +
+    `MNP: <b>${totalMnp}</b>\n` +
+    `Exit VMT: <b>${totalExitVmt}</b>\n` +
+    `Terminal: <b>${totalTerminalAch}</b>\n` +
+    `Connectivity/At Home: <b>${totalAtHomeAch}</b>\n` +
+    `DSL SR: <b>${totalAdslAch}</b>\n` +
+    `Enterprise New Account: <b>${totalEnterpriseNewAcc}</b>\n` +
+    `Infollow GA: <b>${totalEnterpriseGas}</b>\n`;
 
   if (user.branchId && user.branch) {
     const storeReports = await prisma.dailyReport.findMany({
@@ -240,18 +277,45 @@ async function buildRpmSummary(user: LinkedTelegramUser) {
       },
     });
 
-    let storeAcq = 0;
-    let storeLines = 0;
+    let storePre = 0;
+    let storeF52 = 0;
+    let storeF80 = 0;
+    let storeAboveF115 = 0;
+    let storeNewRed = 0;
+    let storeConRed = 0;
+    let storeNewVmt = 0;
+    let storeAtHomeAch = 0;
+    let storeTerminalAch = 0;
     storeReports.forEach((report) => {
-      const lines = report.pre + report.f52 + report.f80 + report.aboveF115 + report.mnp + (report.newRed * 3 + report.conRed);
-      storeLines += lines;
-      storeAcq += lines + report.newVmt;
+      storePre += report.pre;
+      storeF52 += report.f52;
+      storeF80 += report.f80;
+      storeAboveF115 += report.aboveF115;
+      storeNewRed += report.newRed;
+      storeConRed += report.conRed;
+      storeNewVmt += report.newVmt;
+      storeAtHomeAch += report.atHomeAch;
+      storeTerminalAch += report.terminalAch;
     });
+
+    const storeTotals = {
+      pre: storePre,
+      f52: storeF52,
+      f80: storeF80,
+      aboveF115: storeAboveF115,
+      newRed: storeNewRed,
+      conRed: storeConRed,
+      newVmt: storeNewVmt,
+    };
 
     responseText += `\n🏪 <b>Store RPM (${escapeHtml(user.branch.name)}):</b>\n` +
       `Store reports: <b>${storeReports.length}</b>\n` +
-      `Total Store Acquisition: <b>${storeAcq}</b>\n` +
-      `Total Store Lines: <b>${storeLines}</b>`;
+      `Store Acq Low: <b>${calculateAcqLowAch(storeTotals)}</b>\n` +
+      `Store Acq High: <b>${calculateAcqHighAch(storeTotals)}</b>\n` +
+      `Store Cash New: <b>${storeNewVmt}</b>\n` +
+      `Store Total Acq: <b>${calculateNewTotalAcqAch(storeTotals)}</b>\n` +
+      `Store Connectivity: <b>${storeAtHomeAch}</b>\n` +
+      `Store Terminal: <b>${storeTerminalAch}</b>`;
   }
 
   return responseText;

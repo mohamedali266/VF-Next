@@ -2,11 +2,35 @@ import { prisma } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const APP_URL = process.env.NEXTAUTH_URL || "https://vf-next-delta.vercel.app";
+
+function escapeHtml(value: string | null | undefined) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function getEgyptDateLabel() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Cairo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+function getDateRangeFromLabel(dateLabel: string) {
+  return {
+    start: new Date(`${dateLabel}T00:00:00.000Z`),
+    end: new Date(`${dateLabel}T23:59:59.999Z`),
+  };
+}
 
 async function sendTelegramMessage(chatId: string, text: string) {
-  if (!BOT_TOKEN || !chatId) return;
+  if (!BOT_TOKEN || !chatId) return false;
   try {
-    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+    const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -15,8 +39,16 @@ async function sendTelegramMessage(chatId: string, text: string) {
         parse_mode: "HTML",
       }),
     });
+
+    if (!response.ok) {
+      console.error("Telegram sendMessage failed:", await response.text());
+      return false;
+    }
+
+    return true;
   } catch (err) {
     console.error("Failed to send Telegram message:", err);
+    return false;
   }
 }
 
@@ -28,74 +60,115 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const now = new Date();
-    // Egypt Local Time (UTC+2 or UTC+3)
-    const egyptHour = (now.getUTCHours() + 3) % 24;
-    const egyptMinute = now.getUTCMinutes();
+    if (!BOT_TOKEN) {
+      return NextResponse.json({ error: "TELEGRAM_BOT_TOKEN is not configured" }, { status: 500 });
+    }
 
-    let sentShiftReminders = 0;
+    const dateLabel = req.nextUrl.searchParams.get("date") || getEgyptDateLabel();
+    const { start: todayStart, end: todayEnd } = getDateRangeFromLabel(dateLabel);
+
+    let sentHealthReminders = 0;
+    let skippedCompletedUsers = 0;
     let sentFollowUpReminders = 0;
 
-    // 1) Shift Reminders (AM shift at 15:55, PM shift at 22:55)
-    const isAmReminder = (egyptHour === 15 && egyptMinute >= 50 && egyptMinute <= 59);
-    const isPmReminder = (egyptHour === 22 && egyptMinute >= 50 && egyptMinute <= 59);
+    // 1) Daily Health/Daily Report reminders.
+    // Vercel Hobby only allows one cron per day, so this reminder intentionally runs on every scheduled invocation.
+    const employeesWithTelegram = await prisma.user.findMany({
+      where: {
+        telegramChatId: { not: null },
+        isActive: true,
+        role: "EMPLOYEE",
+      },
+      include: { branch: true },
+      orderBy: { name: "asc" },
+    });
 
-    if (isAmReminder || isPmReminder || req.nextUrl.searchParams.get("forceShift") === "true") {
-      const shiftName = isAmReminder ? "AM Shift" : "PM Shift";
+    for (const user of employeesWithTelegram) {
+      if (!user.telegramChatId) continue;
 
-      const usersWithTelegram = await prisma.user.findMany({
-        where: {
-          telegramChatId: { not: null },
-          isActive: true,
-        },
-      });
+      const [healthCount, dailyCount] = await Promise.all([
+        prisma.healthCheck.count({
+          where: { employeeId: user.id, date: { gte: todayStart, lte: todayEnd } },
+        }),
+        prisma.dailyReport.count({
+          where: { employeeId: user.id, date: { gte: todayStart, lte: todayEnd } },
+        }),
+      ]);
 
-      const shiftReminderText = `⏳ <b>Shift Submission Reminder! (${shiftName})</b>\n\n` +
-        `Hello Agent! Please don't forget to submit your <b>Health Check</b> & <b>Daily Report</b> for your shift today before time runs out.\n\n` +
-        `🔗 <b>Submit Health Check:</b>\nhttps://vf-next-delta.vercel.app/employee/health-check\n\n` +
-        `📱 <b>Submit Daily Report:</b>\nhttps://vf-next-delta.vercel.app/employee/daily-report\n\n` +
-        `Have a productive shift! 🚀`;
+      if (healthCount > 0 && dailyCount > 0 && req.nextUrl.searchParams.get("forceHealth") !== "true") {
+        skippedCompletedUsers++;
+        continue;
+      }
 
-      for (const u of usersWithTelegram) {
-        if (u.telegramChatId) {
-          await sendTelegramMessage(u.telegramChatId, shiftReminderText);
-          sentShiftReminders++;
-        }
+      const missingItems = [
+        healthCount === 0 ? "Health Check" : null,
+        dailyCount === 0 ? "Daily Report" : null,
+      ].filter(Boolean).join(" + ");
+
+      const reminderText = `⏳ <b>VF-Next Daily Reminder</b>\n\n` +
+        `Hello <b>${escapeHtml(user.name)}</b>.\n` +
+        `Date: <b>${dateLabel}</b>\n` +
+        `Store: <b>${escapeHtml(user.branch?.name || "Not assigned")}</b>\n\n` +
+        `Missing today: <b>${missingItems || "None"}</b>\n\n` +
+        `Health Check:\n${APP_URL}/employee/health-check\n\n` +
+        `Daily Report:\n${APP_URL}/employee/daily-report`;
+
+      if (await sendTelegramMessage(user.telegramChatId, reminderText)) {
+        sentHealthReminders++;
       }
     }
 
     // 2) Customer Follow-Up Reminders for Today
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-
     const followUpsToday = await prisma.cstCustomer.findMany({
       where: {
         followUpDate: { gte: todayStart, lte: todayEnd },
         agent: { telegramChatId: { not: null } },
       },
       include: { agent: true },
+      orderBy: [{ agentId: "asc" }, { followUpDate: "asc" }, { createdAt: "desc" }],
     });
 
-    for (const c of followUpsToday) {
-      if (c.agent.telegramChatId) {
-        const followUpText = `🔔 <b>Customer Follow-Up Alert!</b>\n\n` +
-          `👤 <b>Customer:</b> ${c.name}\n` +
-          `📞 <b>Phone:</b> <code>${c.phone}</code>\n` +
-          `🏷️ <b>Service:</b> ${c.serviceType}\n` +
-          `📌 <b>Status:</b> ${c.status}\n` +
-          (c.notes ? `📝 <b>Notes:</b> ${c.notes}\n` : "") +
-          `\n💬 <a href="https://wa.me/20${c.phone.replace(/\D/g, "")}">Open WhatsApp Chat</a>`;
+    const followUpsByAgent = new Map<string, typeof followUpsToday>();
+    for (const customer of followUpsToday) {
+      if (!customer.agent.telegramChatId) continue;
+      const list = followUpsByAgent.get(customer.agentId) || [];
+      list.push(customer);
+      followUpsByAgent.set(customer.agentId, list);
+    }
 
-        await sendTelegramMessage(c.agent.telegramChatId, followUpText);
+    for (const customers of followUpsByAgent.values()) {
+      const agent = customers[0]?.agent;
+      if (!agent?.telegramChatId) continue;
+
+      const customerLines = customers.slice(0, 12).map((customer, index) => {
+        const digits = customer.phone.replace(/\D/g, "");
+        const whatsappUrl = digits ? `https://wa.me/${digits.startsWith("20") ? digits : `20${digits}`}` : "";
+
+        return `${index + 1}. <b>${escapeHtml(customer.name)}</b> (${escapeHtml(customer.serviceType)})\n` +
+          `Phone: <code>${escapeHtml(customer.phone)}</code>\n` +
+          `Status: ${escapeHtml(customer.status)}\n` +
+          (customer.notes ? `Notes: ${escapeHtml(customer.notes)}\n` : "") +
+          (whatsappUrl ? `WhatsApp: ${whatsappUrl}\n` : "");
+      }).join("\n");
+
+      const followUpText = `🔔 <b>CST Follow-Up Reminder</b>\n\n` +
+        `Date: <b>${dateLabel}</b>\n` +
+        `You have <b>${customers.length}</b> follow-up(s) today.\n\n` +
+        customerLines;
+
+      if (await sendTelegramMessage(agent.telegramChatId, followUpText)) {
         sentFollowUpReminders++;
       }
     }
 
     return NextResponse.json({
       success: true,
-      egyptTime: `${egyptHour}:${egyptMinute}`,
-      sentShiftReminders,
+      date: dateLabel,
+      checkedEmployees: employeesWithTelegram.length,
+      skippedCompletedUsers,
+      sentHealthReminders,
       sentFollowUpReminders,
+      followUpsFound: followUpsToday.length,
     });
   } catch (error) {
     console.error("Error running Telegram cron reminders:", error);
