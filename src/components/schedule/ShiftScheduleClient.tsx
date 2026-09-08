@@ -314,15 +314,19 @@ export default function ShiftScheduleClient({
                           return (
                             <td key={`${day.date}:${member.id}`} className={`schedule-shift-cell shift-cell-${shift.toLowerCase()}`}>
                               {editable ? (
-                                <select
-                                  value={shift}
-                                  onChange={(event) => setCell(member.id, day.date, event.target.value as ScheduleShiftValue)}
-                                  aria-label={`${displayNameMap.get(member.id) || member.name} ${day.date}`}
-                                >
-                                  {SCHEDULE_SHIFTS.map((option) => (
-                                    <option key={option} value={option}>{SHIFT_LABELS[option]}</option>
-                                  ))}
-                                </select>
+                                <>
+                                  <select
+                                    className="schedule-shift-select"
+                                    value={shift}
+                                    onChange={(event) => setCell(member.id, day.date, event.target.value as ScheduleShiftValue)}
+                                    aria-label={`${displayNameMap.get(member.id) || member.name} ${day.date}`}
+                                  >
+                                    {SCHEDULE_SHIFTS.map((option) => (
+                                      <option key={option} value={option}>{SHIFT_LABELS[option]}</option>
+                                    ))}
+                                  </select>
+                                  <span className="schedule-print-shift">{SHIFT_LABELS[shift]}</span>
+                                </>
                               ) : (
                                 <span>{SHIFT_LABELS[shift]}</span>
                               )}

@@ -1440,10 +1440,20 @@ h1, h2, h3, h4, h5, h6 {
 .schedule-date-col,
 .schedule-day-num,
 .schedule-weekday {
-  width: 38px;
-  min-width: 38px;
+  width: 56px;
+  min-width: 56px;
   white-space: nowrap;
-  overflow: hidden;
+  overflow: visible;
+}
+
+.schedule-day-num {
+  width: 32px;
+  min-width: 32px;
+}
+
+.schedule-weekday {
+  width: 46px;
+  min-width: 46px;
 }
 
 .schedule-day-num,
@@ -1528,6 +1538,10 @@ h1, h2, h3, h4, h5, h6 {
   min-height: 30px;
   width: 100%;
   font-weight: 900;
+}
+
+.schedule-print-shift {
+  display: none !important;
 }
 
 .shift-cell-am {
@@ -1714,10 +1728,16 @@ h1, h2, h3, h4, h5, h6 {
     overflow: visible !important;
   }
 
+  body > *:not(.vf-page) {
+    display: none !important;
+  }
+
   .schedule-no-print,
   .vf-bottom-nav,
   header,
-  .schedule-mobile-list {
+  .schedule-mobile-list,
+  .schedule-print-title,
+  .schedule-shift-select {
     display: none !important;
   }
 
@@ -1733,6 +1753,10 @@ h1, h2, h3, h4, h5, h6 {
     display: block;
   }
 
+  .schedule-shell > *:not(.schedule-print-area) {
+    display: none !important;
+  }
+
   .schedule-print-area {
     border: 0 !important;
     background: #fff !important;
@@ -1744,9 +1768,9 @@ h1, h2, h3, h4, h5, h6 {
   }
 
   .schedule-print-title {
-    padding: 0 0 2mm !important;
+    padding: 0 !important;
     background: #fff !important;
-    border-bottom: 1px solid #111 !important;
+    border: 0 !important;
     color: #111 !important;
   }
 
@@ -1768,7 +1792,7 @@ h1, h2, h3, h4, h5, h6 {
   .schedule-table {
     min-width: 0 !important;
     width: 100% !important;
-    font-size: 6px !important;
+    font-size: 5.2px !important;
     color: #111 !important;
     table-layout: fixed !important;
     page-break-inside: avoid;
@@ -1778,10 +1802,10 @@ h1, h2, h3, h4, h5, h6 {
   .schedule-table td {
     border: 1px solid #555 !important;
     color: #111 !important;
-    padding: 1px !important;
+    padding: 0.5px !important;
     background: #fff !important;
-    height: 12px !important;
-    line-height: 1.05 !important;
+    height: 9px !important;
+    line-height: 1 !important;
     overflow: hidden !important;
     white-space: nowrap !important;
   }
@@ -1793,28 +1817,29 @@ h1, h2, h3, h4, h5, h6 {
   .schedule-date-col,
   .schedule-day-num,
   .schedule-weekday {
-    width: 16px !important;
-    min-width: 16px !important;
-    max-width: 16px !important;
+    width: 13px !important;
+    min-width: 13px !important;
+    max-width: 13px !important;
   }
 
   .schedule-person-head strong {
-    font-size: 5.5px !important;
+    font-size: 5px !important;
   }
 
   .schedule-person-head span,
   .schedule-person-head em {
-    font-size: 4.8px !important;
+    font-size: 4px !important;
   }
 
   .schedule-shift-cell {
-    height: 12px !important;
+    height: 9px !important;
   }
 
-  .schedule-shift-cell select,
+  .schedule-shift-cell .schedule-print-shift,
   .schedule-shift-cell span {
-    min-height: 10px !important;
-    height: 10px !important;
+    display: inline-flex !important;
+    min-height: 8px !important;
+    height: 8px !important;
     line-height: 1 !important;
   }
 
