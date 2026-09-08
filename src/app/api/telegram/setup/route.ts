@@ -44,8 +44,15 @@ export async function POST(req: NextRequest) {
 
   try {
     const webhookUrl = `${APP_URL.replace(/\/$/, "")}/api/telegram/webhook`;
-    const [commandsResult, webhookResult] = await Promise.all([
+    const [commandsResult, privateCommandsResult, menuButtonResult, webhookResult] = await Promise.all([
       callTelegram("setMyCommands", { commands }),
+      callTelegram("setMyCommands", {
+        commands,
+        scope: { type: "all_private_chats" },
+      }),
+      callTelegram("setChatMenuButton", {
+        menu_button: { type: "commands" },
+      }),
       callTelegram("setWebhook", {
         url: webhookUrl,
         allowed_updates: ["message"],
@@ -57,6 +64,8 @@ export async function POST(req: NextRequest) {
       webhookUrl,
       commands: commands.map((item) => item.command),
       commandsResult,
+      privateCommandsResult,
+      menuButtonResult,
       webhookResult,
     });
   } catch (error) {
