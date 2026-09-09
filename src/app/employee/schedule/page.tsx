@@ -3,25 +3,43 @@ import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
 import ShiftScheduleClient from "@/components/schedule/ShiftScheduleClient";
 
+function getNextMonthKey() {
+  const now = new Date();
+  const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  return `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, "0")}`;
+}
+
 export default async function EmployeeSchedulePage() {
   const session = await auth();
   if (!session) redirect("/login");
   if (session.user.role !== "EMPLOYEE") redirect("/unauthorized");
 
-  const branch = session.user.branchId
-    ? await prisma.branch.findUnique({
+  const [branch, currentUser] = await Promise.all([
+    session.user.branchId
+      ? prisma.branch.findUnique({
         where: { id: session.user.branchId },
         select: { id: true, name: true, code: true, terminalCount: true },
       })
-    : null;
+      : null,
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { isMaster: true },
+    }),
+  ]);
+
+  const nextMonth = getNextMonthKey();
+  const isMasterEmployee = Boolean(currentUser?.isMaster);
 
   return (
     <ShiftScheduleClient
-      title="My Shift Schedule"
-      description="View your store monthly schedule."
+      title={isMasterEmployee ? "Next Month Shift Schedule" : "My Shift Schedule"}
+      description={isMasterEmployee ? "Prepare next month schedule. Submitted schedules can only be reopened by management." : "View your store monthly schedule."}
       branches={branch ? [branch] : []}
       defaultBranchId={branch?.id || null}
-      canEdit={false}
+      defaultMonth={isMasterEmployee ? nextMonth : undefined}
+      canEdit={isMasterEmployee}
+      canReopenSubmitted={false}
+      editableMonth={isMasterEmployee ? nextMonth : null}
       viewerEmployeeId={session.user.id}
     />
   );

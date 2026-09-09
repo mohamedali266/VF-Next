@@ -44,7 +44,10 @@ type Props = {
   description: string;
   branches: StoreOption[];
   defaultBranchId: string | null;
+  defaultMonth?: string;
   canEdit: boolean;
+  canReopenSubmitted?: boolean;
+  editableMonth?: string | null;
   isAdmin?: boolean;
   viewerEmployeeId?: string | null;
 };
@@ -86,18 +89,21 @@ export default function ShiftScheduleClient({
   description,
   branches,
   defaultBranchId,
+  defaultMonth,
   canEdit,
+  canReopenSubmitted = canEdit,
+  editableMonth = null,
   isAdmin = false,
   viewerEmployeeId = null,
 }: Props) {
   const [branchId, setBranchId] = useState(defaultBranchId || branches[0]?.id || "");
-  const [month, setMonth] = useState(monthKeyFromDate());
+  const [month, setMonth] = useState(defaultMonth || monthKeyFromDate());
   const [data, setData] = useState<SchedulePayload | null>(null);
   const [entries, setEntries] = useState<ScheduleEntryInput[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState<"save" | "submit" | "edit" | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [viewMode, setViewMode] = useState<"mine" | "store">(viewerEmployeeId ? "mine" : "store");
+  const [viewMode, setViewMode] = useState<"mine" | "store">(viewerEmployeeId && !canEdit ? "mine" : "store");
 
   useEffect(() => {
     if (!branchId || !month) return;
@@ -142,9 +148,10 @@ export default function ShiftScheduleClient({
     data ? validateScheduleDays(days, members, entries, data.branch.terminalCount) : []
   ), [data, days, entries, members]);
   const validationMap = useMemo(() => new Map(validations.map((item) => [item.date, item])), [validations]);
-  const invalidDays = canEdit ? validations.filter((day) => !day.valid) : [];
+  const canEditThisMonth = canEdit && (!editableMonth || month === editableMonth);
+  const invalidDays = canEditThisMonth ? validations.filter((day) => !day.valid) : [];
   const locked = data?.schedule?.status === "SUBMITTED";
-  const editable = canEdit && !locked;
+  const editable = canEditThisMonth && !locked;
 
   function showMessage(type: "success" | "error", text: string) {
     setMessage({ type, text });
@@ -197,13 +204,13 @@ export default function ShiftScheduleClient({
           <p>{description}</p>
         </div>
         <div className="schedule-head-actions">
-          {canEdit && locked && (
+          {canReopenSubmitted && locked && (
             <button className="vf-btn vf-btn-ghost vf-btn-md" type="button" onClick={() => sendAction("edit")} disabled={saving !== null}>
               <Edit3 size={18} />
               {saving === "edit" ? "Opening..." : "Edit"}
             </button>
           )}
-          {canEdit && !locked && (
+          {canEditThisMonth && !locked && (
             <>
               <button className="vf-btn vf-btn-ghost vf-btn-md" type="button" onClick={() => sendAction("save")} disabled={saving !== null || loading}>
                 <Save size={18} />
@@ -253,12 +260,18 @@ export default function ShiftScheduleClient({
               setMonth(event.target.value);
             }}
           />
+          {editableMonth && (
+            <small>Editable month: {editableMonth}. Current month: {monthKeyFromDate()}.</small>
+          )}
         </label>
         <div className="schedule-status-card">
           <CalendarDays size={18} />
           <div>
             <strong>{data?.branch.name || "No store"}</strong>
-            <span>{data ? `${data.branch.terminalCount} terminals | ${data.schedule?.status || "DRAFT"}` : "Loading schedule"}</span>
+            <span>
+              {data ? `${data.branch.terminalCount} terminals | ${data.schedule?.status || "DRAFT"}` : "Loading schedule"}
+              {editableMonth && month !== editableMonth ? ` | Editing opens for ${editableMonth}` : ""}
+            </span>
           </div>
         </div>
         {viewerEmployeeId && data?.schedule?.status === "SUBMITTED" && (
@@ -298,7 +311,7 @@ export default function ShiftScheduleClient({
           <div className="schedule-loading">Loading schedule...</div>
         ) : !data ? (
           <div className="schedule-loading">Select a store and month.</div>
-        ) : viewerEmployeeId && data.schedule?.status !== "SUBMITTED" ? (
+        ) : viewerEmployeeId && !editable && data.schedule?.status !== "SUBMITTED" ? (
           <div className="schedule-loading">Monthly schedule is not submitted yet.</div>
         ) : (
           <>

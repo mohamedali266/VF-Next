@@ -13,7 +13,7 @@ import { ScheduleShift } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
-const writeRoles = new Set(["ADMIN", "MANAGER", "TEAM_LEADER"]);
+const elevatedWriteRoles = new Set(["ADMIN", "MANAGER", "TEAM_LEADER"]);
 
 const entrySchema = z.object({
   employeeId: z.string().min(1),
@@ -33,15 +33,36 @@ async function getCurrentUser() {
   if (!session?.user?.id) return null;
   return prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { id: true, role: true, branchId: true },
+    select: { id: true, role: true, branchId: true, isMaster: true },
   });
 }
 
-function canWrite(role: string) {
-  return writeRoles.has(role);
+function canElevatedWrite(role: string) {
+  return elevatedWriteRoles.has(role);
 }
 
-function requestedBranchId(req: NextRequest, user: { role: string; branchId: string | null }) {
+function getCairoMonthKey(offsetMonths = 0) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Cairo",
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(new Date());
+
+  const year = Number(parts.find((part) => part.type === "year")?.value);
+  const month = Number(parts.find((part) => part.type === "month")?.value);
+  const shifted = new Date(Date.UTC(year, month - 1 + offsetMonths, 1));
+  return `${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+function isMasterNextMonthCreator(user: { role: string; isMaster: boolean }, month: string) {
+  return user.role === "EMPLOYEE" && user.isMaster && month === getCairoMonthKey(1);
+}
+
+function canSaveDraft(user: { role: string; isMaster: boolean }, month: string) {
+  return canElevatedWrite(user.role) || isMasterNextMonthCreator(user, month);
+}
+
+function requestedBranchId(req: NextRequest, user: { role: string; branchId: string | null; isMaster: boolean }) {
   const queryBranchId = req.nextUrl.searchParams.get("branchId");
   if (user.role === "ADMIN") return queryBranchId || null;
   return user.branchId;
@@ -137,7 +158,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "No store selected" }, { status: 400 });
   }
 
-  const result = await getSchedulePayload(branchId, month, { submittedOnly: user.role === "EMPLOYEE" });
+  const result = await getSchedulePayload(branchId, month, {
+    submittedOnly: user.role === "EMPLOYEE" && !isMasterNextMonthCreator(user, month),
+  });
   if (result.error) return result.error;
   return NextResponse.json(result.payload);
 }
@@ -145,7 +168,6 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!canWrite(user.role)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const parsed = saveSchema.safeParse(await req.json());
   if (!parsed.success) {
@@ -155,6 +177,14 @@ export async function POST(req: NextRequest) {
   const { action, month, entries } = parsed.data;
   const monthStart = monthStartFromInput(month);
   if (!monthStart) return NextResponse.json({ error: "Invalid month" }, { status: 400 });
+
+  if (action === "edit" && !canElevatedWrite(user.role)) {
+    return NextResponse.json({ error: "Only managers, team leaders, and admins can reopen a submitted schedule." }, { status: 401 });
+  }
+
+  if ((action === "save" || action === "submit") && !canSaveDraft(user, month)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   const branchId = user.role === "ADMIN" ? parsed.data.branchId : user.branchId;
   if (!branchId) return NextResponse.json({ error: "No store selected" }, { status: 400 });
