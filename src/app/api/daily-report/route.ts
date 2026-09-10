@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { calculateAtHomeAch, calculateTotalDailyAch } from "@/lib/daily-report";
+import { buildSmsHealthBreakdown, calculateAtHomeAch, calculateTotalDailyAch } from "@/lib/daily-report";
 import { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -106,10 +106,26 @@ export async function GET(req: NextRequest) {
   });
 
   const todayReport = reports.find((report) => toDateInput(report.date) === date);
+  const healthChecks = await prisma.healthCheck.findMany({
+    where: {
+      employeeId: currentUser.id,
+      date: targetDate,
+    },
+    select: {
+      shift: true,
+      line1Nid: true,
+      line2Nid: true,
+      line3Nid: true,
+    },
+    orderBy: [{ shift: "asc" }, { submittedAt: "asc" }],
+  });
+
   return NextResponse.json({
     report: todayReport ? serializeReport(todayReport) : null,
     reports: reports.map(serializeReport),
     storeName: currentUser.branch?.name || "",
+    healthSubmitted: healthChecks.length > 0,
+    healthBreakdown: buildSmsHealthBreakdown(healthChecks),
   });
 }
 
@@ -134,6 +150,20 @@ export async function POST(req: NextRequest) {
   const atHomeAch = calculateAtHomeAch(values.atHomeType, values.atHomeCount);
   const totalDailyAch = calculateTotalDailyAch(values);
   const targetDate = dateOnly(values.date);
+
+  const healthCount = await prisma.healthCheck.count({
+    where: {
+      employeeId: currentUser.id,
+      date: targetDate,
+    },
+  });
+
+  if (healthCount === 0) {
+    return NextResponse.json({
+      error: "You must submit Health Check first.",
+      redirectTo: "/employee/health-check",
+    }, { status: 428 });
+  }
 
   const report = await prisma.dailyReport.upsert({
     where: {

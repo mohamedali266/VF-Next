@@ -34,10 +34,21 @@ type DailyReport = {
   employee: { id: string; name: string };
 };
 
+type HealthCheck = {
+  id: string;
+  shift: "AM" | "PM" | "BW";
+  submittedAt: string;
+  line1Nid: number;
+  line2Nid: number;
+  line3Nid: number;
+  employee: { id: string; name: string };
+};
+
 type StoreData = {
   branch: { id: string; name: string; code: string | null };
   members: Member[];
   dailyReports: DailyReport[];
+  healthChecks: HealthCheck[];
   monthlyReports: DailyReport[];
   lastMonthReports: DailyReport[];
   lastMonthExpired: boolean;
@@ -221,6 +232,7 @@ export default function StoreClient({ storeId }: { storeId: string }) {
 
   const currentMonthRpm = calculateRpm(data?.monthlyReports || []);
   const lastMonthRpm = calculateRpm(data?.lastMonthReports || []);
+  const healthSubmitters = data?.healthChecks || [];
 
   // Distinct days in current month with reports
   const currentMonthDays = new Set((data?.monthlyReports || []).map((r) => r.date)).size;
@@ -428,17 +440,56 @@ export default function StoreClient({ storeId }: { storeId: string }) {
               No health checks submitted for this date
             </div>
           ) : (
-            <div className="vf-card" style={{ padding: 0, overflow: "hidden" }}>
-              <pre style={{
-                display: "block", width: "100%",
-                background: "transparent", border: "none",
-                color: "var(--vf-text)", fontFamily: "monospace", fontSize: "0.8125rem",
-                lineHeight: 1.7, padding: "1.25rem", margin: 0,
-                whiteSpace: "pre-wrap", wordBreak: "break-word",
-              }}>
-                {data?.healthReport}
-              </pre>
-            </div>
+            <>
+              <div className="vf-card" style={{ padding: "1rem", display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+                <div style={{ fontSize: "0.875rem", fontWeight: "800", color: "#fff" }}>
+                  Submitted Health Checks
+                </div>
+                {healthSubmitters.map((record) => (
+                  <div key={record.id} style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: "0.75rem",
+                    padding: "0.75rem",
+                    borderRadius: "12px",
+                    background: "var(--vf-surface-2)",
+                    border: "1px solid var(--vf-border)",
+                  }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ color: "#fff", fontWeight: "800", fontSize: "0.875rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {record.employee.name}
+                      </div>
+                      <div style={{ color: "var(--vf-text-muted)", fontSize: "0.6875rem", marginTop: "0.125rem" }}>
+                        {new Date(record.submittedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                      </div>
+                    </div>
+                    <span style={{
+                      fontSize: "0.75rem",
+                      fontWeight: "900",
+                      color: "var(--vf-red-light)",
+                      background: "rgba(196,30,58,0.15)",
+                      border: "1px solid rgba(196,30,58,0.3)",
+                      borderRadius: "999px",
+                      padding: "0.25rem 0.625rem",
+                    }}>
+                      {record.shift}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="vf-card" style={{ padding: 0, overflow: "hidden" }}>
+                <pre style={{
+                  display: "block", width: "100%",
+                  background: "transparent", border: "none",
+                  color: "var(--vf-text)", fontFamily: "monospace", fontSize: "0.8125rem",
+                  lineHeight: 1.7, padding: "1.25rem", margin: 0,
+                  whiteSpace: "pre-wrap", wordBreak: "break-word",
+                }}>
+                  {data?.healthReport}
+                </pre>
+              </div>
+            </>
           )}
         </div>
       )}

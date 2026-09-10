@@ -5,9 +5,11 @@ import {
   buildSmsMessage,
   emptyDailyReportValues,
   normalizeDailyReportValues,
+  type SmsHealthBreakdown,
 } from "@/lib/daily-report";
-import { Calculator, CheckCircle2, Edit3, Loader2, Send, Trash2, BarChart3 } from "lucide-react";
+import { BarChart3, Calculator, CheckCircle2, ClipboardCopy, Edit3, Loader2, Send, Trash2 } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 type SavedReport = DailyReportFormValues & {
@@ -61,6 +63,8 @@ function calcCumulative(reports: SavedReport[]) {
 
 export default function DailyReportClient() {
   const { data: session } = useSession();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const userName = session?.user?.name || "Agent";
 
   const [values, setValues] = useState<DailyReportFormValues>(emptyDailyReportValues);
@@ -72,15 +76,24 @@ export default function DailyReportClient() {
   const [calcText, setCalcText] = useState("");
   const [assignedStoreName, setAssignedStoreName] = useState("");
   const [showCumulative, setShowCumulative] = useState(false);
+  const [healthBreakdown, setHealthBreakdown] = useState<SmsHealthBreakdown | undefined>();
+  const [copyState, setCopyState] = useState("");
 
   const normalized = useMemo(() => normalizeDailyReportValues(values), [values]);
-  const smsPreview = useMemo(() => buildSmsMessage(normalized), [normalized]);
+  const smsPreview = useMemo(() => buildSmsMessage(normalized, healthBreakdown, { employeeName: userName }), [healthBreakdown, normalized, userName]);
   const cumulative = useMemo(() => calcCumulative(reports), [reports]);
 
   // Check if today's report already exists (editing mode)
   const today = new Date().toISOString().slice(0, 10);
   const isEditMode = reports.some((r) => r.date === values.date);
   const isToday = values.date === today;
+
+  useEffect(() => {
+    const notice = searchParams.get("notice");
+    if (notice === "health-submitted") {
+      setMessage("✅ Health Check submitted. You can now submit your Daily Report.");
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     async function loadReport() {
@@ -90,11 +103,16 @@ export default function DailyReportClient() {
       if ("storeName" in data) setAssignedStoreName(data.storeName || "No store assigned");
       if (data.report) setValues(asFormReport(data.report));
       if (!data.report && data.storeName) setValues((c) => ({ ...c, storeName: data.storeName }));
+      setHealthBreakdown(data.healthBreakdown);
       setReports(data.reports || []);
       setLoading(false);
+
+      if (!data.report && data.healthSubmitted === false) {
+        router.replace("/employee/health-check?notice=health-required&returnTo=daily-report");
+      }
     }
     loadReport();
-  }, [values.date]);
+  }, [router, values.date]);
 
   function setField<K extends keyof DailyReportFormValues>(field: K, value: DailyReportFormValues[K]) {
     setValues((c) => normalizeDailyReportValues({ ...c, [field]: value }));
@@ -117,6 +135,11 @@ export default function DailyReportClient() {
 
     const data = await res.json();
     if (!res.ok) {
+      if (res.status === 428 && data.redirectTo) {
+        setSaving(false);
+        router.push(`${data.redirectTo}?notice=health-required&returnTo=daily-report`);
+        return;
+      }
       setMessage(data.error || "لم يتم حفظ التقرير");
       setSaving(false);
       return;
@@ -128,6 +151,12 @@ export default function DailyReportClient() {
     setReports(reloaded.reports || []);
     setMessage(isEditMode ? "✅ تم تحديث التقرير" : "✅ تم إرسال التقرير");
     setSaving(false);
+  }
+
+  async function copySmsPreview() {
+    await navigator.clipboard.writeText(smsPreview);
+    setCopyState("SMS copied");
+    setTimeout(() => setCopyState(""), 2500);
   }
 
   function clearForm() {
@@ -334,7 +363,13 @@ export default function DailyReportClient() {
 
       {/* ── SMS Preview ── */}
       <section className="vf-card daily-preview">
-        <div className="daily-section-title">SMS Preview</div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem", marginBottom: "0.75rem" }}>
+          <div className="daily-section-title" style={{ marginBottom: 0 }}>SMS Preview</div>
+          <button className="vf-btn vf-btn-ghost vf-btn-md" type="button" onClick={copySmsPreview}>
+            <ClipboardCopy size={17} />
+            {copyState || "Copy"}
+          </button>
+        </div>
         <textarea className="vf-input" value={smsPreview} readOnly />
       </section>
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type Shift = "AM" | "PM" | "BW";
 
@@ -19,6 +20,8 @@ const EMPTY_VALUES: LineValues = Object.fromEntries(LINE_LABELS.map((n) => [n, 0
 
 export default function HealthCheckPage() {
   const { data: session } = useSession();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
   const [values, setValues] = useState<LineValues>(EMPTY_VALUES);
   const [submitting, setSubmitting] = useState(false);
@@ -31,6 +34,8 @@ export default function HealthCheckPage() {
   // Calculate totals
   const totalNids = Object.values(values).reduce((a, b) => a + b, 0);
   const totalLines = LINE_LABELS.reduce((acc, n) => acc + n * (values[n] || 0), 0);
+  const mustSubmitHealthFirst = searchParams.get("notice") === "health-required";
+  const shouldReturnToDailyReport = searchParams.get("returnTo") === "daily-report";
 
   // Load existing submission when shift selected
   const loadExisting = useCallback(async (shift: Shift) => {
@@ -96,6 +101,10 @@ export default function HealthCheckPage() {
       setSubmitted(true);
       setExistingData(data.record);
       setSuccess("تم إرسال البيانات بنجاح ✅");
+      if (shouldReturnToDailyReport) {
+        router.push("/employee/daily-report?notice=health-submitted");
+        return;
+      }
       setTimeout(() => setSuccess(""), 4000);
     } catch (err: any) {
       setError(err.message);
@@ -170,6 +179,11 @@ export default function HealthCheckPage() {
       )}
 
       {/* Alerts */}
+      {mustSubmitHealthFirst && (
+        <div className="vf-alert vf-alert-error animate-fade-up">
+          You must submit Health Check first.
+        </div>
+      )}
       {error && <div className="vf-alert vf-alert-error animate-fade-up">⚠️ {error}</div>}
       {success && <div className="vf-alert vf-alert-success animate-fade-up">✅ {success}</div>}
 

@@ -152,7 +152,7 @@ function formatHealthShift(shift: "AM" | "PM", health?: SmsHealthBreakdown) {
 3 lines/NID (${values.line3Nid})`;
 }
 
-export function buildSmsMessage(values: DailyReportFormValues, health?: SmsHealthBreakdown) {
+export function buildSmsMessage(values: DailyReportFormValues, health?: SmsHealthBreakdown, options?: { employeeName?: string }) {
   const normalized = normalizeDailyReportValues(values);
   const connectivityTodayAch = values.atHomeAch || normalized.atHomeAch;
   const acqLowAch = calculateAcqLowAch(normalized);
@@ -160,7 +160,7 @@ export function buildSmsMessage(values: DailyReportFormValues, health?: SmsHealt
   const totalAcqAch = calculateNewTotalAcqAch(normalized);
   const separator = "> > > > > > > > > > > >";
 
-  return `Store : ${normalized.storeName}
+  return `${options?.employeeName ? `Employee : ${options.employeeName}\n` : ""}Store : ${normalized.storeName}
 Date : ${formatSmsDate(normalized.date)}
 
 ${separator}
