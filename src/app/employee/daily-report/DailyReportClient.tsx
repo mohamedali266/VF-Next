@@ -3,6 +3,9 @@
 import {
   DailyReportFormValues,
   buildSmsMessage,
+  calculateAcqHighAch,
+  calculateAcqLowAch,
+  calculateNewTotalAcqAch,
   emptyDailyReportValues,
   normalizeDailyReportValues,
   type SmsHealthBreakdown,
@@ -37,8 +40,19 @@ function calcCumulative(reports: SavedReport[]) {
   const mnp = sumField(reports, "mnp");
   const newVmt = sumField(reports, "newVmt");
 
+  const totals = {
+    pre,
+    f52,
+    f80,
+    aboveF115,
+    newRed,
+    conRed,
+    newVmt,
+  };
+  const acqLow = calculateAcqLowAch(totals);
+  const acqHigh = calculateAcqHighAch(totals);
+  const totalAcq = calculateNewTotalAcqAch(totals);
   const lines = (pre + f52 + f80 + aboveF115) + mnp + (newRed * 3) + conRed;
-  const acquisition = lines + newVmt;
 
   return {
     pre,
@@ -51,7 +65,10 @@ function calcCumulative(reports: SavedReport[]) {
     conRed,
     mnp,
     lines,
-    acquisition,
+    acqLow,
+    acqHigh,
+    totalAcq,
+    acquisition: totalAcq,
     atHomeAch: sumField(reports, "atHomeAch"),
     adslAch: sumField(reports, "adslAch"),
     terminalAch: sumField(reports, "terminalAch"),
@@ -87,6 +104,11 @@ export default function DailyReportClient() {
   const today = new Date().toISOString().slice(0, 10);
   const isEditMode = reports.some((r) => r.date === values.date);
   const isToday = values.date === today;
+  const selectedMonthLabel = useMemo(() => {
+    const [year, month] = values.date.split("-").map(Number);
+    if (!year || !month) return "Selected month";
+    return new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(new Date(year, month - 1, 1));
+  }, [values.date]);
 
   useEffect(() => {
     const notice = searchParams.get("notice");
@@ -220,7 +242,7 @@ export default function DailyReportClient() {
               <span>📊</span>
               <span>{userName} RPM</span>
               <span style={{ fontSize: "0.75rem", color: "var(--vf-text-muted)", fontWeight: "600" }}>
-                ({cumulative.daysCount} days)
+                {selectedMonthLabel} · {cumulative.daysCount} days
               </span>
             </div>
             <button
@@ -231,9 +253,11 @@ export default function DailyReportClient() {
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.625rem" }}>
             {[
-              ["Acquisition", String(cumulative.acquisition), true],
+              ["Total Acq Ach", String(cumulative.totalAcq), true],
+              ["Acq Low Ach", String(cumulative.acqLow), false],
+              ["Acq High Ach", String(cumulative.acqHigh), false],
+              ["Cash New Ach", String(cumulative.newVmt), false],
               ["Lines (F+MNP+Red)", String(cumulative.lines), false],
-              ["New VMT", String(cumulative.newVmt), false],
               ["At Home Ach", String(cumulative.atHomeAch), false],
               ["ADSL Ach", String(cumulative.adslAch), false],
               ["Terminal Ach", String(cumulative.terminalAch), false],
@@ -377,7 +401,7 @@ export default function DailyReportClient() {
       <section className="vf-card daily-history">
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.875rem" }}>
           <div className="daily-section-title" style={{ marginBottom: 0 }}>
-            Saved Reports ({reports.length})
+            Saved Reports - {selectedMonthLabel} ({reports.length})
           </div>
           {cumulative.daysCount > 0 && (
             <span style={{ fontSize: "0.75rem", color: "var(--vf-text-muted)", fontWeight: "600" }}>
@@ -431,7 +455,7 @@ export default function DailyReportClient() {
                 Acquisition ({cumulative.daysCount}d)
               </div>
               <div style={{ fontSize: "1.25rem", fontWeight: "800", color: "var(--vf-red-light)" }}>
-                {cumulative.acquisition}
+                {cumulative.totalAcq}
               </div>
             </div>
             <div>

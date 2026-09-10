@@ -29,6 +29,14 @@ function dateOnly(value: string) {
   return new Date(`${value}T00:00:00.000Z`);
 }
 
+function monthRangeFromDate(value: string) {
+  const [year, month] = value.split("-").map(Number);
+  return {
+    start: new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0)),
+    end: new Date(Date.UTC(year, month, 0, 23, 59, 59, 999)),
+  };
+}
+
 function toDateInput(value: Date) {
   return value.toISOString().slice(0, 10);
 }
@@ -99,10 +107,16 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ reports: reports.map(serializeReport) });
   }
 
+  const monthRange = monthRangeFromDate(date);
   const reports = await prisma.dailyReport.findMany({
-    where: { employeeId: currentUser.id },
+    where: {
+      employeeId: currentUser.id,
+      date: {
+        gte: monthRange.start,
+        lte: monthRange.end,
+      },
+    },
     orderBy: { date: "desc" },
-    take: 31,
   });
 
   const todayReport = reports.find((report) => toDateInput(report.date) === date);
