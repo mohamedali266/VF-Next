@@ -7,6 +7,7 @@ import { z } from "zod";
 const ROLES = ["EMPLOYEE", "TEAM_LEADER", "MANAGER", "AREA_MANAGER", "ADMIN"] as const;
 const AREA_MANAGER_ALLOWED_ROLES = ["EMPLOYEE", "TEAM_LEADER", "MANAGER"] as const;
 const EMAIL_DOMAIN = "@vodafone.com.eg";
+type UserAdminSession = { user: { role: string; areaId?: string | null } };
 
 const updateUserSchema = z.object({
   name: z.string().trim().min(2).optional(),
@@ -35,6 +36,39 @@ function normalizeBranchId(value: unknown) {
   return typeof value === "string" && value.trim() ? value : undefined;
 }
 
+async function resolveAssignment(data: { role: (typeof ROLES)[number]; branchId?: string | null; areaId?: string | null }, session: UserAdminSession) {
+  if (data.role === "AREA_MANAGER") {
+    if (session.user.role !== "ADMIN") {
+      return { error: NextResponse.json({ error: "Area Manager cannot manage Area Manager users" }, { status: 403 }) };
+    }
+    const areaId = normalizeBranchId(data.areaId);
+    if (!areaId) return { error: NextResponse.json({ error: "Area is required for Area Manager users" }, { status: 400 }) };
+    const area = await prisma.area.findFirst({ where: { id: areaId, isActive: true }, select: { id: true } });
+    if (!area) return { error: NextResponse.json({ error: "Area not found" }, { status: 404 }) };
+    return { branchId: null, areaId };
+  }
+
+  if (data.role === "ADMIN") {
+    if (session.user.role !== "ADMIN") {
+      return { error: NextResponse.json({ error: "Only Admin can manage Admin users" }, { status: 403 }) };
+    }
+    return { branchId: null, areaId: null };
+  }
+
+  const branchId = normalizeBranchId(data.branchId);
+  if (!branchId) return { error: NextResponse.json({ error: "Store is required for this role" }, { status: 400 }) };
+  const branch = await prisma.branch.findFirst({
+    where: {
+      id: branchId,
+      isActive: true,
+      ...(session.user.role === "AREA_MANAGER" ? { areaId: session.user.areaId || "" } : {}),
+    },
+    select: { id: true, areaId: true },
+  });
+  if (!branch) return { error: NextResponse.json({ error: "Store is outside your area or not found" }, { status: 403 }) };
+  return { branchId: branch.id, areaId: branch.areaId };
+}
+
 const userSelect = {
   id: true,
   name: true,
@@ -61,7 +95,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params;
   const existingUser = await prisma.user.findUnique({
     where: { id },
-    select: { id: true, role: true, areaId: true },
+    select: { id: true, role: true, branchId: true, areaId: true },
   });
   if (!existingUser) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
@@ -79,18 +113,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (!AREA_MANAGER_ALLOWED_ROLES.includes(nextRole as (typeof AREA_MANAGER_ALLOWED_ROLES)[number])) {
       return NextResponse.json({ error: "Area Manager cannot manage Admin or Area Manager users" }, { status: 403 });
     }
-    if (body.branchId !== undefined) {
-      const branchId = normalizeBranchId(body.branchId);
-      if (!branchId) return NextResponse.json({ error: "Store is required for area users" }, { status: 400 });
-      const branch = await prisma.branch.findFirst({ where: { id: branchId, areaId: session.user.areaId }, select: { id: true } });
-      if (!branch) return NextResponse.json({ error: "Store is outside your area" }, { status: 403 });
-    }
   }
 
-  if (session.user.role === "ADMIN" && (body.role || existingUser.role) === "AREA_MANAGER") {
-    const nextAreaId = body.areaId !== undefined ? normalizeBranchId(body.areaId) : existingUser.areaId;
-    if (!nextAreaId) return NextResponse.json({ error: "Area is required for Area Manager users" }, { status: 400 });
-  }
+  const nextRole = body.role || existingUser.role;
+  const assignmentInput = {
+    role: nextRole,
+    branchId: body.branchId !== undefined ? body.branchId : existingUser.branchId,
+    areaId: body.areaId !== undefined ? body.areaId : existingUser.areaId,
+  };
+  const assignment = await resolveAssignment(assignmentInput, session);
+  if (assignment.error) return assignment.error;
 
   const updateData: {
     name?: string;
@@ -112,12 +144,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (body.staffId !== undefined) updateData.staffId = body.staffId;
   if (body.emailLocalPart !== undefined) updateData.email = buildVodafoneEmail(body.emailLocalPart);
   if (body.role !== undefined) updateData.role = body.role;
-  if (body.isMaster !== undefined) updateData.isMaster = body.isMaster;
+  if (body.isMaster !== undefined || nextRole !== "EMPLOYEE") updateData.isMaster = nextRole === "EMPLOYEE" ? Boolean(body.isMaster) : false;
   if (body.isActive !== undefined) updateData.isActive = body.isActive;
-  if (body.branchId !== undefined) updateData.branchId = normalizeBranchId(body.branchId) ?? null;
-  if (body.areaId !== undefined || session.user.role === "AREA_MANAGER") {
-    updateData.areaId = session.user.role === "AREA_MANAGER" ? session.user.areaId ?? null : normalizeBranchId(body.areaId) ?? null;
-  }
+  updateData.branchId = assignment.branchId ?? null;
+  updateData.areaId = assignment.areaId ?? null;
   if (body.password) updateData.password = await bcrypt.hash(body.password, 12);
 
   const duplicateChecks = [];

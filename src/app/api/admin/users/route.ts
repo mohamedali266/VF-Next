@@ -7,6 +7,7 @@ import { z } from "zod";
 const ROLES = ["EMPLOYEE", "TEAM_LEADER", "MANAGER", "AREA_MANAGER", "ADMIN"] as const;
 const AREA_MANAGER_ALLOWED_ROLES = ["EMPLOYEE", "TEAM_LEADER", "MANAGER"] as const;
 const EMAIL_DOMAIN = "@vodafone.com.eg";
+type UserAdminSession = { user: { role: string; areaId?: string | null } };
 
 const createUserSchema = z.object({
   name: z.string().trim().min(2),
@@ -31,6 +32,40 @@ function buildVodafoneEmail(localPart: string) {
 
 function normalizeBranchId(value: unknown) {
   return typeof value === "string" && value.trim() ? value : null;
+}
+
+async function resolveAssignment(data: { role: (typeof ROLES)[number]; branchId?: string | null; areaId?: string | null }, session: UserAdminSession) {
+  if (data.role === "AREA_MANAGER") {
+    if (session.user.role !== "ADMIN") {
+      return { error: NextResponse.json({ error: "Area Manager cannot create Area Manager users" }, { status: 403 }) };
+    }
+    const areaId = normalizeBranchId(data.areaId);
+    if (!areaId) return { error: NextResponse.json({ error: "Area is required for Area Manager users" }, { status: 400 }) };
+    const area = await prisma.area.findFirst({ where: { id: areaId, isActive: true }, select: { id: true } });
+    if (!area) return { error: NextResponse.json({ error: "Area not found" }, { status: 404 }) };
+    return { branchId: null, areaId };
+  }
+
+  if (data.role === "ADMIN") {
+    if (session.user.role !== "ADMIN") {
+      return { error: NextResponse.json({ error: "Only Admin can create Admin users" }, { status: 403 }) };
+    }
+    return { branchId: null, areaId: null };
+  }
+
+  const branchId = normalizeBranchId(data.branchId);
+  if (!branchId) return { error: NextResponse.json({ error: "Store is required for this role" }, { status: 400 }) };
+
+  const branch = await prisma.branch.findFirst({
+    where: {
+      id: branchId,
+      isActive: true,
+      ...(session.user.role === "AREA_MANAGER" ? { areaId: session.user.areaId || "" } : {}),
+    },
+    select: { id: true, areaId: true },
+  });
+  if (!branch) return { error: NextResponse.json({ error: "Store is outside your area or not found" }, { status: 403 }) };
+  return { branchId: branch.id, areaId: branch.areaId };
 }
 
 const userSelect = {
@@ -86,15 +121,10 @@ export async function POST(req: NextRequest) {
     if (!session.user.areaId) {
       return NextResponse.json({ error: "Area Manager is not assigned to an area" }, { status: 403 });
     }
-    const branchId = normalizeBranchId(data.branchId);
-    if (!branchId) return NextResponse.json({ error: "Store is required for area users" }, { status: 400 });
-    const branch = await prisma.branch.findFirst({ where: { id: branchId, areaId: session.user.areaId }, select: { id: true } });
-    if (!branch) return NextResponse.json({ error: "Store is outside your area" }, { status: 403 });
   }
 
-  if (session.user.role === "ADMIN" && data.role === "AREA_MANAGER" && !normalizeBranchId(data.areaId)) {
-    return NextResponse.json({ error: "Area is required for Area Manager users" }, { status: 400 });
-  }
+  const assignment = await resolveAssignment(data, session);
+  if (assignment.error) return assignment.error;
 
   const username = data.username.toLowerCase();
   const email = buildVodafoneEmail(data.emailLocalPart);
@@ -126,9 +156,9 @@ export async function POST(req: NextRequest) {
       staffId: data.staffId,
       password: hashedPassword,
       role: data.role,
-      branchId: normalizeBranchId(data.branchId),
-      areaId: session.user.role === "AREA_MANAGER" ? session.user.areaId : normalizeBranchId(data.areaId),
-      isMaster: data.isMaster,
+      branchId: assignment.branchId,
+      areaId: assignment.areaId,
+      isMaster: data.role === "EMPLOYEE" ? data.isMaster : false,
       isActive: true,
     },
     select: userSelect,

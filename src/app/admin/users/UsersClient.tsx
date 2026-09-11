@@ -1,6 +1,6 @@
 "use client";
 
-import { Edit3, Plus, Search, Trash2, UserCheck, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Edit3, Loader2, Plus, Search, ShieldCheck, Trash2, UserCheck, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
 type Role = "EMPLOYEE" | "TEAM_LEADER" | "MANAGER" | "AREA_MANAGER" | "ADMIN";
@@ -70,7 +70,20 @@ const roleLabels: Record<Role, string> = {
   AREA_MANAGER: "Area Manager",
   MANAGER: "Manager",
   TEAM_LEADER: "Team Leader",
-  EMPLOYEE: "Agent",
+  EMPLOYEE: "Employee",
+};
+
+const steps = [
+  { title: "Basic data", subtitle: "Identity and unique account fields" },
+  { title: "Role setup", subtitle: "Access scope and store assignment" },
+  { title: "Password", subtitle: "Secure account credentials" },
+];
+
+const conflictLabels: Record<string, string> = {
+  username: "Username",
+  vpnNum: "VPN num",
+  staffId: "Staff ID",
+  email: "Vodafone email",
 };
 
 function localPart(email: string) {
@@ -89,9 +102,24 @@ function userToForm(user: User): UserForm {
     role: user.role,
     branchId: user.branchId || "",
     areaId: user.areaId || "",
-    isMaster: user.isMaster,
+    isMaster: user.role === "EMPLOYEE" && user.isMaster,
     isActive: user.isActive,
   };
+}
+
+function isIdentityValid(form: UserForm) {
+  return Boolean(
+    form.name.trim().length >= 2 &&
+    /^[a-zA-Z0-9._-]{3,40}$/.test(form.username.trim()) &&
+    form.vpnNum.trim() &&
+    form.staffId.trim() &&
+    /^[a-zA-Z0-9._-]+$/.test(form.emailLocalPart.trim()),
+  );
+}
+
+function isPasswordValid(form: UserForm, editing: boolean) {
+  if (editing && !form.password && !form.confirmPassword) return true;
+  return form.password.length >= 6 && form.password === form.confirmPassword;
 }
 
 export default function UsersClient({
@@ -111,10 +139,39 @@ export default function UsersClient({
   const [form, setForm] = useState<UserForm>(emptyForm);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [checkingIdentity, setCheckingIdentity] = useState(false);
+  const [identityChecked, setIdentityChecked] = useState(false);
+  const [identityConflicts, setIdentityConflicts] = useState<string[]>([]);
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
+  const [modalMessage, setModalMessage] = useState("");
   const [query, setQuery] = useState("");
   const [branchFilter, setBranchFilter] = useState("");
+
+  const roleOptions = useMemo<Role[]>(() => (
+    currentRole === "ADMIN"
+      ? ["EMPLOYEE", "TEAM_LEADER", "MANAGER", "AREA_MANAGER", "ADMIN"]
+      : ["EMPLOYEE", "TEAM_LEADER", "MANAGER"]
+  ), [currentRole]);
+
+  const selectedBranch = useMemo(
+    () => branches.find((branch) => branch.id === form.branchId) || null,
+    [branches, form.branchId],
+  );
+
+  const selectedAreaId = form.role === "AREA_MANAGER"
+    ? form.areaId
+    : selectedBranch?.areaId || (currentRole === "AREA_MANAGER" ? currentAreaId || "" : "");
+
+  const selectedArea = useMemo(
+    () => areas.find((area) => area.id === selectedAreaId) || null,
+    [areas, selectedAreaId],
+  );
+
+  const visibleBranches = useMemo(() => (
+    branches.filter((branch) => currentRole === "AREA_MANAGER" ? branch.areaId === currentAreaId : true)
+  ), [branches, currentAreaId, currentRole]);
 
   const filteredUsers = useMemo(() => {
     const search = query.trim().toLowerCase();
@@ -138,27 +195,135 @@ export default function UsersClient({
     setTimeout(() => setMessage(null), 3500);
   }
 
+  function resetWizard(nextForm = emptyForm) {
+    setForm(nextForm);
+    setStep(0);
+    setIdentityChecked(false);
+    setIdentityConflicts([]);
+    setModalMessage("");
+  }
+
   function openCreate() {
     setEditingUser(null);
-    setForm(emptyForm);
+    resetWizard({ ...emptyForm, areaId: currentRole === "AREA_MANAGER" ? currentAreaId || "" : "" });
     setModalOpen(true);
   }
 
   function openEdit(user: User) {
     setEditingUser(user);
-    setForm(userToForm(user));
+    resetWizard(userToForm(user));
     setModalOpen(true);
+  }
+
+  function updateIdentity(patch: Partial<UserForm>) {
+    setForm((current) => ({ ...current, ...patch }));
+    setIdentityChecked(false);
+    setIdentityConflicts([]);
+    setModalMessage("");
+  }
+
+  function setRole(role: Role) {
+    setForm((current) => ({
+      ...current,
+      role,
+      branchId: role === "AREA_MANAGER" || role === "ADMIN" ? "" : current.branchId,
+      areaId: role === "AREA_MANAGER" ? current.areaId : "",
+      isMaster: role === "EMPLOYEE" ? current.isMaster : false,
+    }));
+    setModalMessage("");
+  }
+
+  async function checkIdentity() {
+    if (!isIdentityValid(form)) {
+      setModalMessage("Complete name, username, VPN num, Staff ID, and Vodafone email first.");
+      return false;
+    }
+
+    setCheckingIdentity(true);
+    setModalMessage("");
+    try {
+      const params = new URLSearchParams({
+        username: form.username.trim(),
+        vpnNum: form.vpnNum.trim(),
+        staffId: form.staffId.trim(),
+        emailLocalPart: form.emailLocalPart.trim(),
+      });
+      if (editingUser) params.set("excludeId", editingUser.id);
+      const res = await fetch(`/api/admin/users/check?${params.toString()}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not validate account data");
+      const conflicts = Array.isArray(data.conflicts) ? data.conflicts : [];
+      setIdentityConflicts(conflicts);
+      setIdentityChecked(conflicts.length === 0);
+      if (conflicts.length) {
+        setModalMessage(`${conflicts.map((key: string) => conflictLabels[key] || key).join(", ")} already exists.`);
+        return false;
+      }
+      return true;
+    } catch (error) {
+      setModalMessage(error instanceof Error ? error.message : "Could not validate account data");
+      return false;
+    } finally {
+      setCheckingIdentity(false);
+    }
+  }
+
+  function validateRoleStep() {
+    if (form.role === "AREA_MANAGER") {
+      if (!form.areaId) {
+        setModalMessage("Select the Area for this Area Manager.");
+        return false;
+      }
+      return true;
+    }
+    if (form.role === "ADMIN") return true;
+    if (!form.branchId) {
+      setModalMessage("Select the Store for this role.");
+      return false;
+    }
+    return true;
+  }
+
+  async function goNext() {
+    if (step === 0) {
+      const ok = identityChecked && !identityConflicts.length ? true : await checkIdentity();
+      if (!ok) return;
+    }
+    if (step === 1 && !validateRoleStep()) return;
+    setModalMessage("");
+    setStep((current) => Math.min(current + 1, steps.length - 1));
+  }
+
+  function buildSubmitBody() {
+    const branchAreaId = selectedBranch?.areaId || "";
+    return {
+      ...form,
+      username: form.username.trim(),
+      vpnNum: form.vpnNum.trim(),
+      staffId: form.staffId.trim(),
+      emailLocalPart: form.emailLocalPart.trim(),
+      branchId: form.role === "AREA_MANAGER" || form.role === "ADMIN" ? "" : form.branchId,
+      areaId: form.role === "AREA_MANAGER" ? form.areaId : branchAreaId,
+      isMaster: form.role === "EMPLOYEE" ? form.isMaster : false,
+    };
   }
 
   async function submitForm(event: React.FormEvent) {
     event.preventDefault();
+    if (!isPasswordValid(form, Boolean(editingUser))) {
+      setModalMessage("Password must be at least 6 characters and match confirmation.");
+      return;
+    }
+
     setLoading(true);
+    setModalMessage("");
 
     const url = editingUser ? `/api/admin/users/${editingUser.id}` : "/api/admin/users";
     const method = editingUser ? "PATCH" : "POST";
-    const body = editingUser && !form.password
-      ? { ...form, password: undefined, confirmPassword: undefined }
-      : form;
+    const prepared = buildSubmitBody();
+    const body = editingUser && !prepared.password
+      ? { ...prepared, password: undefined, confirmPassword: undefined }
+      : prepared;
 
     try {
       const res = await fetch(url, {
@@ -173,10 +338,10 @@ export default function UsersClient({
         ? current.map((user) => user.id === editingUser.id ? data.user : user)
         : [data.user, ...current]);
       setModalOpen(false);
-      setForm(emptyForm);
+      resetWizard();
       showMessage(editingUser ? "User updated successfully" : "User created successfully", "success");
     } catch (error) {
-      showMessage(error instanceof Error ? error.message : "User save failed", "error");
+      setModalMessage(error instanceof Error ? error.message : "User save failed");
     }
 
     setLoading(false);
@@ -276,10 +441,12 @@ export default function UsersClient({
                   <td>{user.email}</td>
                   <td><span className="users-role-pill">{roleLabels[user.role]}</span></td>
                   <td>
-                    {user.isMaster ? (
+                    {user.role === "EMPLOYEE" && user.isMaster ? (
                       <span className="users-master-pill">Master</span>
-                    ) : (
+                    ) : user.role === "EMPLOYEE" ? (
                       <span className="users-muted-pill">Standard</span>
+                    ) : (
+                      <span className="users-muted-pill">-</span>
                     )}
                   </td>
                   <td>{user.branch?.name || "Unassigned"}</td>
@@ -316,7 +483,7 @@ export default function UsersClient({
 
       {modalOpen && (
         <div className="users-modal" onClick={() => setModalOpen(false)}>
-          <form className="users-modal-card" onSubmit={submitForm} onClick={(event) => event.stopPropagation()}>
+          <form className="users-modal-card users-wizard-card" onSubmit={submitForm} onClick={(event) => event.stopPropagation()}>
             <div className="users-modal-head">
               <div>
                 <span>{editingUser ? "Edit User" : "Create User"}</span>
@@ -327,100 +494,172 @@ export default function UsersClient({
               </button>
             </div>
 
-            <div className="users-form-grid">
-              <FormInput label="Full name" value={form.name} onChange={(value) => setForm((current) => ({ ...current, name: value }))} required />
-              <FormInput label="Username" value={form.username} onChange={(value) => setForm((current) => ({ ...current, username: value }))} required />
-              <FormInput label="VPN num" value={form.vpnNum} onChange={(value) => setForm((current) => ({ ...current, vpnNum: value }))} required />
-              <FormInput label="Staff ID" value={form.staffId} onChange={(value) => setForm((current) => ({ ...current, staffId: value }))} required />
-
-              <label className="users-field">
-                <span>Vodafone email</span>
-                <div className="users-email-input">
-                  <input
-                    value={form.emailLocalPart}
-                    onChange={(event) => setForm((current) => ({ ...current, emailLocalPart: event.target.value }))}
-                    required
-                    placeholder="first.last"
-                  />
-                  <em>@vodafone.com.eg</em>
+            <div className="users-stepper" aria-label="User creation progress">
+              {steps.map((item, index) => (
+                <div key={item.title} className={`users-step ${index === step ? "active" : ""} ${index < step ? "done" : ""}`}>
+                  <span>{index < step ? <Check size={14} /> : index + 1}</span>
+                  <div>
+                    <strong>{item.title}</strong>
+                    <em>{item.subtitle}</em>
+                  </div>
                 </div>
-              </label>
+              ))}
+            </div>
 
-              <label className="users-field">
-                <span>Role</span>
-                <select className="vf-input" value={form.role} onChange={(event) => setForm((current) => ({ ...current, role: event.target.value as Role }))}>
-                  <option value="EMPLOYEE">Employee</option>
-                  <option value="TEAM_LEADER">Team Leader</option>
-                  <option value="MANAGER">Manager</option>
-                  {currentRole === "ADMIN" && <option value="AREA_MANAGER">Area Manager</option>}
-                  {currentRole === "ADMIN" && <option value="ADMIN">Admin</option>}
-                </select>
-              </label>
+            {modalMessage && <div className="vf-alert vf-alert-error">{modalMessage}</div>}
 
-              <label className="users-field">
-                <span>Area</span>
-                <select className="vf-input" value={currentRole === "AREA_MANAGER" ? currentAreaId || "" : form.areaId} disabled={currentRole === "AREA_MANAGER"} onChange={(event) => setForm((current) => ({ ...current, areaId: event.target.value, branchId: "" }))}>
-                  <option value="">No area</option>
-                  {areas.map((area) => (
-                    <option key={area.id} value={area.id}>{area.name}{area.code ? ` (${area.code})` : ""}</option>
-                  ))}
-                </select>
-              </label>
+            <div className="users-wizard-panel" key={step}>
+              {step === 0 && (
+                <div className="users-form-grid">
+                  <FormInput label="Full name" value={form.name} onChange={(value) => updateIdentity({ name: value })} required />
+                  <FormInput label="Username" value={form.username} onChange={(value) => updateIdentity({ username: value })} required />
+                  <FormInput label="VPN num" value={form.vpnNum} onChange={(value) => updateIdentity({ vpnNum: value })} required />
+                  <FormInput label="Staff ID" value={form.staffId} onChange={(value) => updateIdentity({ staffId: value })} required />
+                  <label className="users-field users-wide-field">
+                    <span>Vodafone email</span>
+                    <div className="users-email-input">
+                      <input
+                        value={form.emailLocalPart}
+                        onChange={(event) => updateIdentity({ emailLocalPart: event.target.value })}
+                        required
+                        placeholder="first.last"
+                      />
+                      <em>@vodafone.com.eg</em>
+                    </div>
+                  </label>
+                  <div className={`users-identity-check ${identityChecked ? "ok" : identityConflicts.length ? "bad" : ""}`}>
+                    <ShieldCheck size={18} />
+                    <div>
+                      <strong>{identityChecked ? "Account data is available" : "Uniqueness check"}</strong>
+                      <span>Username, VPN num, Staff ID, and Vodafone email are checked before continuing.</span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
-              <label className="users-field">
-                <span>Store</span>
-                <select className="vf-input" value={form.branchId} onChange={(event) => setForm((current) => ({ ...current, branchId: event.target.value }))}>
-                  <option value="">No store</option>
-                  {branches.filter((branch) => {
-                    const selectedAreaId = currentRole === "AREA_MANAGER" ? currentAreaId : form.areaId;
-                    return selectedAreaId ? branch.areaId === selectedAreaId : true;
-                  }).map((branch) => (
-                    <option key={branch.id} value={branch.id}>{branch.name}{branch.code ? ` (${branch.code})` : ""}</option>
-                  ))}
-                </select>
-              </label>
+              {step === 1 && (
+                <div className="users-role-step">
+                  <div className="users-role-grid">
+                    {roleOptions.map((role) => (
+                      <button
+                        key={role}
+                        type="button"
+                        className={`users-role-card ${form.role === role ? "active" : ""}`}
+                        onClick={() => setRole(role)}
+                      >
+                        <strong>{roleLabels[role]}</strong>
+                        <span>
+                          {role === "AREA_MANAGER"
+                            ? "Partners area access without store assignment"
+                            : role === "ADMIN"
+                              ? "Full system access"
+                              : "Store-based access with automatic area scope"}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
 
-              <label className="users-field">
-                <span>Status</span>
-                <select className="vf-input" value={form.isActive ? "active" : "disabled"} onChange={(event) => setForm((current) => ({ ...current, isActive: event.target.value === "active" }))}>
-                  <option value="active">Active</option>
-                  <option value="disabled">Disabled</option>
-                </select>
-              </label>
+                  {form.role === "AREA_MANAGER" && (
+                    <label className="users-field">
+                      <span>Area</span>
+                      <select className="vf-input" value={form.areaId} onChange={(event) => setForm((current) => ({ ...current, areaId: event.target.value }))}>
+                        <option value="">Select area</option>
+                        {areas.map((area) => (
+                          <option key={area.id} value={area.id}>{area.name}{area.code ? ` (${area.code})` : ""}</option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
 
-              <label className="users-check-field">
-                <input
-                  type="checkbox"
-                  checked={form.isMaster}
-                  onChange={(event) => setForm((current) => ({ ...current, isMaster: event.target.checked }))}
-                />
-                <span>
-                  <strong>Master class</strong>
-                  <em>Used later in monthly shift schedule rules.</em>
-                </span>
-              </label>
+                  {form.role !== "AREA_MANAGER" && form.role !== "ADMIN" && (
+                    <>
+                      <label className="users-field">
+                        <span>Store</span>
+                        <select className="vf-input" value={form.branchId} onChange={(event) => setForm((current) => ({ ...current, branchId: event.target.value }))}>
+                          <option value="">Select store</option>
+                          {visibleBranches.map((branch) => (
+                            <option key={branch.id} value={branch.id}>{branch.name}{branch.code ? ` (${branch.code})` : ""}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <div className="users-auto-area">
+                        <span>Automatic area</span>
+                        <strong>{selectedArea?.name || "Select a store first"}</strong>
+                      </div>
+                    </>
+                  )}
 
-              <FormInput
-                label={editingUser ? "New password" : "Password"}
-                type="password"
-                value={form.password}
-                onChange={(value) => setForm((current) => ({ ...current, password: value }))}
-                required={!editingUser}
-              />
-              <FormInput
-                label="Confirm password"
-                type="password"
-                value={form.confirmPassword}
-                onChange={(value) => setForm((current) => ({ ...current, confirmPassword: value }))}
-                required={!editingUser || !!form.password}
-              />
+                  {form.role === "EMPLOYEE" && (
+                    <label className="users-check-field">
+                      <input
+                        type="checkbox"
+                        checked={form.isMaster}
+                        onChange={(event) => setForm((current) => ({ ...current, isMaster: event.target.checked }))}
+                      />
+                      <span>
+                        <strong>Master class</strong>
+                        <em>Only employees can be marked as Master for shift schedule rules.</em>
+                      </span>
+                    </label>
+                  )}
+
+                  <label className="users-field">
+                    <span>Status</span>
+                    <select className="vf-input" value={form.isActive ? "active" : "disabled"} onChange={(event) => setForm((current) => ({ ...current, isActive: event.target.value === "active" }))}>
+                      <option value="active">Active</option>
+                      <option value="disabled">Disabled</option>
+                    </select>
+                  </label>
+                </div>
+              )}
+
+              {step === 2 && (
+                <div className="users-form-grid">
+                  <FormInput
+                    label={editingUser ? "New password" : "Password"}
+                    type="password"
+                    value={form.password}
+                    onChange={(value) => setForm((current) => ({ ...current, password: value }))}
+                    required={!editingUser}
+                  />
+                  <FormInput
+                    label="Confirm password"
+                    type="password"
+                    value={form.confirmPassword}
+                    onChange={(value) => setForm((current) => ({ ...current, confirmPassword: value }))}
+                    required={!editingUser || !!form.password}
+                  />
+                  <div className="users-review-box users-wide-field">
+                    <span>Review</span>
+                    <strong>{form.name || "New account"} - {roleLabels[form.role]}</strong>
+                    <em>
+                      {form.role === "AREA_MANAGER"
+                        ? `Area: ${selectedArea?.name || "not selected"}`
+                        : form.role === "ADMIN"
+                          ? "System admin account"
+                          : `Store: ${selectedBranch?.name || "not selected"} | Area: ${selectedArea?.name || "not selected"}`}
+                    </em>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="users-modal-actions">
-              <button className="vf-btn vf-btn-ghost vf-btn-lg" type="button" onClick={() => setModalOpen(false)}>Cancel</button>
-              <button className="vf-btn vf-btn-primary vf-btn-lg" type="submit" disabled={loading}>
-                {loading ? "Saving..." : editingUser ? "Save Changes" : "Create User"}
+              <button className="vf-btn vf-btn-ghost vf-btn-lg" type="button" onClick={() => step === 0 ? setModalOpen(false) : setStep((current) => current - 1)}>
+                {step === 0 ? <X size={18} /> : <ChevronLeft size={18} />}
+                {step === 0 ? "Cancel" : "Back"}
               </button>
+              {step < steps.length - 1 ? (
+                <button className="vf-btn vf-btn-primary vf-btn-lg" type="button" onClick={goNext} disabled={checkingIdentity}>
+                  {checkingIdentity ? <Loader2 className="daily-spin" size={18} /> : <ChevronRight size={18} />}
+                  {step === 0 ? "Check and continue" : "Continue"}
+                </button>
+              ) : (
+                <button className="vf-btn vf-btn-primary vf-btn-lg" type="submit" disabled={loading}>
+                  {loading ? <Loader2 className="daily-spin" size={18} /> : <Check size={18} />}
+                  {loading ? "Saving..." : editingUser ? "Save Changes" : "Create User"}
+                </button>
+              )}
             </div>
           </form>
         </div>
