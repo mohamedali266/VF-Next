@@ -87,6 +87,30 @@ function buildDisplayNameMap(members: ScheduleMember[]) {
   }));
 }
 
+function todayKey() {
+  const today = new Date();
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+}
+
+function shiftSortRank(shift: ScheduleShiftValue) {
+  const order: Record<ScheduleShiftValue, number> = {
+    AM: 0,
+    FULL: 1,
+    PM: 2,
+    OFF: 3,
+    ANN: 4,
+    BW: 5,
+  };
+  return order[shift];
+}
+
+function memberRoleLabel(member: ScheduleMember) {
+  if (member.role === "MANAGER") return "Manager";
+  if (member.role === "TEAM_LEADER") return "TL";
+  if (member.role === "EMPLOYEE" && member.isMaster) return "Master";
+  return "";
+}
+
 export default function ShiftScheduleClient({
   title,
   description,
@@ -142,6 +166,12 @@ export default function ShiftScheduleClient({
   }, [branchId, month]);
 
   const days = useMemo(() => data?.days || getMonthDays(month), [data?.days, month]);
+  const displayDays = useMemo(() => {
+    const currentMonth = monthKeyFromDate();
+    const today = todayKey();
+    if (month !== currentMonth) return days;
+    return days.filter((day) => day.date >= today);
+  }, [days, month]);
   const members = useMemo(() => data?.members || [], [data?.members]);
   const visibleMembers = useMemo(() => (
     viewerEmployeeId && viewMode === "mine"
@@ -403,7 +433,7 @@ export default function ShiftScheduleClient({
                   </tr>
                 </thead>
                 <tbody>
-                  {days.map((day) => {
+                  {displayDays.map((day) => {
                     const validation = validationMap.get(day.date);
                     const rowInvalid = validation && !validation.valid;
                     return (
@@ -459,8 +489,20 @@ export default function ShiftScheduleClient({
             </div>
 
             <div className="schedule-mobile-list schedule-no-print">
-              {days.map((day) => {
+              {displayDays.map((day) => {
                 const validation = validationMap.get(day.date);
+                const mobileMembers = [...visibleMembers].sort((a, b) => {
+                  const aShift = entryMap.get(`${day.date}:${a.id}`) || "OFF";
+                  const bShift = entryMap.get(`${day.date}:${b.id}`) || "OFF";
+                  const shiftDelta = shiftSortRank(aShift) - shiftSortRank(bShift);
+                  if (shiftDelta) return shiftDelta;
+                  if (a.role !== b.role) {
+                    const roleOrder: Record<ScheduleMember["role"], number> = { MANAGER: 0, TEAM_LEADER: 1, EMPLOYEE: 2, AREA_MANAGER: 3, ADMIN: 4 };
+                    return roleOrder[a.role] - roleOrder[b.role];
+                  }
+                  if (a.isMaster !== b.isMaster) return a.isMaster ? -1 : 1;
+                  return a.name.localeCompare(b.name);
+                });
                 return (
                   <article key={day.date} className={`schedule-day-card ${validation && !validation.valid ? "is-invalid" : ""}`}>
                     <header>
@@ -468,11 +510,15 @@ export default function ShiftScheduleClient({
                       <span>AM {validation?.amCount || 0} | PM {validation?.pmCount || 0} | OFF {validation?.offCount || 0}</span>
                     </header>
                     <div className="schedule-day-card-grid">
-                      {visibleMembers.map((member) => {
+                      {mobileMembers.map((member) => {
                         const shift = entryMap.get(`${day.date}:${member.id}`) || "OFF";
+                        const badge = memberRoleLabel(member);
                         return (
                           <label key={`${day.date}:mobile:${member.id}`}>
-                            <span title={member.name}>{displayNameMap.get(member.id) || member.name}</span>
+                            <span title={member.name}>
+                              {displayNameMap.get(member.id) || member.name}
+                              {badge && <small>{badge}</small>}
+                            </span>
                             {editable ? (
                               <select value={shift} onChange={(event) => setCell(member.id, day.date, event.target.value as ScheduleShiftValue)}>
                                 {SCHEDULE_SHIFTS.map((option) => <option key={option} value={option}>{SHIFT_LABELS[option]}</option>)}

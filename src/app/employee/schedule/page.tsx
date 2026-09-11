@@ -36,7 +36,6 @@ export default async function EmployeeSchedulePage() {
       description={isMasterEmployee ? "Prepare next month schedule. Submitted schedules can only be reopened by management." : "View your store monthly schedule."}
       branches={branch ? [branch] : []}
       defaultBranchId={branch?.id || null}
-      defaultMonth={isMasterEmployee ? nextMonth : undefined}
       canEdit={isMasterEmployee}
       canReopenSubmitted={false}
       editableMonth={isMasterEmployee ? nextMonth : null}

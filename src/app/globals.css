@@ -2247,9 +2247,24 @@ h1, h2, h3, h4, h5, h6 {
   }
 
   .schedule-day-card-grid span {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-width: 0;
     color: var(--vf-text);
     font-size: 0.84rem;
     font-weight: 800;
+  }
+
+  .schedule-day-card-grid span small {
+    flex: 0 0 auto;
+    color: var(--vf-red-light);
+    background: rgba(196, 30, 58, 0.14);
+    border: 1px solid rgba(196, 30, 58, 0.26);
+    border-radius: 999px;
+    padding: 0.1rem 0.42rem;
+    font-size: 0.63rem;
+    font-weight: 900;
   }
 
   .schedule-day-card-grid em {
