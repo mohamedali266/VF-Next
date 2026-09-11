@@ -1,4 +1,4 @@
-export type ScheduleRole = "EMPLOYEE" | "TEAM_LEADER" | "MANAGER" | "ADMIN";
+export type ScheduleRole = "EMPLOYEE" | "TEAM_LEADER" | "MANAGER" | "AREA_MANAGER" | "ADMIN";
 export type ScheduleShiftValue = "AM" | "PM" | "FULL" | "OFF" | "ANN" | "BW";
 
 export type ScheduleMember = {
@@ -94,7 +94,8 @@ export function sortScheduleMembers(members: ScheduleMember[]) {
     MANAGER: 0,
     TEAM_LEADER: 1,
     EMPLOYEE: 2,
-    ADMIN: 3,
+    AREA_MANAGER: 3,
+    ADMIN: 4,
   };
 
   return [...members].sort((a, b) => {

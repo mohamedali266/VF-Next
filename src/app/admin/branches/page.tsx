@@ -14,8 +14,14 @@ export default async function AdminBranchesPage() {
         orderBy: [{ role: "asc" }, { name: "asc" }],
         select: { id: true, name: true, email: true, role: true, isActive: true },
       },
+      area: { select: { id: true, name: true, code: true } },
     },
   });
+  const areas = await prisma.area.findMany({
+    where: { isActive: true },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, code: true },
+  });
 
-  return <BranchesClient branches={branches} />;
+  return <BranchesClient branches={branches} areas={areas} />;
 }

@@ -6,6 +6,7 @@ export default async function HomePage() {
   if (!session) redirect("/login");
   const role = session.user.role;
   if (role === "ADMIN") redirect("/admin");
+  if (role === "AREA_MANAGER") redirect("/area");
   if (role === "MANAGER" || role === "TEAM_LEADER") redirect("/manager");
   redirect("/employee");
 }

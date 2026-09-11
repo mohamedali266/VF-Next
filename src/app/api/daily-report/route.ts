@@ -44,7 +44,7 @@ function toDateInput(value: Date) {
 type DailyReportWithRelations = Prisma.DailyReportGetPayload<{
   include: {
     employee: { select: { id: true; name: true; email: true; username: true; vpnNum: true; staffId: true; role: true } };
-    branch: { select: { id: true; name: true; code: true } };
+    branch: { select: { id: true; name: true; code: true; areaId: true } };
   };
 }>;
 
@@ -64,6 +64,7 @@ async function getCurrentDbUser(userId: string) {
       id: true,
       role: true,
       branchId: true,
+      areaId: true,
       branch: { select: { id: true, name: true } },
     },
   });
@@ -80,7 +81,7 @@ export async function GET(req: NextRequest) {
   const date = searchParams.get("date") || new Date().toISOString().slice(0, 10);
   const targetDate = dateOnly(date);
 
-  if (currentUser.role === "MANAGER" || currentUser.role === "TEAM_LEADER" || currentUser.role === "ADMIN") {
+  if (currentUser.role === "MANAGER" || currentUser.role === "TEAM_LEADER" || currentUser.role === "ADMIN" || currentUser.role === "AREA_MANAGER") {
     // ADMIN: can filter by branchId query param (or see all if not specified)
     // MANAGER/TEAM_LEADER: strictly scoped to their own branch — no branch = no data
     if (currentUser.role === "MANAGER" || currentUser.role === "TEAM_LEADER") {
@@ -88,18 +89,22 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ reports: [] });
       }
     }
+    if (currentUser.role === "AREA_MANAGER" && !currentUser.areaId) {
+      return NextResponse.json({ reports: [] });
+    }
 
     const branchId = searchParams.get("branchId") || undefined;
-    const scopedBranchId = currentUser.role === "ADMIN" ? branchId : currentUser.branchId ?? undefined;
+    const scopedBranchId = currentUser.role === "ADMIN" || currentUser.role === "AREA_MANAGER" ? branchId : currentUser.branchId ?? undefined;
 
     const reports = await prisma.dailyReport.findMany({
       where: {
         date: targetDate,
         ...(scopedBranchId ? { branchId: scopedBranchId } : {}),
+        ...(currentUser.role === "AREA_MANAGER" ? { branch: { areaId: currentUser.areaId } } : {}),
       },
       include: {
         employee: { select: { id: true, name: true, email: true, username: true, vpnNum: true, staffId: true, role: true } },
-        branch: { select: { id: true, name: true, code: true } },
+        branch: { select: { id: true, name: true, code: true, areaId: true } },
       },
       orderBy: [{ branch: { name: "asc" } }, { employee: { name: "asc" } }],
     });

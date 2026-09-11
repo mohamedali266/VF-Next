@@ -14,6 +14,7 @@ type ExportRecord = {
   employee: {
     name: string;
     department: string | null;
+    branch?: { name: string; areaId: string | null } | null;
   };
 } & Record<`line${number}Nid`, number>;
 
@@ -139,7 +140,7 @@ export async function GET(req: NextRequest) {
   const session = await auth();
   const role = session?.user.role;
 
-  if (!session || (role !== "MANAGER" && role !== "TEAM_LEADER" && role !== "ADMIN")) {
+  if (!session || (role !== "MANAGER" && role !== "TEAM_LEADER" && role !== "ADMIN" && role !== "AREA_MANAGER")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -152,11 +153,13 @@ export async function GET(req: NextRequest) {
     where: {
       date: targetDate,
       ...(isShift(shift) ? { shift } : {}),
+      ...(role === "MANAGER" || role === "TEAM_LEADER" ? { employee: { branchId: session.user.branchId || "" } } : {}),
+      ...(role === "AREA_MANAGER" ? { employee: { branch: { areaId: session.user.areaId || "" } } } : {}),
     },
     include: {
-      employee: { select: { name: true, department: true } },
+      employee: { select: { name: true, department: true, branch: { select: { name: true, areaId: true } } } },
     },
-    orderBy: [{ shift: "asc" }, { submittedAt: "asc" }],
+    orderBy: [{ employee: { branch: { name: "asc" } } }, { shift: "asc" }, { submittedAt: "asc" }],
   });
 
   const workbook = XLSX.utils.book_new();

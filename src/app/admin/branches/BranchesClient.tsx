@@ -3,7 +3,13 @@
 import { Edit3, Plus, Store, Trash2, X } from "lucide-react";
 import { useState } from "react";
 
-type Role = "EMPLOYEE" | "TEAM_LEADER" | "MANAGER" | "ADMIN";
+type Role = "EMPLOYEE" | "TEAM_LEADER" | "MANAGER" | "AREA_MANAGER" | "ADMIN";
+
+type AreaOption = {
+  id: string;
+  name: string;
+  code: string | null;
+};
 
 type StoreUser = {
   id: string;
@@ -18,22 +24,25 @@ type StoreItem = {
   name: string;
   code: string | null;
   terminalCount: number;
+  areaId: string | null;
+  area: AreaOption | null;
   isActive: boolean;
   users: StoreUser[];
 };
 
 const ROLE_LABELS: Record<Role, string> = {
   ADMIN: "Admin",
+  AREA_MANAGER: "Area Manager",
   MANAGER: "Manager",
   TEAM_LEADER: "Team Leader",
   EMPLOYEE: "Agent",
 };
 
-const ROLE_ORDER: Role[] = ["MANAGER", "TEAM_LEADER", "EMPLOYEE", "ADMIN"];
+const ROLE_ORDER: Role[] = ["MANAGER", "TEAM_LEADER", "EMPLOYEE", "AREA_MANAGER", "ADMIN"];
 
-export default function BranchesClient({ branches: initialStores }: { branches: StoreItem[] }) {
+export default function BranchesClient({ branches: initialStores, areas }: { branches: StoreItem[]; areas: AreaOption[] }) {
   const [stores, setStores] = useState(initialStores);
-  const [form, setForm] = useState({ name: "", code: "", terminalCount: 2, isActive: true });
+  const [form, setForm] = useState({ name: "", code: "", terminalCount: 2, areaId: "", isActive: true });
   const [editing, setEditing] = useState<StoreItem | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -41,14 +50,14 @@ export default function BranchesClient({ branches: initialStores }: { branches: 
 
   function openCreate() {
     setEditing(null);
-    setForm({ name: "", code: "", terminalCount: 2, isActive: true });
+    setForm({ name: "", code: "", terminalCount: 2, areaId: "", isActive: true });
     setMessage("");
     setModalOpen(true);
   }
 
   function openEdit(store: StoreItem) {
     setEditing(store);
-    setForm({ name: store.name, code: store.code || "", terminalCount: store.terminalCount, isActive: store.isActive });
+    setForm({ name: store.name, code: store.code || "", terminalCount: store.terminalCount, areaId: store.areaId || "", isActive: store.isActive });
     setMessage("");
     setModalOpen(true);
   }
@@ -112,7 +121,7 @@ export default function BranchesClient({ branches: initialStores }: { branches: 
               <div className="store-icon"><Store size={20} /></div>
               <div>
                 <h2>{store.name}</h2>
-                <p>{store.code || "No code"} | {store.terminalCount} terminals | {store.users.length} users</p>
+                <p>{store.code || "No code"} | {store.area?.name || "No area"} | {store.terminalCount} terminals | {store.users.length} users</p>
               </div>
               <span className={store.isActive ? "users-status active" : "users-status disabled"}>
                 {store.isActive ? "Active" : "Inactive"}
@@ -177,6 +186,15 @@ export default function BranchesClient({ branches: initialStores }: { branches: 
                 <select className="vf-input" value={form.isActive ? "active" : "inactive"} onChange={(event) => setForm((current) => ({ ...current, isActive: event.target.value === "active" }))}>
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
+                </select>
+              </label>
+              <label className="users-field">
+                <span>Area</span>
+                <select className="vf-input" value={form.areaId} onChange={(event) => setForm((current) => ({ ...current, areaId: event.target.value }))}>
+                  <option value="">No area</option>
+                  {areas.map((area) => (
+                    <option key={area.id} value={area.id}>{area.name}{area.code ? ` (${area.code})` : ""}</option>
+                  ))}
                 </select>
               </label>
               <label className="users-field">

@@ -14,7 +14,7 @@ import {
   type ScheduleMember,
   type ScheduleShiftValue,
 } from "@/lib/shift-schedule";
-import { CalendarDays, CheckCircle2, Edit3, Printer, Save, ShieldAlert } from "lucide-react";
+import { CalendarDays, CheckCircle2, Edit3, Printer, Save, ShieldAlert, XCircle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 type StoreOption = {
@@ -32,8 +32,10 @@ type SchedulePayload = {
   schedule: {
     id: string;
     status: "DRAFT" | "SUBMITTED";
+    approvalStatus?: "PENDING" | "APPROVED" | "REJECTED";
     submittedAt: string | null;
     updatedAt: string;
+    reviewComment?: string | null;
   } | null;
   entries: ScheduleEntryInput[];
   validations: DayValidation[];
@@ -47,6 +49,7 @@ type Props = {
   defaultMonth?: string;
   canEdit: boolean;
   canReopenSubmitted?: boolean;
+  canApprove?: boolean;
   editableMonth?: string | null;
   isAdmin?: boolean;
   viewerEmployeeId?: string | null;
@@ -92,6 +95,7 @@ export default function ShiftScheduleClient({
   defaultMonth,
   canEdit,
   canReopenSubmitted = canEdit,
+  canApprove = false,
   editableMonth = null,
   isAdmin = false,
   viewerEmployeeId = null,
@@ -102,6 +106,8 @@ export default function ShiftScheduleClient({
   const [entries, setEntries] = useState<ScheduleEntryInput[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState<"save" | "submit" | "edit" | null>(null);
+  const [reviewing, setReviewing] = useState<"approve" | "reject" | null>(null);
+  const [reviewComment, setReviewComment] = useState("");
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [viewMode, setViewMode] = useState<"mine" | "store">(viewerEmployeeId && !canEdit ? "mine" : "store");
 
@@ -191,6 +197,36 @@ export default function ShiftScheduleClient({
     }
   }
 
+  async function sendReview(action: "approve" | "reject") {
+    if (!branchId) return;
+    if (action === "reject" && !reviewComment.trim()) {
+      showMessage("error", "Rejection comment is required.");
+      return;
+    }
+    setReviewing(action);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/schedules/month", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ branchId, month, action, reviewComment }),
+      });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.error || "Schedule review failed");
+      const nextPayload = payload as SchedulePayload;
+      const nextMembers = sortScheduleMembers(nextPayload.members);
+      const nextDays = nextPayload.days.length ? nextPayload.days : getMonthDays(month);
+      setData({ ...nextPayload, members: nextMembers, days: nextDays });
+      setEntries(nextPayload.entries.length ? nextPayload.entries : emptyEntries(nextDays, nextMembers));
+      setReviewComment("");
+      showMessage("success", action === "approve" ? "Schedule approved" : "Schedule rejected");
+    } catch (error) {
+      showMessage("error", error instanceof Error ? error.message : "Schedule review failed");
+    } finally {
+      setReviewing(null);
+    }
+  }
+
   function printSchedule() {
     window.print();
   }
@@ -270,6 +306,7 @@ export default function ShiftScheduleClient({
             <strong>{data?.branch.name || "No store"}</strong>
             <span>
               {data ? `${data.branch.terminalCount} terminals | ${data.schedule?.status || "DRAFT"}` : "Loading schedule"}
+              {data?.schedule?.approvalStatus ? ` | ${data.schedule.approvalStatus}` : ""}
               {editableMonth && month !== editableMonth ? ` | Editing opens for ${editableMonth}` : ""}
             </span>
           </div>
@@ -294,6 +331,37 @@ export default function ShiftScheduleClient({
           <div>
             <strong>{invalidDays.length} day(s) need attention</strong>
             <span>Regular days need valid AM and PM coverage. Friday needs one working shift with at least 3 employees including 1 Master.</span>
+          </div>
+        </section>
+      )}
+
+      {canApprove && data?.schedule?.status === "SUBMITTED" && (
+        <section className="vf-card schedule-warning schedule-no-print">
+          <CheckCircle2 size={20} />
+          <div style={{ flex: 1 }}>
+            <strong>Area review</strong>
+            <span>
+              Current status: {data.schedule.approvalStatus || "PENDING"}
+              {data.schedule.reviewComment ? ` | Last comment: ${data.schedule.reviewComment}` : ""}
+            </span>
+            <textarea
+              className="vf-input"
+              rows={3}
+              value={reviewComment}
+              onChange={(event) => setReviewComment(event.target.value)}
+              placeholder="Write approval or rejection comment..."
+              style={{ marginTop: "0.75rem", resize: "vertical" }}
+            />
+            <div className="schedule-head-actions" style={{ marginTop: "0.75rem" }}>
+              <button className="vf-btn vf-btn-primary vf-btn-md" type="button" onClick={() => sendReview("approve")} disabled={reviewing !== null}>
+                <CheckCircle2 size={18} />
+                {reviewing === "approve" ? "Approving..." : "Approve"}
+              </button>
+              <button className="vf-btn vf-btn-ghost vf-btn-md" type="button" onClick={() => sendReview("reject")} disabled={reviewing !== null}>
+                <XCircle size={18} />
+                {reviewing === "reject" ? "Rejecting..." : "Reject"}
+              </button>
+            </div>
           </div>
         </section>
       )}

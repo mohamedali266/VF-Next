@@ -24,7 +24,8 @@ const entrySchema = z.object({
 const saveSchema = z.object({
   branchId: z.string().optional().nullable(),
   month: z.string().regex(/^\d{4}-\d{2}$/),
-  action: z.enum(["save", "submit", "edit"]),
+  action: z.enum(["save", "submit", "edit", "approve", "reject"]),
+  reviewComment: z.string().trim().max(500).optional(),
   entries: z.array(entrySchema).default([]),
 });
 
@@ -33,7 +34,7 @@ async function getCurrentUser() {
   if (!session?.user?.id) return null;
   return prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { id: true, role: true, branchId: true, isMaster: true },
+    select: { id: true, role: true, branchId: true, areaId: true, isMaster: true },
   });
 }
 
@@ -64,7 +65,7 @@ function canSaveDraft(user: { role: string; isMaster: boolean }, month: string) 
 
 function requestedBranchId(req: NextRequest, user: { role: string; branchId: string | null; isMaster: boolean }) {
   const queryBranchId = req.nextUrl.searchParams.get("branchId");
-  if (user.role === "ADMIN") return queryBranchId || null;
+  if (user.role === "ADMIN" || user.role === "AREA_MANAGER") return queryBranchId || null;
   return user.branchId;
 }
 
@@ -105,8 +106,10 @@ async function getSchedulePayload(branchId: string, month: string, options?: { s
         select: {
           id: true,
           status: true,
+          approvalStatus: true,
           submittedAt: true,
           updatedAt: true,
+          reviewComment: true,
           entries: {
             select: { employeeId: true, date: true, shift: true },
           },
@@ -139,8 +142,10 @@ async function getSchedulePayload(branchId: string, month: string, options?: { s
       schedule: schedule ? {
         id: schedule.id,
         status: schedule.status,
+        approvalStatus: schedule.approvalStatus,
         submittedAt: schedule.submittedAt,
         updatedAt: schedule.updatedAt,
+        reviewComment: schedule.reviewComment,
       } : null,
       entries,
       validations,
@@ -158,8 +163,17 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "No store selected" }, { status: 400 });
   }
 
+  if (user.role === "AREA_MANAGER") {
+    if (!user.areaId) return NextResponse.json({ error: "No area selected" }, { status: 400 });
+    const branch = await prisma.branch.findFirst({
+      where: { id: branchId, areaId: user.areaId, isActive: true },
+      select: { id: true },
+    });
+    if (!branch) return NextResponse.json({ error: "Store is outside your area" }, { status: 403 });
+  }
+
   const result = await getSchedulePayload(branchId, month, {
-    submittedOnly: user.role === "EMPLOYEE" && !isMasterNextMonthCreator(user, month),
+    submittedOnly: (user.role === "EMPLOYEE" && !isMasterNextMonthCreator(user, month)) || user.role === "AREA_MANAGER",
   });
   if (result.error) return result.error;
   return NextResponse.json(result.payload);
@@ -177,6 +191,51 @@ export async function POST(req: NextRequest) {
   const { action, month, entries } = parsed.data;
   const monthStart = monthStartFromInput(month);
   if (!monthStart) return NextResponse.json({ error: "Invalid month" }, { status: 400 });
+
+  if (action === "approve" || action === "reject") {
+    if (user.role !== "AREA_MANAGER" && user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Only area managers and admins can review schedules." }, { status: 401 });
+    }
+
+    const branchId = parsed.data.branchId;
+    if (!branchId) return NextResponse.json({ error: "No store selected" }, { status: 400 });
+
+    const branch = await prisma.branch.findFirst({
+      where: {
+        id: branchId,
+        ...(user.role === "AREA_MANAGER" ? { areaId: user.areaId || "" } : {}),
+      },
+      select: { id: true },
+    });
+    if (!branch) return NextResponse.json({ error: "Store is outside your area" }, { status: 403 });
+
+    if (action === "reject" && !parsed.data.reviewComment?.trim()) {
+      return NextResponse.json({ error: "Rejection comment is required." }, { status: 400 });
+    }
+
+    const existing = await prisma.shiftSchedule.findUnique({
+      where: { branchId_month: { branchId, month: monthStart } },
+      select: { id: true, status: true },
+    });
+
+    if (!existing || existing.status !== "SUBMITTED") {
+      return NextResponse.json({ error: "Only submitted schedules can be reviewed." }, { status: 409 });
+    }
+
+    await prisma.shiftSchedule.update({
+      where: { id: existing.id },
+      data: {
+        approvalStatus: action === "approve" ? "APPROVED" : "REJECTED",
+        reviewedAt: new Date(),
+        reviewedById: user.id,
+        reviewComment: parsed.data.reviewComment?.trim() || null,
+      },
+    });
+
+    const result = await getSchedulePayload(branchId, month, { submittedOnly: user.role === "AREA_MANAGER" });
+    if (result.error) return result.error;
+    return NextResponse.json(result.payload);
+  }
 
   if (action === "edit" && !canElevatedWrite(user.role)) {
     return NextResponse.json({ error: "Only managers, team leaders, and admins can reopen a submitted schedule." }, { status: 401 });
@@ -243,6 +302,10 @@ export async function POST(req: NextRequest) {
         status: "DRAFT",
         submittedAt: null,
         submittedById: null,
+        approvalStatus: "PENDING",
+        reviewedAt: null,
+        reviewedById: null,
+        reviewComment: null,
         updatedById: user.id,
       },
       select: { id: true },
@@ -264,6 +327,7 @@ export async function POST(req: NextRequest) {
         branchId,
         month: monthStart,
         status: action === "submit" ? "SUBMITTED" : "DRAFT",
+        approvalStatus: "PENDING",
         submittedAt: action === "submit" ? new Date() : null,
         submittedById: action === "submit" ? user.id : null,
         createdById: user.id,
@@ -271,8 +335,12 @@ export async function POST(req: NextRequest) {
       },
       update: {
         status: action === "submit" ? "SUBMITTED" : "DRAFT",
+        approvalStatus: "PENDING",
         submittedAt: action === "submit" ? new Date() : null,
         submittedById: action === "submit" ? user.id : null,
+        reviewedAt: null,
+        reviewedById: null,
+        reviewComment: null,
         updatedById: user.id,
       },
       select: { id: true },

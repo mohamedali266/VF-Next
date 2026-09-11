@@ -3,9 +3,16 @@
 import { Edit3, Plus, Search, Trash2, UserCheck, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
-type Role = "EMPLOYEE" | "TEAM_LEADER" | "MANAGER" | "ADMIN";
+type Role = "EMPLOYEE" | "TEAM_LEADER" | "MANAGER" | "AREA_MANAGER" | "ADMIN";
 
 type Branch = {
+  id: string;
+  name: string;
+  code: string | null;
+  areaId?: string | null;
+};
+
+type Area = {
   id: string;
   name: string;
   code: string | null;
@@ -20,7 +27,9 @@ type User = {
   staffId: string | null;
   role: Role;
   branchId: string | null;
+  areaId: string | null;
   branch: Branch | null;
+  area: Area | null;
   isMaster: boolean;
   isActive: boolean;
   createdAt: string | Date;
@@ -36,6 +45,7 @@ type UserForm = {
   confirmPassword: string;
   role: Role;
   branchId: string;
+  areaId: string;
   isMaster: boolean;
   isActive: boolean;
 };
@@ -50,12 +60,14 @@ const emptyForm: UserForm = {
   confirmPassword: "",
   role: "EMPLOYEE",
   branchId: "",
+  areaId: "",
   isMaster: false,
   isActive: true,
 };
 
 const roleLabels: Record<Role, string> = {
   ADMIN: "Admin",
+  AREA_MANAGER: "Area Manager",
   MANAGER: "Manager",
   TEAM_LEADER: "Team Leader",
   EMPLOYEE: "Agent",
@@ -76,12 +88,25 @@ function userToForm(user: User): UserForm {
     confirmPassword: "",
     role: user.role,
     branchId: user.branchId || "",
+    areaId: user.areaId || "",
     isMaster: user.isMaster,
     isActive: user.isActive,
   };
 }
 
-export default function UsersClient({ users: initialUsers, branches }: { users: User[]; branches: Branch[] }) {
+export default function UsersClient({
+  users: initialUsers,
+  branches,
+  areas,
+  currentRole = "ADMIN",
+  currentAreaId = null,
+}: {
+  users: User[];
+  branches: Branch[];
+  areas: Area[];
+  currentRole?: Role;
+  currentAreaId?: string | null;
+}) {
   const [users, setUsers] = useState<User[]>(initialUsers);
   const [form, setForm] = useState<UserForm>(emptyForm);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -102,6 +127,7 @@ export default function UsersClient({ users: initialUsers, branches }: { users: 
         user.vpnNum || "",
         user.staffId || "",
         user.branch?.name || "",
+        user.area?.name || "",
       ].join(" ").toLowerCase();
       return matchesBranch && (!search || haystack.includes(search));
     });
@@ -189,7 +215,7 @@ export default function UsersClient({ users: initialUsers, branches }: { users: 
     <div className="users-admin-shell">
       <section className="users-admin-head">
         <div>
-          <span>User Management</span>
+          <span>{currentRole === "AREA_MANAGER" ? "Partners Users" : "User Management"}</span>
           <h1>Users</h1>
           <p>{filteredUsers.length} of {users.length} users</p>
         </div>
@@ -235,6 +261,7 @@ export default function UsersClient({ users: initialUsers, branches }: { users: 
                 <th>Role</th>
                 <th>Class</th>
                 <th>Store</th>
+                <th>Area</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -256,6 +283,7 @@ export default function UsersClient({ users: initialUsers, branches }: { users: 
                     )}
                   </td>
                   <td>{user.branch?.name || "Unassigned"}</td>
+                  <td>{user.area?.name || "Unassigned"}</td>
                   <td>
                     <span className={user.isActive ? "users-status active" : "users-status disabled"}>
                       {user.isActive ? "Active" : "Disabled"}
@@ -278,7 +306,7 @@ export default function UsersClient({ users: initialUsers, branches }: { users: 
               ))}
               {!filteredUsers.length && (
                 <tr>
-                  <td colSpan={10} style={{ textAlign: "center", color: "var(--vf-text-muted)" }}>No users found</td>
+                  <td colSpan={11} style={{ textAlign: "center", color: "var(--vf-text-muted)" }}>No users found</td>
                 </tr>
               )}
             </tbody>
@@ -324,7 +352,18 @@ export default function UsersClient({ users: initialUsers, branches }: { users: 
                   <option value="EMPLOYEE">Employee</option>
                   <option value="TEAM_LEADER">Team Leader</option>
                   <option value="MANAGER">Manager</option>
-                  <option value="ADMIN">Admin</option>
+                  {currentRole === "ADMIN" && <option value="AREA_MANAGER">Area Manager</option>}
+                  {currentRole === "ADMIN" && <option value="ADMIN">Admin</option>}
+                </select>
+              </label>
+
+              <label className="users-field">
+                <span>Area</span>
+                <select className="vf-input" value={currentRole === "AREA_MANAGER" ? currentAreaId || "" : form.areaId} disabled={currentRole === "AREA_MANAGER"} onChange={(event) => setForm((current) => ({ ...current, areaId: event.target.value, branchId: "" }))}>
+                  <option value="">No area</option>
+                  {areas.map((area) => (
+                    <option key={area.id} value={area.id}>{area.name}{area.code ? ` (${area.code})` : ""}</option>
+                  ))}
                 </select>
               </label>
 
@@ -332,7 +371,10 @@ export default function UsersClient({ users: initialUsers, branches }: { users: 
                 <span>Store</span>
                 <select className="vf-input" value={form.branchId} onChange={(event) => setForm((current) => ({ ...current, branchId: event.target.value }))}>
                   <option value="">No store</option>
-                  {branches.map((branch) => (
+                  {branches.filter((branch) => {
+                    const selectedAreaId = currentRole === "AREA_MANAGER" ? currentAreaId : form.areaId;
+                    return selectedAreaId ? branch.areaId === selectedAreaId : true;
+                  }).map((branch) => (
                     <option key={branch.id} value={branch.id}>{branch.name}{branch.code ? ` (${branch.code})` : ""}</option>
                   ))}
                 </select>

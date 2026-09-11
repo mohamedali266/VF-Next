@@ -16,11 +16,18 @@ function normalizeTerminalCount(value: unknown) {
   return count === 2 || count === 3 ? count : null;
 }
 
+function normalizeAreaId(value: unknown) {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
 const branchInclude = {
   users: {
     orderBy: [{ role: "asc" }, { name: "asc" }],
     select: { id: true, name: true, email: true, role: true, isActive: true },
   },
+  area: { select: { id: true, name: true, code: true } },
 } satisfies Prisma.BranchInclude;
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -34,6 +41,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const name = typeof body.name === "string" ? body.name.trim() : undefined;
   const code = normalizeCode(body.code);
   const terminalCount = normalizeTerminalCount(body.terminalCount);
+  const areaId = normalizeAreaId(body.areaId);
   const isActive = typeof body.isActive === "boolean" ? body.isActive : undefined;
 
   if (name !== undefined && !name) {
@@ -49,6 +57,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       ...(name !== undefined ? { name } : {}),
       ...(code !== undefined ? { code } : {}),
       ...(terminalCount !== undefined ? { terminalCount } : {}),
+      ...(areaId !== undefined ? { areaId } : {}),
       ...(isActive !== undefined ? { isActive } : {}),
     },
     include: branchInclude,

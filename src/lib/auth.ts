@@ -21,6 +21,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.role = (user as AuthUser).role;
         token.name = user.name;
         token.branchId = (user as AuthUser).branchId ?? null;
+        token.areaId = (user as AuthUser).areaId ?? null;
       }
       return token;
     },
@@ -30,6 +31,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.role = token.role as AuthUser["role"];
         session.user.name = token.name;
         session.user.branchId = token.branchId as string | null | undefined;
+        session.user.areaId = token.areaId as string | null | undefined;
       }
       return session;
     },
@@ -62,6 +64,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             role: true,
             password: true,
             branchId: true,
+            areaId: true,
           },
         });
 
@@ -76,6 +79,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           email: user.email,
           role: user.role,
           branchId: user.branchId,
+          areaId: user.areaId,
         };
       },
     }),

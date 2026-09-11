@@ -88,7 +88,17 @@ function aggregateReports(reports: SmsReport[], date: string): DailyReportFormVa
   };
 }
 
-export default function SmsClient() {
+type SmsClientProps = {
+  title?: string;
+  subtitle?: string;
+  rpmLabel?: string;
+};
+
+export default function SmsClient({
+  title = "Daily SMS",
+  subtitle = "تجميع تلقائي لكل تقارير الموظفين في نفس اليوم مع رسالة جاهزة للنسخ.",
+  rpmLabel = "Store RPM",
+}: SmsClientProps = {}) {
   const [date, setDate] = useState(todayInput());
   const [reports, setReports] = useState<SmsReport[]>([]);
   const [healthRecords, setHealthRecords] = useState<HealthRecord[]>([]);
@@ -147,8 +157,8 @@ export default function SmsClient() {
       <section className="daily-hero">
         <div>
           <p>Manager SMS</p>
-          <h1>Daily SMS</h1>
-          <span>تجميع تلقائي لكل تقارير الموظفين في نفس اليوم مع رسالة جاهزة للنسخ.</span>
+          <h1>{title}</h1>
+          <span>{subtitle}</span>
         </div>
         <div className="daily-score">
           <strong>{reports.length}</strong>
@@ -177,7 +187,7 @@ export default function SmsClient() {
           style={{ gap: "0.375rem" }}
         >
           <BarChart3 size={18} />
-          Store RPM
+          {rpmLabel}
         </button>
         <button className="vf-btn vf-btn-ghost vf-btn-lg" onClick={loadReports} type="button" disabled={loading}>
           {loading ? <Loader2 className="daily-spin" size={18} /> : <RefreshCcw size={18} />}
@@ -197,7 +207,7 @@ export default function SmsClient() {
         }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
             <div>
-              <h3 style={{ fontSize: "1.0625rem", fontWeight: "800", color: "#fff" }}>📊 Store RPM (مجموع الفرع)</h3>
+              <h3 style={{ fontSize: "1.0625rem", fontWeight: "800", color: "#fff" }}>📊 {rpmLabel}</h3>
               <p style={{ fontSize: "0.75rem", color: "var(--vf-text-muted)", marginTop: "0.125rem" }}>
                 {date} · {reports.length} agent reports
               </p>

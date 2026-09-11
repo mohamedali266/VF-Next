@@ -90,6 +90,19 @@ export async function GET(
 
   if (!branch) return NextResponse.json({ error: "Store not found" }, { status: 404 });
 
+  const role = session.user.role;
+  if (role === "EMPLOYEE" || role === "MANAGER" || role === "TEAM_LEADER") {
+    if (session.user.branchId !== branch.id) {
+      return NextResponse.json({ error: "Store is outside your access scope" }, { status: 403 });
+    }
+  }
+
+  if (role === "AREA_MANAGER") {
+    if (!session.user.areaId || branch.areaId !== session.user.areaId) {
+      return NextResponse.json({ error: "Store is outside your area" }, { status: 403 });
+    }
+  }
+
   const targetDate = new Date(`${date}T00:00:00.000Z`);
 
   // Daily reports for target date

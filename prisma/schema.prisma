@@ -12,6 +12,7 @@ enum Role {
   EMPLOYEE
   TEAM_LEADER
   MANAGER
+  AREA_MANAGER
   ADMIN
 }
 
@@ -29,6 +30,12 @@ enum AtHomeType {
 enum ScheduleStatus {
   DRAFT
   SUBMITTED
+}
+
+enum ScheduleApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum ScheduleShift {
@@ -51,6 +58,7 @@ model User {
   role        Role     @default(EMPLOYEE)
   department  String?
   branchId    String?
+  areaId      String?
   avatarUrl        String?
   telegramChatId   String?  @unique
   telegramLinkCode String?
@@ -60,6 +68,7 @@ model User {
   updatedAt   DateTime @updatedAt
 
   branch       Branch?       @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  area         Area?         @relation("AreaUsers", fields: [areaId], references: [id], onDelete: SetNull)
   healthChecks HealthCheck[] @relation("EmployeeChecks")
   dailyReports DailyReport[] @relation("EmployeeDailyReports")
   editLogs     EditLog[]     @relation("EditorLogs")
@@ -68,10 +77,25 @@ model User {
   createdSchedules ShiftSchedule[] @relation("ScheduleCreatedBy")
   updatedSchedules ShiftSchedule[] @relation("ScheduleUpdatedBy")
   submittedSchedules ShiftSchedule[] @relation("ScheduleSubmittedBy")
+  reviewedSchedules ShiftSchedule[] @relation("ScheduleReviewedBy")
   sessions     Session[]
   accounts     Account[]
 
   @@map("users")
+}
+
+model Area {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  code      String?  @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  branches Branch[]
+  users    User[]   @relation("AreaUsers")
+
+  @@map("areas")
 }
 
 model Branch {
@@ -79,10 +103,12 @@ model Branch {
   name      String   @unique
   code      String?  @unique
   terminalCount Int  @default(2)
+  areaId    String?
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  area         Area? @relation(fields: [areaId], references: [id], onDelete: SetNull)
   users        User[]
   dailyReports DailyReport[]
   shiftSchedules ShiftSchedule[]
@@ -99,6 +125,10 @@ model ShiftSchedule {
   submittedById String?
   createdById   String
   updatedById   String?
+  approvalStatus ScheduleApprovalStatus @default(PENDING)
+  reviewedAt     DateTime?
+  reviewedById   String?
+  reviewComment  String?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
@@ -106,6 +136,7 @@ model ShiftSchedule {
   createdBy   User   @relation("ScheduleCreatedBy", fields: [createdById], references: [id])
   updatedBy   User?  @relation("ScheduleUpdatedBy", fields: [updatedById], references: [id])
   submittedBy User?  @relation("ScheduleSubmittedBy", fields: [submittedById], references: [id])
+  reviewedBy  User?  @relation("ScheduleReviewedBy", fields: [reviewedById], references: [id])
   entries     ShiftScheduleEntry[]
 
   @@unique([branchId, month])

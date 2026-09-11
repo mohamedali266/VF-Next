@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
         id: true,
         name: true,
         department: true,
-        branch: { select: { name: true } },
+        branch: { select: { name: true, areaId: true } },
       },
     },
   };
@@ -58,6 +58,22 @@ export async function GET(req: NextRequest) {
       },
       include: includeEmployee,
       orderBy: [{ shift: "asc" }, { submittedAt: "asc" }],
+    });
+    return NextResponse.json({ records });
+  }
+
+  if (user.role === "AREA_MANAGER") {
+    const areaId = user.areaId;
+    if (!areaId) return NextResponse.json({ records: [] });
+
+    const records = await prisma.healthCheck.findMany({
+      where: {
+        date: targetDate,
+        ...(isShift(shift) ? { shift } : {}),
+        employee: { branch: { areaId } },
+      },
+      include: includeEmployee,
+      orderBy: [{ employee: { branch: { name: "asc" } } }, { shift: "asc" }, { submittedAt: "asc" }],
     });
     return NextResponse.json({ records });
   }
