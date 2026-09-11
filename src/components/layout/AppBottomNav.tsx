@@ -65,7 +65,7 @@ export default function AppBottomNav({ items, primaryCount = 3 }: Props) {
         </div>
       )}
 
-      <nav className="vf-bottom-nav">
+      <nav className="vf-bottom-nav vf-bottom-nav-mobile">
         {primaryItems.map(({ href, Icon, label, match }) => (
           <Link
             key={href}
@@ -83,6 +83,27 @@ export default function AppBottomNav({ items, primaryCount = 3 }: Props) {
         >
           <Menu className="nav-icon" size={22} strokeWidth={2.3} />
           <span>Menu</span>
+        </button>
+      </nav>
+
+      <nav className="vf-bottom-nav vf-bottom-nav-desktop">
+        {items.map(({ href, Icon, label, match }) => (
+          <Link
+            key={href}
+            href={href}
+            className={`vf-bottom-nav-item ${(match ? match(pathname) : pathname === href) ? "active" : ""}`}
+          >
+            <Icon className="nav-icon" size={21} strokeWidth={2.25} />
+            <span>{label}</span>
+          </Link>
+        ))}
+        <button
+          className="vf-bottom-nav-item"
+          type="button"
+          onClick={() => signOut({ callbackUrl: "/login" })}
+        >
+          <LogOut className="nav-icon" size={21} strokeWidth={2.25} />
+          <span>Logout</span>
         </button>
       </nav>
     </>
