@@ -1,43 +1,19 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { signOut } from "next-auth/react";
-import { Building2, CalendarDays, ClipboardCheck, FileText, Home, Layers3, LogOut, ScrollText, Users } from "lucide-react";
+import { Building2, CalendarDays, ClipboardCheck, FileText, Home, Layers3, ScrollText, Users } from "lucide-react";
+import AppBottomNav from "./AppBottomNav";
 
 const navItems = [
-  { href: "/admin", icon: Home, label: "Home" },
-  { href: "/admin/users", icon: Users, label: "Users" },
-  { href: "/admin/areas", icon: Layers3, label: "Areas" },
-  { href: "/admin/reports", icon: FileText, label: "Reports" },
-  { href: "/admin/branches", icon: Building2, label: "Stores" },
-  { href: "/admin/schedule", icon: CalendarDays, label: "Schedule" },
-  { href: "/admin/health-check", icon: ClipboardCheck, label: "Health" },
-  { href: "/admin/edit-logs", icon: ScrollText, label: "Logs" },
+  { href: "/admin", Icon: Home, label: "Home" },
+  { href: "/admin/users", Icon: Users, label: "Users" },
+  { href: "/admin/areas", Icon: Layers3, label: "Areas" },
+  { href: "/admin/reports", Icon: FileText, label: "Reports" },
+  { href: "/admin/branches", Icon: Building2, label: "Stores" },
+  { href: "/admin/schedule", Icon: CalendarDays, label: "Schedule" },
+  { href: "/admin/health-check", Icon: ClipboardCheck, label: "Health" },
+  { href: "/admin/edit-logs", Icon: ScrollText, label: "Logs" },
 ];
 
 export default function AdminBottomNav() {
-  const pathname = usePathname();
-
-  return (
-    <nav className="vf-bottom-nav">
-      {navItems.map((item) => {
-        const Icon = item.icon;
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`vf-bottom-nav-item ${pathname === item.href ? "active" : ""}`}
-          >
-            <Icon className="nav-icon" size={21} strokeWidth={2.2} />
-            <span>{item.label}</span>
-          </Link>
-        );
-      })}
-      <button className="vf-bottom-nav-item" onClick={() => signOut({ callbackUrl: "/login" })}>
-        <LogOut className="nav-icon" size={21} strokeWidth={2.2} />
-        <span>Logout</span>
-      </button>
-    </nav>
-  );
+  return <AppBottomNav items={navItems} primaryCount={3} />;
 }

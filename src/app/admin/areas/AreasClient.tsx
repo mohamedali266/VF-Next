@@ -8,30 +8,49 @@ type Area = {
   name: string;
   code: string | null;
   isActive: boolean;
-  branches: { id: string; name: string; code: string | null }[];
+  branches: BranchOption[];
   users: { id: string; name: string; email: string; role: string; isActive: boolean }[];
 };
 
-export default function AreasClient({ areas: initialAreas }: { areas: Area[] }) {
+type BranchOption = {
+  id: string;
+  name: string;
+  code: string | null;
+  areaId: string | null;
+};
+
+export default function AreasClient({ areas: initialAreas, branches: initialBranches }: { areas: Area[]; branches: BranchOption[] }) {
   const [areas, setAreas] = useState(initialAreas);
+  const [branches, setBranches] = useState(initialBranches);
   const [editing, setEditing] = useState<Area | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", code: "", isActive: true });
+  const [form, setForm] = useState({ name: "", code: "", isActive: true, branchIds: [] as string[] });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
+  const selectableBranches = branches.filter((branch) => !branch.areaId || branch.areaId === editing?.id);
+
   function openCreate() {
     setEditing(null);
-    setForm({ name: "", code: "", isActive: true });
+    setForm({ name: "", code: "", isActive: true, branchIds: [] });
     setMessage("");
     setModalOpen(true);
   }
 
   function openEdit(area: Area) {
     setEditing(area);
-    setForm({ name: area.name, code: area.code || "", isActive: area.isActive });
+    setForm({ name: area.name, code: area.code || "", isActive: area.isActive, branchIds: area.branches.map((branch) => branch.id) });
     setMessage("");
     setModalOpen(true);
+  }
+
+  function toggleBranch(branchId: string) {
+    setForm((current) => ({
+      ...current,
+      branchIds: current.branchIds.includes(branchId)
+        ? current.branchIds.filter((id) => id !== branchId)
+        : [...current.branchIds, branchId],
+    }));
   }
 
   async function saveArea(event: React.FormEvent) {
@@ -50,6 +69,14 @@ export default function AreasClient({ areas: initialAreas }: { areas: Area[] }) 
         const next = editing ? current.map((area) => area.id === editing.id ? data.area : area) : [...current, data.area];
         return next.sort((a, b) => a.name.localeCompare(b.name));
       });
+      setBranches((current) => current.map((branch) => ({
+        ...branch,
+        areaId: data.area.branches.some((item: BranchOption) => item.id === branch.id)
+          ? data.area.id
+          : branch.areaId === data.area.id
+            ? null
+            : branch.areaId,
+      })));
       setModalOpen(false);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Failed to save area");
@@ -150,6 +177,29 @@ export default function AreasClient({ areas: initialAreas }: { areas: Area[] }) 
                   <option value="inactive">Inactive</option>
                 </select>
               </label>
+              <div className="area-branch-picker users-wide-field">
+                <div className="area-branch-picker-head">
+                  <div>
+                    <span>Stores inside this area</span>
+                    <strong>{form.branchIds.length} selected</strong>
+                  </div>
+                  <em>Stores linked to another area are hidden.</em>
+                </div>
+                <div className="area-branch-list">
+                  {selectableBranches.map((branch) => (
+                    <label key={branch.id} className={`area-branch-option ${form.branchIds.includes(branch.id) ? "selected" : ""}`}>
+                      <input
+                        type="checkbox"
+                        checked={form.branchIds.includes(branch.id)}
+                        onChange={() => toggleBranch(branch.id)}
+                      />
+                      <span>{branch.name}</span>
+                      <em>{branch.code || "No code"}</em>
+                    </label>
+                  ))}
+                  {!selectableBranches.length && <p>No unassigned stores available.</p>}
+                </div>
+              </div>
             </div>
             <div className="users-modal-actions">
               <button className="vf-btn vf-btn-ghost vf-btn-lg" type="button" onClick={() => setModalOpen(false)}>Cancel</button>

@@ -13,7 +13,7 @@ const areaSelect = {
   name: true,
   code: true,
   isActive: true,
-  branches: { select: { id: true, name: true, code: true } },
+  branches: { orderBy: { name: "asc" }, select: { id: true, name: true, code: true, areaId: true } },
   users: { select: { id: true, name: true, email: true, role: true, isActive: true } },
 } as const;
 
@@ -41,14 +41,31 @@ export async function POST(req: NextRequest) {
   const name = typeof body.name === "string" ? body.name.trim() : "";
   const code = normalizeCode(body.code);
   const isActive = body.isActive !== false;
+  const branchIds = Array.isArray(body.branchIds) ? body.branchIds.filter((value: unknown): value is string => typeof value === "string" && value.trim().length > 0) : [];
 
   if (!name) {
     return NextResponse.json({ error: "Area name is required" }, { status: 400 });
   }
 
-  const area = await prisma.area.create({
-    data: { name, code, isActive },
-    select: areaSelect,
+  const area = await prisma.$transaction(async (tx) => {
+    const created = await tx.area.create({
+      data: { name, code, isActive },
+      select: { id: true },
+    });
+
+    if (branchIds.length) {
+      const blocked = await tx.branch.count({
+        where: { id: { in: branchIds }, areaId: { not: null } },
+      });
+      if (blocked) throw new Error("Some stores are already linked to another area");
+
+      await tx.branch.updateMany({
+        where: { id: { in: branchIds }, areaId: null },
+        data: { areaId: created.id },
+      });
+    }
+
+    return tx.area.findUniqueOrThrow({ where: { id: created.id }, select: areaSelect });
   });
 
   return NextResponse.json({ area }, { status: 201 });

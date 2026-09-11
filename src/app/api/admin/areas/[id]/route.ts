@@ -13,7 +13,7 @@ const areaSelect = {
   name: true,
   code: true,
   isActive: true,
-  branches: { select: { id: true, name: true, code: true } },
+  branches: { orderBy: { name: "asc" }, select: { id: true, name: true, code: true, areaId: true } },
   users: { select: { id: true, name: true, email: true, role: true, isActive: true } },
 } as const;
 
@@ -28,15 +28,39 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const name = typeof body.name === "string" ? body.name.trim() : "";
   const code = normalizeCode(body.code);
   const isActive = body.isActive !== false;
+  const branchIds = Array.isArray(body.branchIds) ? body.branchIds.filter((value: unknown): value is string => typeof value === "string" && value.trim().length > 0) : [];
 
   if (!name) {
     return NextResponse.json({ error: "Area name is required" }, { status: 400 });
   }
 
-  const area = await prisma.area.update({
-    where: { id },
-    data: { name, code, isActive },
-    select: areaSelect,
+  const area = await prisma.$transaction(async (tx) => {
+    const blocked = branchIds.length
+      ? await tx.branch.count({
+          where: { id: { in: branchIds }, areaId: { not: null }, NOT: { areaId: id } },
+        })
+      : 0;
+    if (blocked) throw new Error("Some stores are already linked to another area");
+
+    await tx.area.update({
+      where: { id },
+      data: { name, code, isActive },
+      select: { id: true },
+    });
+
+    await tx.branch.updateMany({
+      where: { areaId: id, id: { notIn: branchIds } },
+      data: { areaId: null },
+    });
+
+    if (branchIds.length) {
+      await tx.branch.updateMany({
+        where: { id: { in: branchIds }, OR: [{ areaId: null }, { areaId: id }] },
+        data: { areaId: id },
+      });
+    }
+
+    return tx.area.findUniqueOrThrow({ where: { id }, select: areaSelect });
   });
 
   return NextResponse.json({ area });

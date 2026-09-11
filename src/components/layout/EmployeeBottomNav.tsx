@@ -1,13 +1,11 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { signOut, useSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
-import { ClipboardCheck, FileText, Home, LogOut, MessageSquareText, Store, Users } from "lucide-react";
+import { ClipboardCheck, FileText, Home, MessageSquareText, Store, Users } from "lucide-react";
+import AppBottomNav from "./AppBottomNav";
 
 export default function EmployeeBottomNav() {
-  const pathname = usePathname();
   const { data: session } = useSession();
   const [branchId, setBranchId] = useState<string | null | undefined>(
     session?.user?.branchId
@@ -28,33 +26,13 @@ export default function EmployeeBottomNav() {
   }, [session]);
 
   const navItems = [
-    { href: "/employee",              Icon: Home,              label: "Home" },
+    { href: "/employee", Icon: Home, label: "Home" },
     { href: "/employee/daily-report", Icon: MessageSquareText, label: "Daily" },
-    { href: "/employee/health-check", Icon: ClipboardCheck,    label: "Health" },
-    { href: "/employee/cst",          Icon: Users,             label: "CST" },
-    { href: "/employee/sr-sku",       Icon: FileText,          label: "SR/SKU" },
-    ...(branchId ? [{ href: `/store/${branchId}`, Icon: Store, label: "Store" }] : []),
+    { href: "/employee/health-check", Icon: ClipboardCheck, label: "Health" },
+    ...(branchId ? [{ href: `/store/${branchId}`, Icon: Store, label: "Store", match: (path: string) => path.startsWith("/store") }] : []),
+    { href: "/employee/cst", Icon: Users, label: "CST" },
+    { href: "/employee/sr-sku", Icon: FileText, label: "SR/SKU" },
   ];
 
-  return (
-    <nav className="vf-bottom-nav">
-      {navItems.map(({ href, Icon, label }) => (
-        <Link
-          key={href}
-          href={href}
-          className={`vf-bottom-nav-item ${pathname === href || (href.startsWith("/store") && pathname.startsWith("/store")) ? "active" : ""}`}
-        >
-          <Icon className="nav-icon" size={22} strokeWidth={2.2} />
-          <span>{label}</span>
-        </Link>
-      ))}
-      <button
-        className="vf-bottom-nav-item"
-        onClick={() => signOut({ callbackUrl: "/login" })}
-      >
-        <LogOut className="nav-icon" size={22} strokeWidth={2.2} />
-        <span>Logout</span>
-      </button>
-    </nav>
-  );
+  return <AppBottomNav items={navItems} primaryCount={3} />;
 }

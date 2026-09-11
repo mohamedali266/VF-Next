@@ -7,17 +7,24 @@ export default async function AdminAreasPage() {
   const session = await auth();
   if (!session || session.user.role !== "ADMIN") redirect("/login");
 
-  const areas = await prisma.area.findMany({
-    orderBy: { name: "asc" },
-    select: {
-      id: true,
-      name: true,
-      code: true,
-      isActive: true,
-      branches: { select: { id: true, name: true, code: true } },
-      users: { select: { id: true, name: true, email: true, role: true, isActive: true } },
-    },
-  });
+  const [areas, branches] = await Promise.all([
+    prisma.area.findMany({
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        isActive: true,
+        branches: { orderBy: { name: "asc" }, select: { id: true, name: true, code: true, areaId: true } },
+        users: { select: { id: true, name: true, email: true, role: true, isActive: true } },
+      },
+    }),
+    prisma.branch.findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, code: true, areaId: true },
+    }),
+  ]);
 
-  return <AreasClient areas={areas} />;
+  return <AreasClient areas={areas} branches={branches} />;
 }

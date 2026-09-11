@@ -494,7 +494,11 @@ export default function UsersClient({
               </button>
             </div>
 
-            <div className="users-stepper" aria-label="User creation progress">
+            <div
+              className="users-stepper"
+              aria-label="User creation progress"
+              style={{ "--wizard-progress": String(step / Math.max(steps.length - 1, 1)) } as React.CSSProperties}
+            >
               {steps.map((item, index) => (
                 <div key={item.title} className={`users-step ${index === step ? "active" : ""} ${index < step ? "done" : ""}`}>
                   <span>{index < step ? <Check size={14} /> : index + 1}</span>
