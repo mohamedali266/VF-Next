@@ -12,7 +12,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="vf-page">
-      <header className="vf-header-gradient vf-safe-top" style={{ padding: "1rem 1.25rem 0.875rem" }}>
+      <header className="vf-header-gradient vf-safe-top" style={{ padding: "max(1.35rem, calc(env(safe-area-inset-top) + 0.8rem)) 1.25rem 0.875rem" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
             <div style={{

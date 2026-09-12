@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, CheckCheck, ExternalLink, Loader2, X } from "lucide-react";
+import { Bell, CheckCheck, ExternalLink, Loader2, Volume2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type NotificationItem = {
@@ -28,9 +28,51 @@ export default function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [error, setError] = useState("");
+  const [systemPermission, setSystemPermission] = useState<NotificationPermission>("default");
   const mountedRef = useRef(true);
+  const knownIdsRef = useRef<Set<string>>(new Set());
+  const firstLoadRef = useRef(true);
 
   const unreadLabel = useMemo(() => unreadCount > 9 ? "9+" : String(unreadCount), [unreadCount]);
+
+  const playAlertSound = useCallback(() => {
+    try {
+      const AudioContextCtor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioContextCtor) return;
+      const context = new AudioContextCtor();
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(880, context.currentTime);
+      oscillator.frequency.setValueAtTime(660, context.currentTime + 0.12);
+      gain.gain.setValueAtTime(0.0001, context.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.18, context.currentTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.34);
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start();
+      oscillator.stop(context.currentTime + 0.36);
+      window.setTimeout(() => context.close().catch(() => undefined), 520);
+    } catch {
+      // Browsers may block audio until the user interacts with the page.
+    }
+  }, []);
+
+  const showSystemNotification = useCallback((notification: NotificationItem) => {
+    if (!("Notification" in window) || Notification.permission !== "granted") return;
+    const systemNotification = new Notification(notification.title, {
+      body: notification.body,
+      icon: "/vf-icon.svg",
+      badge: "/vf-icon.svg",
+      tag: notification.id,
+    });
+    systemNotification.onclick = () => {
+      window.focus();
+      if (notification.link) window.location.href = notification.link;
+      systemNotification.close();
+    };
+  }, []);
 
   const fetchNotifications = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -39,7 +81,17 @@ export default function NotificationBell() {
       if (!response.ok) throw new Error("Failed to load notifications");
       const data = await response.json();
       if (!mountedRef.current) return;
-      setNotifications(data.notifications ?? []);
+      const nextNotifications: NotificationItem[] = data.notifications ?? [];
+      const newUnread = nextNotifications.filter((item) => !item.readAt && !knownIdsRef.current.has(item.id));
+      nextNotifications.forEach((item) => knownIdsRef.current.add(item.id));
+
+      if (!firstLoadRef.current && newUnread.length > 0) {
+        playAlertSound();
+        showSystemNotification(newUnread[0]);
+      }
+
+      firstLoadRef.current = false;
+      setNotifications(nextNotifications);
       setUnreadCount(data.unreadCount ?? 0);
       setError("");
     } catch {
@@ -47,10 +99,11 @@ export default function NotificationBell() {
     } finally {
       if (mountedRef.current) setLoading(false);
     }
-  }, []);
+  }, [playAlertSound, showSystemNotification]);
 
   useEffect(() => {
     mountedRef.current = true;
+    if ("Notification" in window) setSystemPermission(Notification.permission);
     fetchNotifications();
     const interval = window.setInterval(() => fetchNotifications(true), 5000);
 
@@ -69,6 +122,24 @@ export default function NotificationBell() {
       document.removeEventListener("visibilitychange", refreshOnVisible);
     };
   }, [fetchNotifications]);
+
+  async function enableSystemAlerts() {
+    playAlertSound();
+    if (!("Notification" in window)) {
+      setError("System notifications are not supported on this browser.");
+      return;
+    }
+    const permission = await Notification.requestPermission();
+    setSystemPermission(permission);
+    if (permission === "granted") {
+      new Notification("VF-Next alerts enabled", {
+        body: "You will receive system alerts for new in-app notifications while the app is open.",
+        icon: "/vf-icon.svg",
+        badge: "/vf-icon.svg",
+        tag: "vf-next-alerts-enabled",
+      });
+    }
+  }
 
   async function markRead(id: string) {
     setNotifications((items) => items.map((item) => item.id === id ? { ...item, readAt: item.readAt ?? new Date().toISOString() } : item));
@@ -122,6 +193,13 @@ export default function NotificationBell() {
               Mark all read
             </button>
           </div>
+
+          {systemPermission !== "granted" && (
+            <button className="notification-system-btn" type="button" onClick={enableSystemAlerts}>
+              <Volume2 size={15} />
+              Enable system alerts
+            </button>
+          )}
 
           <div className="notification-list">
             {loading ? (

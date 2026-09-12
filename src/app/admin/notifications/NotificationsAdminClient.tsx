@@ -65,6 +65,68 @@ const priorities: { value: Priority; label: string; icon: typeof BellRing }[] = 
   { value: "CRITICAL", label: "Critical", icon: ShieldAlert },
 ];
 
+function SearchableTargetSelect({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const selected = options.find((option) => option.value === value);
+  const filteredOptions = options.filter((option) => option.label.toLowerCase().includes(query.trim().toLowerCase()));
+
+  return (
+    <label className="notification-combobox-label">
+      {label}
+      <div className="notification-combobox">
+        <input
+          value={open ? query : selected?.label ?? ""}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => {
+            setQuery("");
+            setOpen(true);
+          }}
+          placeholder="Search and choose target"
+          required
+        />
+        <button type="button" onClick={() => setOpen((current) => !current)} aria-label="Open target options">
+          ▾
+        </button>
+        {open && (
+          <div className="notification-combobox-menu">
+            {filteredOptions.length === 0 ? (
+              <div className="notification-combobox-empty">No matches found</div>
+            ) : filteredOptions.map((option) => (
+              <button
+                type="button"
+                key={option.value}
+                className={option.value === value ? "selected" : ""}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  onChange(option.value);
+                  setQuery("");
+                  setOpen(false);
+                }}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </label>
+  );
+}
+
 function targetLabel(notification: RecentNotification) {
   if (notification.targetType === "ALL") return "All users";
   if (notification.targetType === "ROLE") return roles.find((role) => role.value === notification.targetRole)?.label ?? "Role";
@@ -207,13 +269,12 @@ export default function NotificationsAdminClient({ users, branches, areas, notif
             )}
 
             {["USER", "BRANCH", "AREA"].includes(targetType) && (
-              <label>
-                Target
-                <select value={targetId} onChange={(event) => setTargetId(event.target.value)} required>
-                  <option value="">Choose target</option>
-                  {targetOptions.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}
-                </select>
-              </label>
+              <SearchableTargetSelect
+                label="Target"
+                value={targetId}
+                options={targetOptions}
+                onChange={setTargetId}
+              />
             )}
           </div>
 
