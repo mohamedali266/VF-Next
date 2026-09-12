@@ -189,7 +189,11 @@ export default function NotificationsAdminClient({ users, branches, areas, notif
     });
 
     if (response.ok) {
-      setStatus({ type: "success", text: "Notification sent and saved successfully." });
+      const data = await response.json().catch(() => ({}));
+      const pushText = data.push?.skipped
+        ? " Push delivery is waiting for VAPID keys."
+        : ` Push sent to ${data.push?.sent ?? 0} device(s).`;
+      setStatus({ type: "success", text: `Notification sent and saved successfully.${pushText}` });
       setTitle("");
       setBody("");
       setLink("");

@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getNotificationUserScope, visibleNotificationWhere } from "@/lib/notifications";
+import { findNotificationRecipientIds, sendNotificationPush } from "@/lib/web-push";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -114,5 +115,8 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  return NextResponse.json({ notification }, { status: 201 });
+  const recipientIds = await findNotificationRecipientIds(notification);
+  const push = await sendNotificationPush(notification, recipientIds);
+
+  return NextResponse.json({ notification, push }, { status: 201 });
 }
