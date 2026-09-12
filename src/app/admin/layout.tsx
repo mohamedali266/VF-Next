@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import AdminBottomNav from "@/components/layout/AdminBottomNav";
+import NotificationBell from "@/components/notifications/NotificationBell";
 import Image from "next/image";
 import { redirect } from "next/navigation";
 
@@ -28,17 +29,20 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               <div style={{ fontSize: "0.875rem", fontWeight: "700", color: "var(--vf-text)" }}>{user.name}</div>
             </div>
           </div>
-          <div style={{
-            background: "linear-gradient(135deg, var(--vf-red), var(--vf-red-dark))",
-            borderRadius: "20px",
-            padding: "0.25rem 0.875rem",
-            fontSize: "0.6875rem",
-            color: "#fff",
-            fontWeight: "800",
-            letterSpacing: "0.08em",
-            boxShadow: "0 2px 12px var(--vf-red-glow)"
-          }}>
-            ADMIN
+          <div className="vf-header-actions">
+            <NotificationBell />
+            <div style={{
+              background: "linear-gradient(135deg, var(--vf-red), var(--vf-red-dark))",
+              borderRadius: "20px",
+              padding: "0.25rem 0.875rem",
+              fontSize: "0.6875rem",
+              color: "#fff",
+              fontWeight: "800",
+              letterSpacing: "0.08em",
+              boxShadow: "0 2px 12px var(--vf-red-glow)"
+            }}>
+              ADMIN
+            </div>
           </div>
         </div>
       </header>

@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Image from "next/image";
 import EmployeeBottomNav from "@/components/layout/EmployeeBottomNav";
+import NotificationBell from "@/components/notifications/NotificationBell";
 
 export default async function EmployeeLayout({
   children,
@@ -38,17 +39,20 @@ export default async function EmployeeLayout({
               </div>
             </div>
           </div>
-          <div style={{
-            background: "rgba(196,30,58,0.1)",
-            border: "1px solid rgba(196,30,58,0.25)",
-            borderRadius: "20px",
-            padding: "0.25rem 0.75rem",
-            fontSize: "0.6875rem",
-            color: "var(--vf-red-light)",
-            fontWeight: "600",
-            letterSpacing: "0.05em"
-          }}>
-            موظف
+          <div className="vf-header-actions">
+            <NotificationBell />
+            <div style={{
+              background: "rgba(196,30,58,0.1)",
+              border: "1px solid rgba(196,30,58,0.25)",
+              borderRadius: "20px",
+              padding: "0.25rem 0.75rem",
+              fontSize: "0.6875rem",
+              color: "var(--vf-red-light)",
+              fontWeight: "600",
+              letterSpacing: "0.05em"
+            }}>
+              موظف
+            </div>
           </div>
         </div>
       </header>

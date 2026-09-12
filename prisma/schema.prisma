@@ -47,6 +47,21 @@ enum ScheduleShift {
   BW
 }
 
+enum NotificationPriority {
+  INFO
+  SUCCESS
+  WARNING
+  CRITICAL
+}
+
+enum NotificationTargetType {
+  ALL
+  ROLE
+  USER
+  BRANCH
+  AREA
+}
+
 model User {
   id          String   @id @default(cuid())
   name        String
@@ -78,6 +93,9 @@ model User {
   updatedSchedules ShiftSchedule[] @relation("ScheduleUpdatedBy")
   submittedSchedules ShiftSchedule[] @relation("ScheduleSubmittedBy")
   reviewedSchedules ShiftSchedule[] @relation("ScheduleReviewedBy")
+  createdNotifications Notification[] @relation("NotificationCreatedBy")
+  directNotifications Notification[] @relation("NotificationRecipient")
+  notificationReads NotificationRead[]
   sessions     Session[]
   accounts     Account[]
 
@@ -94,6 +112,7 @@ model Area {
 
   branches Branch[]
   users    User[]   @relation("AreaUsers")
+  notifications Notification[]
 
   @@map("areas")
 }
@@ -112,8 +131,52 @@ model Branch {
   users        User[]
   dailyReports DailyReport[]
   shiftSchedules ShiftSchedule[]
+  notifications Notification[]
 
   @@map("branches")
+}
+
+model Notification {
+  id          String                 @id @default(cuid())
+  title       String
+  body        String
+  priority    NotificationPriority   @default(INFO)
+  targetType  NotificationTargetType @default(ALL)
+  targetRole  Role?
+  recipientId String?
+  branchId    String?
+  areaId      String?
+  link        String?
+  createdById String?
+  expiresAt   DateTime?
+  createdAt   DateTime               @default(now())
+
+  recipient User?   @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  branch    Branch? @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  area      Area?   @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  createdBy User?   @relation("NotificationCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  reads     NotificationRead[]
+
+  @@index([createdAt])
+  @@index([targetType])
+  @@index([recipientId])
+  @@index([branchId])
+  @@index([areaId])
+  @@map("notifications")
+}
+
+model NotificationRead {
+  id             String   @id @default(cuid())
+  notificationId String
+  userId         String
+  readAt         DateTime @default(now())
+
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationId, userId])
+  @@index([userId, readAt])
+  @@map("notification_reads")
 }
 
 model ShiftSchedule {

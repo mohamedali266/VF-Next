@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Image from "next/image";
 import ManagerBottomNav from "@/components/layout/ManagerBottomNav";
+import NotificationBell from "@/components/notifications/NotificationBell";
 
 export default async function ManagerLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -28,17 +29,20 @@ export default async function ManagerLayout({ children }: { children: React.Reac
               <div style={{ fontSize: "0.875rem", fontWeight: "700", color: "var(--vf-text)" }}>{user.name}</div>
             </div>
           </div>
-          <div style={{
-            background: "linear-gradient(135deg, rgba(196,30,58,0.2), rgba(196,30,58,0.1))",
-            border: "1px solid rgba(196,30,58,0.4)",
-            borderRadius: "20px",
-            padding: "0.25rem 0.75rem",
-            fontSize: "0.6875rem",
-            color: "var(--vf-red-light)",
-            fontWeight: "700",
-            letterSpacing: "0.05em"
-          }}>
-            {user.role === "ADMIN" ? "أدمن" : user.role === "TEAM_LEADER" ? "تيم ليدر" : "مدير"}
+          <div className="vf-header-actions">
+            <NotificationBell />
+            <div style={{
+              background: "linear-gradient(135deg, rgba(196,30,58,0.2), rgba(196,30,58,0.1))",
+              border: "1px solid rgba(196,30,58,0.4)",
+              borderRadius: "20px",
+              padding: "0.25rem 0.75rem",
+              fontSize: "0.6875rem",
+              color: "var(--vf-red-light)",
+              fontWeight: "700",
+              letterSpacing: "0.05em"
+            }}>
+              {user.role === "ADMIN" ? "أدمن" : user.role === "TEAM_LEADER" ? "تيم ليدر" : "مدير"}
+            </div>
           </div>
         </div>
       </header>

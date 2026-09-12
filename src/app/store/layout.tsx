@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import StoreBottomNav from "@/components/layout/StoreBottomNav";
+import NotificationBell from "@/components/notifications/NotificationBell";
 import Image from "next/image";
 
 export default async function StoreLayout({ children }: { children: React.ReactNode }) {
@@ -43,21 +44,24 @@ export default async function StoreLayout({ children }: { children: React.ReactN
               </div>
             </div>
           </div>
-          <a
-            href={homeHref}
-            style={{
-              background: "rgba(196,30,58,0.1)",
-              border: "1px solid rgba(196,30,58,0.3)",
-              borderRadius: "20px",
-              padding: "0.25rem 0.875rem",
-              fontSize: "0.6875rem",
-              color: "var(--vf-red-light)",
-              fontWeight: "700",
-              textDecoration: "none",
-            }}
-          >
-            ← Home
-          </a>
+          <div className="vf-header-actions">
+            <NotificationBell />
+            <a
+              href={homeHref}
+              style={{
+                background: "rgba(196,30,58,0.1)",
+                border: "1px solid rgba(196,30,58,0.3)",
+                borderRadius: "20px",
+                padding: "0.25rem 0.875rem",
+                fontSize: "0.6875rem",
+                color: "var(--vf-red-light)",
+                fontWeight: "700",
+                textDecoration: "none",
+              }}
+            >
+              ← Home
+            </a>
+          </div>
         </div>
       </header>
 
