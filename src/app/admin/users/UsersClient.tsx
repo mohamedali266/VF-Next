@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, ChevronLeft, ChevronRight, Edit3, Loader2, Plus, Search, ShieldCheck, Trash2, UserCheck, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 
 type Role = "EMPLOYEE" | "TEAM_LEADER" | "MANAGER" | "AREA_MANAGER" | "ADMIN";
 
@@ -122,6 +122,12 @@ function isPasswordValid(form: UserForm, editing: boolean) {
   return form.password.length >= 6 && form.password === form.confirmPassword;
 }
 
+function roleDescription(role: Role) {
+  if (role === "AREA_MANAGER") return "Partners area access without direct store assignment.";
+  if (role === "ADMIN") return "Full system access across all stores and areas.";
+  return "Store-based access. The area is inherited automatically from the selected store.";
+}
+
 export default function UsersClient({
   users: initialUsers,
   branches,
@@ -189,6 +195,24 @@ export default function UsersClient({
       return matchesBranch && (!search || haystack.includes(search));
     });
   }, [users, query, branchFilter]);
+
+  const usersByStore = useMemo(() => {
+    const groups = new Map<string, { label: string; users: User[] }>();
+    filteredUsers.forEach((user) => {
+      const key = user.branchId || "unassigned";
+      const label = user.branch?.name || "Unassigned store";
+      const current = groups.get(key) || { label, users: [] };
+      current.users.push(user);
+      groups.set(key, current);
+    });
+    return Array.from(groups.entries()).map(([key, value]) => ({ key, ...value }));
+  }, [filteredUsers]);
+
+  function getAreaName(user: User) {
+    if (user.area?.name) return user.area.name;
+    const branch = branches.find((item) => item.id === user.branchId);
+    return areas.find((area) => area.id === branch?.areaId)?.name || "Unassigned";
+  }
 
   function showMessage(text: string, type: "success" | "error") {
     setMessage({ text, type });
@@ -376,6 +400,48 @@ export default function UsersClient({
     }
   }
 
+  function renderUserRow(user: User) {
+    return (
+      <tr key={user.id}>
+        <td><strong>{user.name}</strong></td>
+        <td>{user.username || "-"}</td>
+        <td>{user.vpnNum || "-"}</td>
+        <td>{user.staffId || "-"}</td>
+        <td>{user.email}</td>
+        <td><span className="users-role-pill">{roleLabels[user.role]}</span></td>
+        <td>
+          {user.role === "EMPLOYEE" && user.isMaster ? (
+            <span className="users-master-pill">Master</span>
+          ) : user.role === "EMPLOYEE" ? (
+            <span className="users-muted-pill">Standard</span>
+          ) : (
+            <span className="users-muted-pill">-</span>
+          )}
+        </td>
+        <td>{user.branch?.name || "Unassigned"}</td>
+        <td>{getAreaName(user)}</td>
+        <td>
+          <span className={user.isActive ? "users-status active" : "users-status disabled"}>
+            {user.isActive ? "Active" : "Disabled"}
+          </span>
+        </td>
+        <td>
+          <div className="users-actions">
+            <button className="vf-btn vf-btn-ghost vf-btn-sm" type="button" onClick={() => openEdit(user)}>
+              <Edit3 size={15} />
+            </button>
+            <button className="vf-btn vf-btn-ghost vf-btn-sm" type="button" onClick={() => toggleActive(user)}>
+              <UserCheck size={15} />
+            </button>
+            <button className="vf-btn vf-btn-ghost vf-btn-sm" type="button" onClick={() => deleteUser(user)} style={{ color: "#f87171" }}>
+              <Trash2 size={15} />
+            </button>
+          </div>
+        </td>
+      </tr>
+    );
+  }
+
   return (
     <div className="users-admin-shell">
       <section className="users-admin-head">
@@ -432,45 +498,19 @@ export default function UsersClient({
               </tr>
             </thead>
             <tbody>
-              {filteredUsers.map((user) => (
-                <tr key={user.id}>
-                  <td><strong>{user.name}</strong></td>
-                  <td>{user.username || "-"}</td>
-                  <td>{user.vpnNum || "-"}</td>
-                  <td>{user.staffId || "-"}</td>
-                  <td>{user.email}</td>
-                  <td><span className="users-role-pill">{roleLabels[user.role]}</span></td>
-                  <td>
-                    {user.role === "EMPLOYEE" && user.isMaster ? (
-                      <span className="users-master-pill">Master</span>
-                    ) : user.role === "EMPLOYEE" ? (
-                      <span className="users-muted-pill">Standard</span>
-                    ) : (
-                      <span className="users-muted-pill">-</span>
-                    )}
-                  </td>
-                  <td>{user.branch?.name || "Unassigned"}</td>
-                  <td>{user.area?.name || "Unassigned"}</td>
-                  <td>
-                    <span className={user.isActive ? "users-status active" : "users-status disabled"}>
-                      {user.isActive ? "Active" : "Disabled"}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="users-actions">
-                      <button className="vf-btn vf-btn-ghost vf-btn-sm" type="button" onClick={() => openEdit(user)}>
-                        <Edit3 size={15} />
-                      </button>
-                      <button className="vf-btn vf-btn-ghost vf-btn-sm" type="button" onClick={() => toggleActive(user)}>
-                        <UserCheck size={15} />
-                      </button>
-                      <button className="vf-btn vf-btn-ghost vf-btn-sm" type="button" onClick={() => deleteUser(user)} style={{ color: "#f87171" }}>
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {currentRole === "AREA_MANAGER"
+                ? usersByStore.map((group) => (
+                    <Fragment key={group.key}>
+                      <tr className="users-store-group-row">
+                        <td colSpan={11}>
+                          <span>{group.label}</span>
+                          <strong>{group.users.length} users</strong>
+                        </td>
+                      </tr>
+                      {group.users.map(renderUserRow)}
+                    </Fragment>
+                  ))
+                : filteredUsers.map(renderUserRow)}
               {!filteredUsers.length && (
                 <tr>
                   <td colSpan={11} style={{ textAlign: "center", color: "var(--vf-text-muted)" }}>No users found</td>
@@ -543,25 +583,15 @@ export default function UsersClient({
 
               {step === 1 && (
                 <div className="users-role-step">
-                  <div className="users-role-grid">
-                    {roleOptions.map((role) => (
-                      <button
-                        key={role}
-                        type="button"
-                        className={`users-role-card ${form.role === role ? "active" : ""}`}
-                        onClick={() => setRole(role)}
-                      >
-                        <strong>{roleLabels[role]}</strong>
-                        <span>
-                          {role === "AREA_MANAGER"
-                            ? "Partners area access without store assignment"
-                            : role === "ADMIN"
-                              ? "Full system access"
-                              : "Store-based access with automatic area scope"}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
+                  <label className="users-field users-wide-field users-role-select">
+                    <span>Role</span>
+                    <select className="vf-input" value={form.role} onChange={(event) => setRole(event.target.value as Role)}>
+                      {roleOptions.map((role) => (
+                        <option key={role} value={role}>{roleLabels[role]}</option>
+                      ))}
+                    </select>
+                    <em>{roleDescription(form.role)}</em>
+                  </label>
 
                   {form.role === "AREA_MANAGER" && (
                     <label className="users-field">

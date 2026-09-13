@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { areaManagedUserWhere } from "@/lib/area-scope";
 import { Prisma } from "@prisma/client";
 import { redirect } from "next/navigation";
 import UsersClient from "@/app/admin/users/UsersClient";
@@ -13,16 +14,12 @@ export default async function AreaUsersPage() {
   const areaWhere = session.user.role === "ADMIN" ? {} : { id: session.user.areaId || "" };
   const userWhere: Prisma.UserWhereInput = session.user.role === "ADMIN"
     ? { isActive: true }
-    : {
-        isActive: true,
-        areaId: session.user.areaId || "",
-        role: { in: ["EMPLOYEE", "TEAM_LEADER", "MANAGER"] },
-      };
+    : areaManagedUserWhere(session.user.areaId || "", true);
 
   const [users, branches, areas] = await Promise.all([
     prisma.user.findMany({
       where: userWhere,
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ branch: { name: "asc" } }, { role: "asc" }, { name: "asc" }],
       select: {
         id: true,
         name: true,

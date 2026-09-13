@@ -3,9 +3,9 @@ import { prisma } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { AREA_MANAGER_ALLOWED_ROLES, areaManagedUserWhere } from "@/lib/area-scope";
 
 const ROLES = ["EMPLOYEE", "TEAM_LEADER", "MANAGER", "AREA_MANAGER", "ADMIN"] as const;
-const AREA_MANAGER_ALLOWED_ROLES = ["EMPLOYEE", "TEAM_LEADER", "MANAGER"] as const;
 const EMAIL_DOMAIN = "@vodafone.com.eg";
 type UserAdminSession = { user: { role: string; areaId?: string | null } };
 
@@ -93,9 +93,11 @@ export async function GET() {
 
   const users = await prisma.user.findMany({
     where: session.user.role === "AREA_MANAGER"
-      ? { areaId: session.user.areaId || "__none__", role: { in: [...AREA_MANAGER_ALLOWED_ROLES] } }
+      ? areaManagedUserWhere(session.user.areaId || "__none__")
       : undefined,
-    orderBy: { createdAt: "desc" },
+    orderBy: session.user.role === "AREA_MANAGER"
+      ? [{ branch: { name: "asc" } }, { role: "asc" }, { name: "asc" }]
+      : { createdAt: "desc" },
     select: userSelect,
   });
 

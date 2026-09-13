@@ -84,6 +84,7 @@ export default function StoreClient({ storeId }: { storeId: string }) {
   const [error, setError] = useState("");
   const [tab, setTab] = useState<Tab>("team");
   const [copied, setCopied] = useState("");
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -162,6 +163,7 @@ export default function StoreClient({ storeId }: { storeId: string }) {
 
     // Group by employee
     const empMap = new Map<string, {
+      id: string;
       name: string;
       reportsCount: number;
       lines: number;
@@ -188,6 +190,7 @@ export default function StoreClient({ storeId }: { storeId: string }) {
       const acq = lines + r.newVmt;
 
       const existing = empMap.get(empId) || {
+        id: empId,
         name: empName,
         reportsCount: 0,
         lines: 0,
@@ -233,6 +236,8 @@ export default function StoreClient({ storeId }: { storeId: string }) {
   const currentMonthRpm = calculateRpm(data?.monthlyReports || []);
   const lastMonthRpm = calculateRpm(data?.lastMonthReports || []);
   const healthSubmitters = data?.healthChecks || [];
+  const selectedEmployeeRpm = currentMonthRpm.empBreakdown.find((emp) => emp.id === selectedEmployeeId) || null;
+  const selectedEmployeeReports = (data?.monthlyReports || []).filter((report) => report.employee.id === selectedEmployeeId);
 
   // Distinct days in current month with reports
   const currentMonthDays = new Set((data?.monthlyReports || []).map((r) => r.date)).size;
@@ -567,14 +572,30 @@ export default function StoreClient({ storeId }: { storeId: string }) {
               </div>
             ) : (
               currentMonthRpm.empBreakdown.map((emp) => (
-                <div key={emp.name} className="vf-card" style={{ padding: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                <button
+                  key={emp.id}
+                  type="button"
+                  className="vf-card"
+                  onClick={() => setSelectedEmployeeId((current) => current === emp.id ? "" : emp.id)}
+                  style={{
+                    padding: "1rem",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "0.75rem",
+                    width: "100%",
+                    textAlign: "start",
+                    cursor: "pointer",
+                    borderColor: selectedEmployeeId === emp.id ? "rgba(196,30,58,0.62)" : "var(--vf-border)",
+                    background: selectedEmployeeId === emp.id ? "rgba(196,30,58,0.1)" : "var(--vf-surface)",
+                  }}
+                >
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--vf-border)", paddingBottom: "0.5rem" }}>
                     <div>
                       <div style={{ fontWeight: "800", color: "#fff", fontSize: "0.9375rem" }}>
                         {emp.name} RPM
                       </div>
                       <div style={{ fontSize: "0.6875rem", color: "var(--vf-text-muted)", marginTop: "0.125rem" }}>
-                        {emp.reportsCount} أيام مسجلة
+                        {emp.reportsCount} أيام مسجلة · Click for daily details
                       </div>
                     </div>
                     <div style={{ fontSize: "0.75rem", fontWeight: "800", color: "var(--vf-red-light)", background: "rgba(196,30,58,0.15)", padding: "0.2rem 0.6rem", borderRadius: "999px" }}>
@@ -607,10 +628,60 @@ export default function StoreClient({ storeId }: { storeId: string }) {
                     <div>ADSL: <strong>{emp.adslAch}</strong></div>
                     <div>Term: <strong>{emp.terminalAch}</strong></div>
                   </div>
-                </div>
+                </button>
               ))
             )}
           </div>
+
+          {selectedEmployeeRpm && (
+            <div className="vf-card" style={{ display: "flex", flexDirection: "column", gap: "1rem", borderColor: "rgba(196,30,58,0.42)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem", alignItems: "flex-start" }}>
+                <div>
+                  <div style={{ color: "var(--vf-red-light)", fontSize: "0.72rem", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                    Employee details
+                  </div>
+                  <h3 style={{ color: "#fff", fontSize: "1rem", marginTop: "0.15rem" }}>{selectedEmployeeRpm.name}</h3>
+                  <p style={{ color: "var(--vf-text-muted)", fontSize: "0.75rem", marginTop: "0.15rem" }}>
+                    {selectedEmployeeRpm.reportsCount} reports in {data?.currentMonthLabel}
+                  </p>
+                </div>
+                <button className="vf-btn vf-btn-ghost vf-btn-sm" type="button" onClick={() => setSelectedEmployeeId("")}>
+                  Close
+                </button>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "0.5rem" }}>
+                {[
+                  ["Acquisition", selectedEmployeeRpm.acquisition],
+                  ["Lines", selectedEmployeeRpm.lines],
+                  ["New VMT", selectedEmployeeRpm.newVmt],
+                  ["At Home", selectedEmployeeRpm.atHomeAch],
+                  ["ADSL", selectedEmployeeRpm.adslAch],
+                  ["Terminal", selectedEmployeeRpm.terminalAch],
+                  ["Enterprise Acc", selectedEmployeeRpm.enterpriseNewAcc],
+                  ["Infollow GA", selectedEmployeeRpm.enterpriseGas],
+                ].map(([label, value]) => (
+                  <div key={label} style={{ background: "var(--vf-surface-2)", border: "1px solid var(--vf-border)", borderRadius: "10px", padding: "0.65rem" }}>
+                    <div style={{ color: "var(--vf-text-muted)", fontSize: "0.64rem", fontWeight: 800 }}>{label}</div>
+                    <div style={{ color: "#fff", fontSize: "1rem", fontWeight: 900, marginTop: "0.15rem" }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.45rem" }}>
+                <div style={{ color: "#fff", fontSize: "0.86rem", fontWeight: 900 }}>Daily reports</div>
+                {selectedEmployeeReports.map((report) => (
+                  <div key={report.id} style={{ display: "grid", gridTemplateColumns: "96px repeat(4, minmax(0, 1fr))", gap: "0.45rem", alignItems: "center", padding: "0.55rem", borderRadius: "10px", background: "var(--vf-surface-2)", border: "1px solid var(--vf-border)", color: "var(--vf-text-2)", fontSize: "0.72rem", fontWeight: 800 }}>
+                    <strong style={{ color: "#fff" }}>{report.date}</strong>
+                    <span>Acq {(report.pre + report.f52 + report.f80 + report.aboveF115) + report.mnp + (report.newRed * 3) + report.conRed + report.newVmt}</span>
+                    <span>VMT {report.newVmt}</span>
+                    <span>Home {report.atHomeAch}</span>
+                    <span>Term {report.terminalAch}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

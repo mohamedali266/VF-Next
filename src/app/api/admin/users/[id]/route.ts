@@ -3,9 +3,9 @@ import { prisma } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { isAreaManagedRole } from "@/lib/area-scope";
 
 const ROLES = ["EMPLOYEE", "TEAM_LEADER", "MANAGER", "AREA_MANAGER", "ADMIN"] as const;
-const AREA_MANAGER_ALLOWED_ROLES = ["EMPLOYEE", "TEAM_LEADER", "MANAGER"] as const;
 const EMAIL_DOMAIN = "@vodafone.com.eg";
 type UserAdminSession = { user: { role: string; areaId?: string | null } };
 
@@ -95,7 +95,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params;
   const existingUser = await prisma.user.findUnique({
     where: { id },
-    select: { id: true, role: true, branchId: true, areaId: true },
+    select: { id: true, role: true, branchId: true, areaId: true, branch: { select: { areaId: true } } },
   });
   if (!existingUser) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
@@ -106,11 +106,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const body = parsed.data;
   if (session.user.role === "AREA_MANAGER") {
-    if (!session.user.areaId || existingUser.areaId !== session.user.areaId) {
+    const userInArea = Boolean(
+      session.user.areaId &&
+      (existingUser.areaId === session.user.areaId || existingUser.branch?.areaId === session.user.areaId)
+    );
+    if (!userInArea) {
       return NextResponse.json({ error: "User is outside your area" }, { status: 403 });
     }
     const nextRole = body.role || existingUser.role;
-    if (!AREA_MANAGER_ALLOWED_ROLES.includes(nextRole as (typeof AREA_MANAGER_ALLOWED_ROLES)[number])) {
+    if (!isAreaManagedRole(nextRole)) {
       return NextResponse.json({ error: "Area Manager cannot manage Admin or Area Manager users" }, { status: 403 });
     }
   }
@@ -183,8 +187,16 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
   const { id } = await params;
   if (session.user.role === "AREA_MANAGER") {
-    const user = await prisma.user.findUnique({ where: { id }, select: { areaId: true, role: true } });
-    if (!user || user.areaId !== session.user.areaId || !AREA_MANAGER_ALLOWED_ROLES.includes(user.role as (typeof AREA_MANAGER_ALLOWED_ROLES)[number])) {
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: { areaId: true, role: true, branch: { select: { areaId: true } } },
+    });
+    const userInArea = Boolean(
+      user &&
+      session.user.areaId &&
+      (user.areaId === session.user.areaId || user.branch?.areaId === session.user.areaId)
+    );
+    if (!userInArea || !user || !isAreaManagedRole(user.role)) {
       return NextResponse.json({ error: "User is outside your area" }, { status: 403 });
     }
   }

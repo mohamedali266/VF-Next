@@ -1729,6 +1729,52 @@ h1, h2, h3, h4, h5, h6 {
   direction: ltr;
 }
 
+.stores-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.area-store-card {
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.area-store-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(196, 30, 58, 0.42);
+  background: rgba(196, 30, 58, 0.08);
+}
+
+.area-store-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.area-store-metrics span {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border-radius: var(--radius-md);
+  background: var(--vf-surface-2);
+  border: 1px solid var(--vf-border);
+  color: var(--vf-text-2);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.area-store-open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  color: var(--vf-red-light);
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
 @media (max-width: 760px) {
   .health-actions-row {
     grid-template-columns: 1fr;
@@ -1810,6 +1856,33 @@ h1, h2, h3, h4, h5, h6 {
 
 .users-table td strong {
   color: #fff;
+}
+
+.users-store-group-row td {
+  background: rgba(196, 30, 58, 0.12);
+  color: var(--vf-text);
+  border-bottom-color: rgba(196, 30, 58, 0.28);
+}
+
+.users-store-group-row td {
+  padding: 0.65rem 1rem;
+}
+
+.users-store-group-row span,
+.users-store-group-row strong {
+  display: inline-flex;
+  align-items: center;
+  margin-inline-end: 0.75rem;
+}
+
+.users-store-group-row span {
+  color: #fff;
+  font-weight: 900;
+}
+
+.users-store-group-row strong {
+  color: var(--vf-red-light);
+  font-size: 0.76rem;
 }
 
 .users-role-pill,
@@ -2214,6 +2287,22 @@ h1, h2, h3, h4, h5, h6 {
   display: grid;
   grid-template-columns: 1fr;
   gap: 0.85rem;
+}
+
+.users-role-select {
+  padding: 0.85rem;
+  background:
+    linear-gradient(135deg, rgba(196, 30, 58, 0.1), rgba(255, 255, 255, 0.025)),
+    var(--vf-surface-2);
+  border: 1px solid rgba(196, 30, 58, 0.22);
+  border-radius: var(--radius-md);
+}
+
+.users-role-select em {
+  color: var(--vf-text-muted);
+  font-size: 0.76rem;
+  font-style: normal;
+  line-height: 1.45;
 }
 
 .users-role-grid {

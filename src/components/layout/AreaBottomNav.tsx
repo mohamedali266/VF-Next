@@ -1,10 +1,11 @@
 "use client";
 
-import { CalendarDays, ClipboardCheck, LayoutDashboard, MessageSquareText, Users } from "lucide-react";
+import { Building2, CalendarDays, ClipboardCheck, LayoutDashboard, MessageSquareText, Users } from "lucide-react";
 import AppBottomNav from "./AppBottomNav";
 
 const navItems = [
   { href: "/area", Icon: LayoutDashboard, label: "Dashboard" },
+  { href: "/area/stores", Icon: Building2, label: "Stores" },
   { href: "/area/users", Icon: Users, label: "Users" },
   { href: "/area/sms", Icon: MessageSquareText, label: "SMS" },
   { href: "/area/schedule", Icon: CalendarDays, label: "Schedule" },
