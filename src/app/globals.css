@@ -2695,6 +2695,11 @@ h1, h2, h3, h4, h5, h6 {
   color: #fef3c7;
 }
 
+.shift-cell-empty {
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--vf-text-muted);
+}
+
 .shift-cell-off {
   background: rgba(20, 184, 166, 0.15);
   color: #5eead4;

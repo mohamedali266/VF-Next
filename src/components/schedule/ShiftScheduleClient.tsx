@@ -55,11 +55,7 @@ type Props = {
   viewerEmployeeId?: string | null;
 };
 
-function emptyEntries(days: { date: string }[], members: ScheduleMember[]) {
-  return days.flatMap((day) => (
-    members.map((member) => ({ employeeId: member.id, date: day.date, shift: "OFF" as ScheduleShiftValue }))
-  ));
-}
+type EditableShiftValue = ScheduleShiftValue | "";
 
 function weekdayClass(weekday: string) {
   return weekday === "FR" ? "schedule-day-friday" : "";
@@ -92,14 +88,15 @@ function todayKey() {
   return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 }
 
-function shiftSortRank(shift: ScheduleShiftValue) {
-  const order: Record<ScheduleShiftValue, number> = {
+function shiftSortRank(shift: EditableShiftValue) {
+  const order: Record<EditableShiftValue, number> = {
     AM: 0,
     FULL: 1,
     PM: 2,
-    OFF: 3,
+    BW: 3,
     ANN: 4,
-    BW: 5,
+    OFF: 5,
+    "": 6,
   };
   return order[shift];
 }
@@ -151,7 +148,7 @@ export default function ShiftScheduleClient({
         const members = sortScheduleMembers(payload.members);
         const days = payload.days.length ? payload.days : getMonthDays(month);
         setData({ ...payload, members, days });
-        setEntries(payload.entries.length ? payload.entries : emptyEntries(days, members));
+        setEntries(payload.entries);
       })
       .catch((error) => {
         if (error.name !== "AbortError") {
@@ -194,10 +191,11 @@ export default function ShiftScheduleClient({
     setTimeout(() => setMessage(null), 4000);
   }
 
-  function setCell(employeeId: string, date: string, shift: ScheduleShiftValue) {
+  function setCell(employeeId: string, date: string, shift: EditableShiftValue) {
     setEntries((current) => {
       const key = `${date}:${employeeId}`;
       const next = current.filter((entry) => `${entry.date}:${entry.employeeId}` !== key);
+      if (!shift) return next;
       return [...next, { employeeId, date, shift }];
     });
   }
@@ -218,7 +216,7 @@ export default function ShiftScheduleClient({
       const nextMembers = sortScheduleMembers(nextPayload.members);
       const nextDays = nextPayload.days.length ? nextPayload.days : getMonthDays(month);
       setData({ ...nextPayload, members: nextMembers, days: nextDays });
-      setEntries(nextPayload.entries.length ? nextPayload.entries : emptyEntries(nextDays, nextMembers));
+      setEntries(nextPayload.entries);
       showMessage("success", action === "submit" ? "Schedule submitted" : action === "edit" ? "Schedule opened for editing" : "Schedule saved");
     } catch (error) {
       showMessage("error", error instanceof Error ? error.message : "Schedule action failed");
@@ -247,7 +245,7 @@ export default function ShiftScheduleClient({
       const nextMembers = sortScheduleMembers(nextPayload.members);
       const nextDays = nextPayload.days.length ? nextPayload.days : getMonthDays(month);
       setData({ ...nextPayload, members: nextMembers, days: nextDays });
-      setEntries(nextPayload.entries.length ? nextPayload.entries : emptyEntries(nextDays, nextMembers));
+      setEntries(nextPayload.entries);
       setReviewComment("");
       showMessage("success", action === "approve" ? "Schedule approved" : "Schedule rejected");
     } catch (error) {
@@ -441,25 +439,26 @@ export default function ShiftScheduleClient({
                         <td className="schedule-day-num">{day.day}</td>
                         <td className="schedule-weekday">{day.weekday}</td>
                         {visibleMembers.map((member) => {
-                          const shift = entryMap.get(`${day.date}:${member.id}`) || "OFF";
+                          const shift = entryMap.get(`${day.date}:${member.id}`) || "";
                           return (
-                            <td key={`${day.date}:${member.id}`} className={`schedule-shift-cell shift-cell-${shift.toLowerCase()}`}>
+                            <td key={`${day.date}:${member.id}`} className={`schedule-shift-cell ${shift ? `shift-cell-${shift.toLowerCase()}` : "shift-cell-empty"}`}>
                               {editable ? (
                                 <>
                                   <select
                                     className="schedule-shift-select"
                                     value={shift}
-                                    onChange={(event) => setCell(member.id, day.date, event.target.value as ScheduleShiftValue)}
+                                    onChange={(event) => setCell(member.id, day.date, event.target.value as EditableShiftValue)}
                                     aria-label={`${displayNameMap.get(member.id) || member.name} ${day.date}`}
                                   >
+                                    <option value="">Blank</option>
                                     {SCHEDULE_SHIFTS.map((option) => (
                                       <option key={option} value={option}>{SHIFT_LABELS[option]}</option>
                                     ))}
                                   </select>
-                                  <span className="schedule-print-shift">{SHIFT_LABELS[shift]}</span>
+                                  <span className="schedule-print-shift">{shift ? SHIFT_LABELS[shift] : ""}</span>
                                 </>
                               ) : (
-                                <span>{SHIFT_LABELS[shift]}</span>
+                                <span>{shift ? SHIFT_LABELS[shift] : ""}</span>
                               )}
                             </td>
                           );
@@ -492,8 +491,8 @@ export default function ShiftScheduleClient({
               {displayDays.map((day) => {
                 const validation = validationMap.get(day.date);
                 const mobileMembers = [...visibleMembers].sort((a, b) => {
-                  const aShift = entryMap.get(`${day.date}:${a.id}`) || "OFF";
-                  const bShift = entryMap.get(`${day.date}:${b.id}`) || "OFF";
+                  const aShift = entryMap.get(`${day.date}:${a.id}`) || "";
+                  const bShift = entryMap.get(`${day.date}:${b.id}`) || "";
                   const shiftDelta = shiftSortRank(aShift) - shiftSortRank(bShift);
                   if (shiftDelta) return shiftDelta;
                   if (a.role !== b.role) {
@@ -511,7 +510,7 @@ export default function ShiftScheduleClient({
                     </header>
                     <div className="schedule-day-card-grid">
                       {mobileMembers.map((member) => {
-                        const shift = entryMap.get(`${day.date}:${member.id}`) || "OFF";
+                        const shift = entryMap.get(`${day.date}:${member.id}`) || "";
                         const badge = memberRoleLabel(member);
                         return (
                           <label key={`${day.date}:mobile:${member.id}`}>
@@ -520,11 +519,12 @@ export default function ShiftScheduleClient({
                               {badge && <small>{badge}</small>}
                             </span>
                             {editable ? (
-                              <select value={shift} onChange={(event) => setCell(member.id, day.date, event.target.value as ScheduleShiftValue)}>
+                              <select value={shift} onChange={(event) => setCell(member.id, day.date, event.target.value as EditableShiftValue)}>
+                                <option value="">Blank</option>
                                 {SCHEDULE_SHIFTS.map((option) => <option key={option} value={option}>{SHIFT_LABELS[option]}</option>)}
                               </select>
                             ) : (
-                              <em>{SHIFT_LABELS[shift]}</em>
+                              <em>{shift ? SHIFT_LABELS[shift] : ""}</em>
                             )}
                           </label>
                         );
