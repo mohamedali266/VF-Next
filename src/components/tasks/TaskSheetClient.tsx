@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, CopyPlus, Loader2, Plus, Printer, Save, Trash2 } from "lucide-react";
+import { Check, CopyPlus, Loader2, Plus, Printer, Save, Trash2, X } from "lucide-react";
 
 type Role = "EMPLOYEE" | "TEAM_LEADER" | "MANAGER" | "AREA_MANAGER" | "ADMIN";
 type Shift = "AM" | "PM" | "BW";
@@ -10,7 +10,7 @@ type ItemStatus = "PENDING" | "DONE" | "MISSED" | "NA";
 type BranchOption = { id: string; name: string; code: string | null };
 type Member = { id: string; name: string; role: Role; isMaster: boolean; staffId?: string | null; vpnNum?: string | null };
 type GroupItem = { id: string; title: string; description: string; sortOrder: number };
-type TaskGroup = { id: string; title: string; scope: "BRANCH" | "AREA"; shift: Shift | null; items: GroupItem[] };
+type TaskGroup = { id: string; title: string; scope: "BRANCH" | "AREA"; shift: Shift | null; branchId?: string | null; areaId?: string | null; items: GroupItem[] };
 type SheetItem = {
   id?: string;
   templateItemId?: string | null;
@@ -86,6 +86,10 @@ export default function TaskSheetClient({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [groupModalOpen, setGroupModalOpen] = useState(false);
+  const [groupTitle, setGroupTitle] = useState("");
+  const [groupScope, setGroupScope] = useState<"BRANCH" | "AREA">("BRANCH");
+  const [groupSelection, setGroupSelection] = useState<number[]>([]);
 
   const selectedBranch = data?.branch || branches.find((branch) => branch.id === branchId) || null;
   const selectedGroup = data?.groups.find((group) => group.id === selectedGroupId) || null;
@@ -164,6 +168,22 @@ export default function TaskSheetClient({
     setItems((current) => current.filter((_, itemIndex) => itemIndex !== index));
   }
 
+  function openGroupModal() {
+    const validIndexes = items
+      .map((item, index) => item.title.trim() ? index : -1)
+      .filter((index) => index >= 0);
+    setGroupTitle(selectedGroup && selectedGroup.id !== "default-operations" ? selectedGroup.title : `${selectedBranch?.name || "Store"} ${shift} Tasks`);
+    setGroupScope(currentRole === "AREA_MANAGER" ? "AREA" : "BRANCH");
+    setGroupSelection(validIndexes);
+    setGroupModalOpen(true);
+  }
+
+  function toggleGroupTask(index: number) {
+    setGroupSelection((current) => current.includes(index)
+      ? current.filter((item) => item !== index)
+      : [...current, index].sort((a, b) => a - b));
+  }
+
   async function saveSheet(submit = false) {
     if (!branchId) return;
     setSaving(true);
@@ -200,28 +220,56 @@ export default function TaskSheetClient({
   }
 
   async function saveAsGroup() {
-    const title = prompt("Task group name", selectedGroup?.title || `${selectedBranch?.name || "Store"} ${shift} Tasks`);
-    if (!title) return;
+    const selectedItems = groupSelection
+      .map((index) => items[index])
+      .filter((item) => item?.title.trim());
+    if (!groupTitle.trim()) {
+      setMessage("Task group name is required.");
+      return;
+    }
+    if (!selectedItems.length) {
+      setMessage("Select at least one task to save in the group.");
+      return;
+    }
     setSaving(true);
     try {
       const res = await fetch("/api/task-groups", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title,
-          scope: currentRole === "AREA_MANAGER" ? "AREA" : "BRANCH",
+          title: groupTitle.trim(),
+          scope: groupScope,
           branchId,
           shift,
-          items: items.filter((item) => item.title.trim()).map((item) => ({ title: item.title, description: item.description })),
+          items: selectedItems.map((item) => ({ title: item.title, description: item.description })),
         }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Could not save task group");
       setMessage("Task group saved. Reloading templates...");
+      setGroupModalOpen(false);
       await load();
       if (json.group?.id) setSelectedGroupId(json.group.id);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not save task group");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteSelectedGroup() {
+    if (!selectedGroup || selectedGroup.id === "default-operations") return;
+    if (!confirm(`Delete task group "${selectedGroup.title}"? Existing daily sheets will keep their copied tasks.`)) return;
+    setSaving(true);
+    setMessage("");
+    try {
+      const res = await fetch(`/api/task-groups/${selectedGroup.id}`, { method: "DELETE" });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Could not delete task group");
+      setMessage("Task group deleted.");
+      await load();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not delete task group");
     } finally {
       setSaving(false);
     }
@@ -266,7 +314,7 @@ export default function TaskSheetClient({
           <span>Task group</span>
           <select className="vf-input" value={selectedGroupId} onChange={(event) => applyGroup(event.target.value)} disabled={!canEdit}>
             {(data?.groups || []).map((group) => (
-              <option key={group.id} value={group.id}>{group.title}{group.scope === "AREA" ? " - Area" : ""}</option>
+              <option key={group.id} value={group.id}>{group.title}{group.scope === "AREA" ? " - Area task" : ""}</option>
             ))}
           </select>
         </label>
@@ -291,9 +339,14 @@ export default function TaskSheetClient({
                 </button>
                 {canEdit && (
                   <>
-                    <button className="vf-btn vf-btn-ghost vf-btn-md" type="button" onClick={saveAsGroup} disabled={saving}>
+                    <button className="vf-btn vf-btn-ghost vf-btn-md" type="button" onClick={openGroupModal} disabled={saving}>
                       <CopyPlus size={17} /> Save group
                     </button>
+                    {selectedGroup && selectedGroup.id !== "default-operations" && (
+                      <button className="vf-btn vf-btn-ghost vf-btn-md" type="button" onClick={deleteSelectedGroup} disabled={saving} style={{ color: "#f87171" }}>
+                        <Trash2 size={17} /> Delete group
+                      </button>
+                    )}
                     <button className="vf-btn vf-btn-ghost vf-btn-md" type="button" onClick={() => saveSheet(false)} disabled={saving}>
                       <Save size={17} /> Save
                     </button>
@@ -361,6 +414,72 @@ export default function TaskSheetClient({
               </button>
             )}
           </section>
+
+          {groupModalOpen && (
+            <div className="users-modal" onClick={() => setGroupModalOpen(false)}>
+              <div className="users-modal-card task-group-modal" onClick={(event) => event.stopPropagation()}>
+                <div className="users-modal-head">
+                  <div>
+                    <span>Task Group</span>
+                    <h2>Save selected tasks</h2>
+                  </div>
+                  <button type="button" onClick={() => setGroupModalOpen(false)} aria-label="Close">
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div className="task-group-form">
+                  <label className="users-field users-wide-field">
+                    <span>Group name</span>
+                    <input className="vf-input" value={groupTitle} onChange={(event) => setGroupTitle(event.target.value)} placeholder="Daily PM operations" />
+                  </label>
+
+                  <label className="users-field">
+                    <span>Group type</span>
+                    <select className="vf-input" value={groupScope} onChange={(event) => setGroupScope(event.target.value as "BRANCH" | "AREA")} disabled={currentRole === "AREA_MANAGER"}>
+                      <option value="BRANCH">Branch group - for this store</option>
+                      {(currentRole === "AREA_MANAGER" || currentRole === "ADMIN") && (
+                        <option value="AREA">Area task - targeted to selected store</option>
+                      )}
+                    </select>
+                    <em>
+                      {groupScope === "AREA"
+                        ? `This area task targets ${selectedBranch?.name || "the selected store"} and appears for its Manager and Team Leader.`
+                        : `This branch group is reusable inside ${selectedBranch?.name || "the selected store"}.`}
+                    </em>
+                  </label>
+
+                  <div className="task-group-selection">
+                    <div className="task-group-selection-head">
+                      <strong>Select tasks to include</strong>
+                      <span>{groupSelection.length} selected</span>
+                    </div>
+                    {items.map((item, index) => item.title.trim() && (
+                      <label key={`${item.id || item.templateItemId || "group"}-${index}`} className={groupSelection.includes(index) ? "selected" : ""}>
+                        <input
+                          type="checkbox"
+                          checked={groupSelection.includes(index)}
+                          onChange={() => toggleGroupTask(index)}
+                        />
+                        <span>{item.title}</span>
+                        <em>{item.description || "No description"}</em>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="users-modal-actions">
+                  <button className="vf-btn vf-btn-ghost vf-btn-lg" type="button" onClick={() => setGroupModalOpen(false)}>
+                    Cancel
+                  </button>
+                  <button className="vf-btn vf-btn-primary vf-btn-lg" type="button" onClick={saveAsGroup} disabled={saving}>
+                    {saving ? <Loader2 className="daily-spin" size={18} /> : <Check size={18} />}
+                    Save selected group
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           <section className="task-print-sheet">
             <div className="task-print-top">

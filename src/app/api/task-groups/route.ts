@@ -31,13 +31,10 @@ export async function POST(req: NextRequest) {
     if (!canCreateAreaTasks(session.user.role)) {
       return NextResponse.json({ error: "Only Area Manager or Admin can create area task groups" }, { status: 403 });
     }
-    areaId = session.user.role === "AREA_MANAGER" ? session.user.areaId || null : data.areaId || null;
-    if (!areaId) return NextResponse.json({ error: "Area is required" }, { status: 400 });
-    const area = await prisma.area.findFirst({
-      where: { id: areaId, isActive: true },
-      select: { id: true },
-    });
-    if (!area) return NextResponse.json({ error: "Area not found" }, { status: 404 });
+    const branch = await getAccessibleBranch(data.branchId || "", session.user);
+    if (!branch || !branch.areaId) return NextResponse.json({ error: "Area task must target an active store inside your area" }, { status: 403 });
+    branchId = branch.id;
+    areaId = branch.areaId;
   } else {
     if (!canManageBranchTasks(session.user.role)) {
       return NextResponse.json({ error: "You do not have permission to create branch task groups" }, { status: 403 });

@@ -1915,6 +1915,92 @@ h1, h2, h3, h4, h5, h6 {
   justify-content: center;
 }
 
+.task-group-modal {
+  width: min(100%, 780px);
+}
+
+.task-group-form {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.85rem;
+}
+
+.task-group-form em {
+  color: var(--vf-text-muted);
+  font-size: 0.76rem;
+  font-style: normal;
+  line-height: 1.45;
+}
+
+.task-group-selection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.85rem;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--vf-border);
+  border-radius: var(--radius-md);
+}
+
+.task-group-selection-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.task-group-selection-head strong {
+  color: #fff;
+  font-size: 0.9rem;
+}
+
+.task-group-selection-head span {
+  color: var(--vf-red-light);
+  font-size: 0.75rem;
+  font-weight: 900;
+}
+
+.task-group-selection label {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.12rem 0.65rem;
+  align-items: start;
+  padding: 0.75rem;
+  border: 1px solid var(--vf-border);
+  border-radius: 14px;
+  background: var(--vf-surface-2);
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.task-group-selection label:hover,
+.task-group-selection label.selected {
+  transform: translateY(-1px);
+  border-color: rgba(196, 30, 58, 0.46);
+  background: rgba(196, 30, 58, 0.11);
+}
+
+.task-group-selection input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--vf-red);
+  grid-row: span 2;
+  margin-top: 0.1rem;
+}
+
+.task-group-selection label span {
+  color: var(--vf-text);
+  font-size: 0.86rem;
+  font-weight: 900;
+}
+
+.task-group-selection label em {
+  color: var(--vf-text-muted);
+  font-size: 0.74rem;
+  font-style: normal;
+  line-height: 1.4;
+}
+
 .task-print-sheet {
   display: none;
 }

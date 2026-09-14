@@ -86,7 +86,7 @@ export async function GET(req: NextRequest) {
         isActive: true,
         OR: [
           { scope: "BRANCH", branchId: branch.id },
-          ...(branch.areaId ? [{ scope: "AREA" as const, areaId: branch.areaId }] : []),
+          ...(branch.areaId ? [{ scope: "AREA" as const, areaId: branch.areaId, OR: [{ branchId: null }, { branchId: branch.id }] }] : []),
         ],
       },
       orderBy: [{ scope: "asc" }, { title: "asc" }],
@@ -114,6 +114,8 @@ export async function GET(req: NextRequest) {
         title: group.title,
         scope: group.scope,
         shift: group.shift,
+        branchId: group.branchId,
+        areaId: group.areaId,
         items: group.items.map((item) => ({
           id: item.id,
           title: item.title,
@@ -172,7 +174,7 @@ export async function POST(req: NextRequest) {
         isActive: true,
         OR: [
           { scope: "BRANCH", branchId: branch.id },
-          ...(branch.areaId ? [{ scope: "AREA" as const, areaId: branch.areaId }] : []),
+          ...(branch.areaId ? [{ scope: "AREA" as const, areaId: branch.areaId, OR: [{ branchId: null }, { branchId: branch.id }] }] : []),
         ],
       },
       select: { id: true },
