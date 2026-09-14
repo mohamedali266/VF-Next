@@ -58,9 +58,96 @@ function todayKey() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function formatDisplayDate(date: string) {
+  function formatDisplayDate(date: string) {
   const [year, month, day] = date.split("-");
   return `${Number(day)} / ${Number(month)} / ${year}`;
+}
+
+function taskPrintStyles() {
+  return `
+    @page { size: A4 portrait; margin: 0; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #fff; color: #000; font-family: Arial, Helvetica, sans-serif; }
+    .task-print-sheet {
+      display: block;
+      width: 210mm;
+      height: 297mm;
+      overflow: hidden;
+      padding: 15mm 15mm 12mm;
+      background: #fff;
+      color: #000;
+    }
+    .task-print-top { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; margin-bottom: 18px; }
+    .task-print-top h1 { color: #000; font-size: 26px; font-weight: 900; letter-spacing: 0; margin: 0 0 6px; }
+    .task-print-top p { margin: 0; color: #555; font-size: 13px; font-style: italic; }
+    .task-print-top strong { display: block; color: #000; font-size: 25px; font-weight: 900; text-align: end; }
+    .task-print-top span { display: block; color: #666; font-size: 12px; font-weight: 800; text-align: end; margin-top: 5px; }
+    .task-print-meta {
+      display: grid;
+      grid-template-columns: 78px 1fr 78px 1fr;
+      border-top: 1px solid #bbb;
+      border-bottom: 1px solid #bbb;
+      margin-bottom: 18px;
+    }
+    .task-print-meta b,
+    .task-print-meta span {
+      min-height: 28px;
+      display: flex;
+      align-items: center;
+      border-bottom: 1px solid #ccc;
+      padding: 0 8px;
+      color: #000;
+      font-size: 13px;
+    }
+    .task-print-meta b { font-weight: 900; }
+    .task-print-meta span { border-left: 1px solid #ccc; }
+    .task-print-sheet table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    .task-print-sheet th {
+      background: #000;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 900;
+      padding: 9px 7px;
+      text-align: center;
+    }
+    .task-print-sheet th:nth-child(1) { width: 7%; }
+    .task-print-sheet th:nth-child(2) { width: 34%; }
+    .task-print-sheet th:nth-child(3) { width: 22%; }
+    .task-print-sheet th:nth-child(4) { width: 12%; }
+    .task-print-sheet th:nth-child(5) { width: 25%; }
+    .task-print-sheet td {
+      border: 1.5px solid #000;
+      padding: 7px 8px;
+      color: #000;
+      vertical-align: middle;
+      font-size: 11.5px;
+      line-height: 1.22;
+    }
+    .task-print-sheet tbody tr { height: 24mm; break-inside: avoid; page-break-inside: avoid; }
+    .task-print-sheet tbody tr:nth-child(even) td { background: #f4f4f4; }
+    .task-print-sheet td:nth-child(1),
+    .task-print-sheet td:nth-child(3),
+    .task-print-sheet td:nth-child(4) {
+      text-align: center;
+      font-weight: 900;
+      font-size: 14px;
+    }
+    .task-print-sheet td:nth-child(2) strong { display: block; color: #000; font-size: 13.5px; font-weight: 900; margin-bottom: 4px; }
+    .task-print-sheet td:nth-child(2) span { display: block; color: #444; line-height: 1.2; }
+    .task-print-footer {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      margin-top: 22px;
+      border-top: 2px solid #888;
+      border-bottom: 2px solid #888;
+    }
+    .task-print-footer > div { min-height: 82px; padding: 9px; border-right: 1px solid #888; }
+    .task-print-footer p { color: #000; font-size: 13px; margin: 0 0 13px; }
+    @media print {
+      html, body { width: 210mm; height: 297mm; overflow: hidden; }
+      .task-print-sheet { break-after: avoid; page-break-after: avoid; }
+    }
+  `;
 }
 
 function blankTask(): SheetItem {
@@ -275,6 +362,32 @@ export default function TaskSheetClient({
     }
   }
 
+  function printTaskSheet() {
+    const printable = document.querySelector(".task-print-sheet");
+    if (!printable) return;
+    const printWindow = window.open("", "_blank", "width=900,height=1200");
+    if (!printWindow) {
+      window.print();
+      return;
+    }
+    printWindow.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <title>Daily Tasks Checklist</title>
+          <style>${taskPrintStyles()}</style>
+        </head>
+        <body>${printable.outerHTML}</body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 250);
+  }
+
   return (
     <div className="task-shell">
       <section className="daily-hero task-hero">
@@ -334,7 +447,7 @@ export default function TaskSheetClient({
                 <p>{formatDisplayDate(date)}</p>
               </div>
               <div className="task-actions">
-                <button className="vf-btn vf-btn-ghost vf-btn-md" type="button" onClick={() => window.print()}>
+                <button className="vf-btn vf-btn-ghost vf-btn-md" type="button" onClick={printTaskSheet}>
                   <Printer size={17} /> Print
                 </button>
                 {canEdit && (
