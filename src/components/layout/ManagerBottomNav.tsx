@@ -2,7 +2,7 @@
 
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
-import { CalendarDays, ClipboardCheck, LayoutDashboard, MessageSquareText, Store } from "lucide-react";
+import { CalendarDays, ClipboardCheck, ClipboardList, LayoutDashboard, MessageSquareText, Store } from "lucide-react";
 import AppBottomNav from "./AppBottomNav";
 
 export default function ManagerBottomNav() {
@@ -27,6 +27,7 @@ export default function ManagerBottomNav() {
   const navItems = [
     { href: "/manager",              Icon: LayoutDashboard,   label: "Dashboard" },
     { href: "/manager/sms",          Icon: MessageSquareText, label: "SMS" },
+    { href: "/manager/tasks",        Icon: ClipboardList,     label: "Tasks" },
     { href: "/manager/schedule",     Icon: CalendarDays,      label: "Schedule" },
     { href: "/manager/health-check", Icon: ClipboardCheck,    label: "Health" },
     ...(branchId ? [{ href: `/store/${branchId}`, Icon: Store, label: "Store", match: (path: string) => path.startsWith("/store") }] : []),

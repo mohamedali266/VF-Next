@@ -33,6 +33,13 @@ export default function EmployeeDashboardClient({ userName, todayText, branchId 
       href: "/employee/daily-report",
     },
     {
+      id: "tasks",
+      icon: "✓",
+      title: "Daily Tasks",
+      sub: "View branch task checklist",
+      href: "/employee/tasks",
+    },
+    {
       id: "schedule",
       icon: "📅",
       title: "Shift Schedule",

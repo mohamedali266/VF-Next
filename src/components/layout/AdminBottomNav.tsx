@@ -1,6 +1,6 @@
 "use client";
 
-import { BellRing, Building2, CalendarDays, ClipboardCheck, FileText, Home, Layers3, ScrollText, Users } from "lucide-react";
+import { BellRing, Building2, CalendarDays, ClipboardCheck, ClipboardList, FileText, Home, Layers3, ScrollText, Users } from "lucide-react";
 import AppBottomNav from "./AppBottomNav";
 
 const navItems = [
@@ -8,6 +8,7 @@ const navItems = [
   { href: "/admin/users", Icon: Users, label: "Users" },
   { href: "/admin/areas", Icon: Layers3, label: "Areas" },
   { href: "/admin/notifications", Icon: BellRing, label: "Alerts" },
+  { href: "/admin/tasks", Icon: ClipboardList, label: "Tasks" },
   { href: "/admin/reports", Icon: FileText, label: "Reports" },
   { href: "/admin/branches", Icon: Building2, label: "Stores" },
   { href: "/admin/schedule", Icon: CalendarDays, label: "Schedule" },

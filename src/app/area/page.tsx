@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { areaManagedUserWhere } from "@/lib/area-scope";
 import { redirect } from "next/navigation";
-import { ArrowRight, Building2, CalendarDays, ClipboardCheck, MessageSquareText, Users } from "lucide-react";
+import { ArrowRight, Building2, CalendarDays, ClipboardCheck, ClipboardList, MessageSquareText, Users } from "lucide-react";
 
 export default async function AreaDashboardPage() {
   const session = await auth();
@@ -43,6 +43,7 @@ export default async function AreaDashboardPage() {
   const cards = [
     { href: "/area/stores", icon: Building2, label: "Stores", value: area?.branches.length ?? 0 },
     { href: "/area/users", icon: Users, label: "Users", value: usersCount },
+    { href: "/area/tasks", icon: ClipboardList, label: "Tasks", value: "Assign" },
     { href: "/area/sms", icon: MessageSquareText, label: "SMS & RPM", value: "Open" },
     { href: "/area/health-check", icon: ClipboardCheck, label: "Health", value: "Open" },
     { href: "/area/schedule", icon: CalendarDays, label: "Schedules", value: "Review" },

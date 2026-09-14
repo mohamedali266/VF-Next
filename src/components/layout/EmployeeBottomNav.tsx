@@ -2,7 +2,7 @@
 
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
-import { ClipboardCheck, FileText, Home, MessageSquareText, Store, Users } from "lucide-react";
+import { ClipboardCheck, ClipboardList, FileText, Home, MessageSquareText, Store, Users } from "lucide-react";
 import AppBottomNav from "./AppBottomNav";
 
 export default function EmployeeBottomNav() {
@@ -28,6 +28,7 @@ export default function EmployeeBottomNav() {
   const navItems = [
     { href: "/employee", Icon: Home, label: "Home" },
     { href: "/employee/daily-report", Icon: MessageSquareText, label: "Daily" },
+    { href: "/employee/tasks", Icon: ClipboardList, label: "Tasks" },
     { href: "/employee/health-check", Icon: ClipboardCheck, label: "Health" },
     ...(branchId ? [{ href: `/store/${branchId}`, Icon: Store, label: "Store", match: (path: string) => path.startsWith("/store") }] : []),
     { href: "/employee/cst", Icon: Users, label: "CST" },
