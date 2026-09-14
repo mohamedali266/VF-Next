@@ -66,7 +66,7 @@ function todayKey() {
 function taskPrintStyles() {
   return `
     @page { size: A4 portrait; margin: 0; }
-    * { box-sizing: border-box; }
+    * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     html, body { margin: 0; padding: 0; background: #fff; color: #000; font-family: Arial, Helvetica, sans-serif; }
     .task-print-sheet {
       display: block;
@@ -103,8 +103,9 @@ function taskPrintStyles() {
     .task-print-meta span { border-left: 1px solid #ccc; }
     .task-print-sheet table { width: 100%; border-collapse: collapse; table-layout: fixed; }
     .task-print-sheet th {
-      background: #000;
-      color: #fff;
+      background: #000 !important;
+      color: #fff !important;
+      box-shadow: inset 0 0 0 9999px #000;
       font-size: 12px;
       font-weight: 900;
       padding: 9px 7px;
