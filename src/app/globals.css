@@ -1804,6 +1804,33 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 900;
 }
 
+.task-template-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.task-template-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.task-link-button {
+  border: 0;
+  background: transparent;
+  color: var(--vf-red-light);
+  font-size: 0.72rem;
+  font-weight: 900;
+  cursor: pointer;
+  padding: 0;
+}
+
+.task-link-button:hover {
+  color: #fff;
+}
+
 .task-loading {
   display: flex;
   align-items: center;
@@ -1812,6 +1839,36 @@ h1, h2, h3, h4, h5, h6 {
   min-height: 160px;
   color: var(--vf-text-2);
   font-weight: 800;
+}
+
+.task-empty-state {
+  display: flex;
+  min-height: 220px;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.task-empty-state span {
+  color: var(--vf-red-light);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.task-empty-state h2 {
+  margin-top: 0.45rem;
+  color: #fff;
+  font-size: clamp(1.5rem, 4vw, 2.2rem);
+  letter-spacing: 0;
+}
+
+.task-empty-state p {
+  margin: 0.4rem auto 0;
+  max-width: 520px;
+  color: var(--vf-text-2);
+  line-height: 1.55;
 }
 
 .task-editor {
@@ -1925,6 +1982,18 @@ h1, h2, h3, h4, h5, h6 {
   gap: 0.85rem;
 }
 
+.task-modal-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 0.8fr;
+  gap: 0.75rem;
+}
+
+.task-modal-textarea {
+  min-height: 120px;
+  resize: vertical;
+  padding-top: 0.8rem;
+}
+
 .task-group-form em {
   color: var(--vf-text-muted);
   font-size: 0.76rem;
@@ -2008,7 +2077,8 @@ h1, h2, h3, h4, h5, h6 {
 @media (max-width: 880px) {
   .task-controls,
   .task-row-card,
-  .task-row-side {
+  .task-row-side,
+  .task-modal-grid {
     grid-template-columns: 1fr;
   }
 

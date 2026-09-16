@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, CopyPlus, Loader2, Plus, Printer, Save, Trash2, X } from "lucide-react";
+import { Check, Loader2, Plus, Printer, Save, Trash2, X } from "lucide-react";
 
 type Role = "EMPLOYEE" | "TEAM_LEADER" | "MANAGER" | "AREA_MANAGER" | "ADMIN";
 type Shift = "AM" | "PM" | "BW";
@@ -53,6 +53,9 @@ const STATUS_LABELS: Record<ItemStatus, string> = {
   MISSED: "[x]",
   NA: "[n/a]",
 };
+
+const ALL_SAVED_TASKS_ID = "all-saved-tasks";
+const DEFAULT_GROUP_ID = "default-operations";
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10);
@@ -178,10 +181,15 @@ export default function TaskSheetClient({
   const [groupTitle, setGroupTitle] = useState("");
   const [groupScope, setGroupScope] = useState<"BRANCH" | "AREA">("BRANCH");
   const [groupSelection, setGroupSelection] = useState<number[]>([]);
+  const [taskModalOpen, setTaskModalOpen] = useState(false);
+  const [taskDraft, setTaskDraft] = useState<SheetItem>(blankTask());
 
   const selectedBranch = data?.branch || branches.find((branch) => branch.id === branchId) || null;
   const selectedGroup = data?.groups.find((group) => group.id === selectedGroupId) || null;
   const canEdit = Boolean(data?.canManage);
+  const savedGroups = useMemo(() => (data?.groups || []).filter((group) => group.id !== DEFAULT_GROUP_ID), [data?.groups]);
+  const defaultGroups = useMemo(() => (data?.groups || []).filter((group) => group.id === DEFAULT_GROUP_ID), [data?.groups]);
+  const hasNoAssignedSheet = Boolean(data && !canEdit && !data.sheet);
   const completedCount = items.filter((item) => item.status === "DONE").length;
 
   const memberMap = useMemo(() => {
@@ -204,18 +212,25 @@ export default function TaskSheetClient({
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Could not load tasks");
       setData(json);
-      setSelectedGroupId(json.sheet?.sourceGroupId || json.groups[0]?.id || "");
+      const initialGroupId = json.sheet?.sourceGroupId || (json.canManage ? json.groups[0]?.id : "") || "";
+      setSelectedGroupId(initialGroupId);
       setShiftLeaderId(json.sheet?.shiftLeaderId || "");
-      setItems(json.sheet
-        ? json.sheet.items.map((item: SheetPayload["items"][number]) => ({
+      if (json.sheet) {
+        setItems(json.sheet.items.map((item: SheetPayload["items"][number]) => ({
             id: item.id,
             templateItemId: item.templateItemId,
             title: item.title,
             description: item.description,
             assignedToId: item.assignedToId || "",
             status: item.status,
-          }))
-        : (json.groups[0]?.items || []).map((item: GroupItem) => ({
+          })));
+        return;
+      }
+      if (!json.canManage) {
+        setItems([]);
+        return;
+      }
+      setItems((json.groups[0]?.items || []).map((item: GroupItem) => ({
             templateItemId: item.id,
             title: item.title,
             description: item.description,
@@ -232,9 +247,28 @@ export default function TaskSheetClient({
   useEffect(() => { void load(); }, [load]);
 
   function applyGroup(groupId: string) {
-    const group = data?.groups.find((item) => item.id === groupId);
     setSelectedGroupId(groupId);
+    if (groupId === ALL_SAVED_TASKS_ID) {
+      const allSavedItems = savedGroups.flatMap((group) => group.items);
+      if (!allSavedItems.length) {
+        setMessage("No saved tasks are available yet.");
+        setItems([]);
+        return;
+      }
+      setMessage("");
+      setItems(allSavedItems.map((item) => ({
+        templateItemId: item.id,
+        title: item.title,
+        description: item.description,
+        assignedToId: "",
+        status: "PENDING",
+      })));
+      return;
+    }
+
+    const group = data?.groups.find((item) => item.id === groupId);
     if (!group) return;
+    setMessage("");
     setItems(group.items.map((item) => ({
       templateItemId: item.id,
       title: item.title,
@@ -252,6 +286,21 @@ export default function TaskSheetClient({
     setItems((current) => [...current, blankTask()]);
   }
 
+  function openTaskModal() {
+    setTaskDraft(blankTask());
+    setTaskModalOpen(true);
+  }
+
+  function saveTaskDraft() {
+    if (!taskDraft.title.trim()) {
+      setMessage("Task title is required.");
+      return;
+    }
+    setItems((current) => [...current, { ...taskDraft, title: taskDraft.title.trim(), description: taskDraft.description.trim() }]);
+    setTaskModalOpen(false);
+    setMessage("Task added to the current sheet.");
+  }
+
   function removeItem(index: number) {
     setItems((current) => current.filter((_, itemIndex) => itemIndex !== index));
   }
@@ -260,7 +309,7 @@ export default function TaskSheetClient({
     const validIndexes = items
       .map((item, index) => item.title.trim() ? index : -1)
       .filter((index) => index >= 0);
-    setGroupTitle(selectedGroup && selectedGroup.id !== "default-operations" ? selectedGroup.title : `${selectedBranch?.name || "Store"} ${shift} Tasks`);
+    setGroupTitle(selectedGroup && selectedGroup.id !== DEFAULT_GROUP_ID ? selectedGroup.title : `${selectedBranch?.name || "Store"} ${shift} Tasks`);
     setGroupScope(currentRole === "AREA_MANAGER" ? "AREA" : "BRANCH");
     setGroupSelection(validIndexes);
     setGroupModalOpen(true);
@@ -285,7 +334,7 @@ export default function TaskSheetClient({
           date,
           shift,
           shiftLeaderId,
-          sourceGroupId: selectedGroupId,
+          sourceGroupId: selectedGroupId === ALL_SAVED_TASKS_ID ? null : selectedGroupId,
           submit,
           items: items.filter((item) => item.title.trim()).map((item) => ({
             templateItemId: item.templateItemId,
@@ -346,7 +395,7 @@ export default function TaskSheetClient({
   }
 
   async function deleteSelectedGroup() {
-    if (!selectedGroup || selectedGroup.id === "default-operations") return;
+    if (!selectedGroup || selectedGroup.id === DEFAULT_GROUP_ID) return;
     if (!confirm(`Delete task group "${selectedGroup.title}"? Existing daily sheets will keep their copied tasks.`)) return;
     setSaving(true);
     setMessage("");
@@ -424,20 +473,41 @@ export default function TaskSheetClient({
             <option value="BW">BW</option>
           </select>
         </label>
-        <label>
-          <span>Task group</span>
+        <div className="task-template-field">
+          <div className="task-template-head">
+            <span>Task library</span>
+            {canEdit && (
+              <button className="task-link-button" type="button" onClick={openGroupModal}>
+                Save as group
+              </button>
+            )}
+          </div>
           <select className="vf-input" value={selectedGroupId} onChange={(event) => applyGroup(event.target.value)} disabled={!canEdit}>
-            {(data?.groups || []).map((group) => (
+            <option value={ALL_SAVED_TASKS_ID} disabled={!savedGroups.length}>All saved tasks</option>
+            <option value="" disabled>Saved groups</option>
+            {savedGroups.map((group) => (
               <option key={group.id} value={group.id}>{group.title}{group.scope === "AREA" ? " - Area task" : ""}</option>
             ))}
+            {!!defaultGroups.length && <option value="" disabled>Default template</option>}
+            {defaultGroups.map((group) => (
+              <option key={group.id} value={group.id}>{group.title}</option>
+            ))}
           </select>
-        </label>
+        </div>
       </section>
 
       {message && <div className={`vf-alert ${message.includes("Could") || message.includes("outside") || message.includes("Invalid") ? "vf-alert-error" : "vf-alert-success"}`}>{message}</div>}
 
       {loading ? (
         <div className="vf-card task-loading"><Loader2 className="daily-spin" /> Loading tasks...</div>
+      ) : hasNoAssignedSheet ? (
+        <section className="vf-card task-empty-state">
+          <div>
+            <span>No task sheet</span>
+            <h2>No tasks have been assigned yet.</h2>
+            <p>Your manager or team leader has not published a task sheet for this store, date, and shift.</p>
+          </div>
+        </section>
       ) : (
         <>
           <section className="vf-card task-editor">
@@ -453,10 +523,10 @@ export default function TaskSheetClient({
                 </button>
                 {canEdit && (
                   <>
-                    <button className="vf-btn vf-btn-ghost vf-btn-md" type="button" onClick={openGroupModal} disabled={saving}>
-                      <CopyPlus size={17} /> Save group
+                    <button className="vf-btn vf-btn-ghost vf-btn-md" type="button" onClick={openTaskModal} disabled={saving}>
+                      <Plus size={17} /> Add Task
                     </button>
-                    {selectedGroup && selectedGroup.id !== "default-operations" && (
+                    {selectedGroup && selectedGroup.id !== DEFAULT_GROUP_ID && (
                       <button className="vf-btn vf-btn-ghost vf-btn-md" type="button" onClick={deleteSelectedGroup} disabled={saving} style={{ color: "#f87171" }}>
                         <Trash2 size={17} /> Delete group
                       </button>
@@ -524,10 +594,84 @@ export default function TaskSheetClient({
 
             {canEdit && (
               <button className="vf-btn vf-btn-ghost vf-btn-lg task-add-btn" type="button" onClick={addItem}>
-                <Plus size={18} /> Add task
+                <Plus size={18} /> Add empty row
               </button>
             )}
           </section>
+
+          {taskModalOpen && (
+            <div className="users-modal" onClick={() => setTaskModalOpen(false)}>
+              <div className="users-modal-card task-group-modal" onClick={(event) => event.stopPropagation()}>
+                <div className="users-modal-head">
+                  <div>
+                    <span>New Task</span>
+                    <h2>Add task to current sheet</h2>
+                  </div>
+                  <button type="button" onClick={() => setTaskModalOpen(false)} aria-label="Close">
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div className="task-group-form">
+                  <label className="users-field users-wide-field">
+                    <span>Task title</span>
+                    <input
+                      className="vf-input"
+                      value={taskDraft.title}
+                      onChange={(event) => setTaskDraft((current) => ({ ...current, title: event.target.value }))}
+                      placeholder="Clean PC audit"
+                    />
+                  </label>
+                  <label className="users-field users-wide-field">
+                    <span>Task standard</span>
+                    <textarea
+                      className="vf-input task-modal-textarea"
+                      value={taskDraft.description}
+                      onChange={(event) => setTaskDraft((current) => ({ ...current, description: event.target.value }))}
+                      placeholder="Write the exact standard or instructions employees should follow."
+                    />
+                  </label>
+                  <div className="task-modal-grid">
+                    <label className="users-field">
+                      <span>Assigned employee</span>
+                      <select
+                        className="vf-input"
+                        value={taskDraft.assignedToId}
+                        onChange={(event) => setTaskDraft((current) => ({ ...current, assignedToId: event.target.value }))}
+                      >
+                        <option value="">Unassigned</option>
+                        {(data?.members || []).map((member) => (
+                          <option key={member.id} value={member.id}>{member.name}{member.isMaster ? " - Master" : ""}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="users-field">
+                      <span>Status</span>
+                      <select
+                        className="vf-input"
+                        value={taskDraft.status}
+                        onChange={(event) => setTaskDraft((current) => ({ ...current, status: event.target.value as ItemStatus }))}
+                      >
+                        <option value="PENDING">Pending</option>
+                        <option value="DONE">Done</option>
+                        <option value="MISSED">Missed</option>
+                        <option value="NA">N/A</option>
+                      </select>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="users-modal-actions">
+                  <button className="vf-btn vf-btn-ghost vf-btn-lg" type="button" onClick={() => setTaskModalOpen(false)}>
+                    Cancel
+                  </button>
+                  <button className="vf-btn vf-btn-primary vf-btn-lg" type="button" onClick={saveTaskDraft}>
+                    <Check size={18} /> Save task
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {groupModalOpen && (
             <div className="users-modal" onClick={() => setGroupModalOpen(false)}>
