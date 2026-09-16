@@ -1786,7 +1786,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .task-controls {
   display: grid;
-  grid-template-columns: 1.4fr 1fr 0.75fr 1.4fr;
+  grid-template-columns: 1.4fr 1fr 0.75fr;
   gap: 0.75rem;
 }
 
@@ -1802,33 +1802,6 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--vf-text-2);
   font-size: 0.76rem;
   font-weight: 900;
-}
-
-.task-template-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.task-template-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.6rem;
-}
-
-.task-link-button {
-  border: 0;
-  background: transparent;
-  color: var(--vf-red-light);
-  font-size: 0.72rem;
-  font-weight: 900;
-  cursor: pointer;
-  padding: 0;
-}
-
-.task-link-button:hover {
-  color: #fff;
 }
 
 .task-loading {
@@ -1909,6 +1882,21 @@ h1, h2, h3, h4, h5, h6 {
   justify-content: flex-end;
 }
 
+.task-library-picker {
+  display: grid;
+  grid-template-columns: minmax(190px, 260px);
+  gap: 0.25rem;
+  min-width: min(100%, 260px);
+}
+
+.task-library-picker span {
+  color: var(--vf-text-2);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 .task-list {
   display: flex;
   flex-direction: column;
@@ -1966,10 +1954,6 @@ h1, h2, h3, h4, h5, h6 {
   grid-template-columns: minmax(0, 1fr) 110px 42px;
   gap: 0.45rem;
   align-items: center;
-}
-
-.task-add-btn {
-  justify-content: center;
 }
 
 .task-group-modal {
@@ -2078,6 +2062,7 @@ h1, h2, h3, h4, h5, h6 {
   .task-controls,
   .task-row-card,
   .task-row-side,
+  .task-library-picker,
   .task-modal-grid {
     grid-template-columns: 1fr;
   }

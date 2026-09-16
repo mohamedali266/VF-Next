@@ -188,7 +188,6 @@ export default function TaskSheetClient({
   const selectedGroup = data?.groups.find((group) => group.id === selectedGroupId) || null;
   const canEdit = Boolean(data?.canManage);
   const savedGroups = useMemo(() => (data?.groups || []).filter((group) => group.id !== DEFAULT_GROUP_ID), [data?.groups]);
-  const defaultGroups = useMemo(() => (data?.groups || []).filter((group) => group.id === DEFAULT_GROUP_ID), [data?.groups]);
   const hasNoAssignedSheet = Boolean(data && !canEdit && !data.sheet);
   const completedCount = items.filter((item) => item.status === "DONE").length;
 
@@ -212,7 +211,10 @@ export default function TaskSheetClient({
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Could not load tasks");
       setData(json);
-      const initialGroupId = json.sheet?.sourceGroupId || (json.canManage ? json.groups[0]?.id : "") || "";
+      const sourceGroupId = json.sheet?.sourceGroupId;
+      const initialGroupId = sourceGroupId && sourceGroupId !== DEFAULT_GROUP_ID && json.groups.some((group: TaskGroup) => group.id === sourceGroupId)
+        ? sourceGroupId
+        : "";
       setSelectedGroupId(initialGroupId);
       setShiftLeaderId(json.sheet?.shiftLeaderId || "");
       if (json.sheet) {
@@ -230,13 +232,7 @@ export default function TaskSheetClient({
         setItems([]);
         return;
       }
-      setItems((json.groups[0]?.items || []).map((item: GroupItem) => ({
-            templateItemId: item.id,
-            title: item.title,
-            description: item.description,
-            assignedToId: "",
-            status: "PENDING",
-          })));
+      setItems([]);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not load tasks");
     } finally {
@@ -267,7 +263,10 @@ export default function TaskSheetClient({
     }
 
     const group = data?.groups.find((item) => item.id === groupId);
-    if (!group) return;
+    if (!group) {
+      setMessage("");
+      return;
+    }
     setMessage("");
     setItems(group.items.map((item) => ({
       templateItemId: item.id,
@@ -280,10 +279,6 @@ export default function TaskSheetClient({
 
   function updateItem(index: number, patch: Partial<SheetItem>) {
     setItems((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item));
-  }
-
-  function addItem() {
-    setItems((current) => [...current, blankTask()]);
   }
 
   function openTaskModal() {
@@ -334,7 +329,7 @@ export default function TaskSheetClient({
           date,
           shift,
           shiftLeaderId,
-          sourceGroupId: selectedGroupId === ALL_SAVED_TASKS_ID ? null : selectedGroupId,
+          sourceGroupId: selectedGroupId && selectedGroupId !== ALL_SAVED_TASKS_ID && selectedGroupId !== DEFAULT_GROUP_ID ? selectedGroupId : null,
           submit,
           items: items.filter((item) => item.title.trim()).map((item) => ({
             templateItemId: item.templateItemId,
@@ -383,10 +378,12 @@ export default function TaskSheetClient({
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Could not save task group");
-      setMessage("Task group saved. Reloading templates...");
+      setMessage("Task group saved.");
       setGroupModalOpen(false);
-      await load();
-      if (json.group?.id) setSelectedGroupId(json.group.id);
+      if (json.group?.id) {
+        setData((current) => current ? { ...current, groups: [...current.groups.filter((group) => group.id !== json.group.id), json.group] } : current);
+        setSelectedGroupId(json.group.id);
+      }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not save task group");
     } finally {
@@ -473,27 +470,6 @@ export default function TaskSheetClient({
             <option value="BW">BW</option>
           </select>
         </label>
-        <div className="task-template-field">
-          <div className="task-template-head">
-            <span>Task library</span>
-            {canEdit && (
-              <button className="task-link-button" type="button" onClick={openGroupModal}>
-                Save as group
-              </button>
-            )}
-          </div>
-          <select className="vf-input" value={selectedGroupId} onChange={(event) => applyGroup(event.target.value)} disabled={!canEdit}>
-            <option value={ALL_SAVED_TASKS_ID} disabled={!savedGroups.length}>All saved tasks</option>
-            <option value="" disabled>Saved groups</option>
-            {savedGroups.map((group) => (
-              <option key={group.id} value={group.id}>{group.title}{group.scope === "AREA" ? " - Area task" : ""}</option>
-            ))}
-            {!!defaultGroups.length && <option value="" disabled>Default template</option>}
-            {defaultGroups.map((group) => (
-              <option key={group.id} value={group.id}>{group.title}</option>
-            ))}
-          </select>
-        </div>
       </section>
 
       {message && <div className={`vf-alert ${message.includes("Could") || message.includes("outside") || message.includes("Invalid") ? "vf-alert-error" : "vf-alert-success"}`}>{message}</div>}
@@ -526,6 +502,23 @@ export default function TaskSheetClient({
                     <button className="vf-btn vf-btn-ghost vf-btn-md" type="button" onClick={openTaskModal} disabled={saving}>
                       <Plus size={17} /> Add Task
                     </button>
+                    <button className="vf-btn vf-btn-ghost vf-btn-md" type="button" onClick={openGroupModal} disabled={saving || !items.some((item) => item.title.trim())}>
+                      <Plus size={17} /> Create Group
+                    </button>
+                    <label className="task-library-picker">
+                      <span>Task Library</span>
+                      <select className="vf-input" value={selectedGroupId} onChange={(event) => applyGroup(event.target.value)} disabled={saving}>
+                        <option value="">Select saved tasks</option>
+                        <option value={ALL_SAVED_TASKS_ID} disabled={!savedGroups.length}>All saved tasks</option>
+                        {savedGroups.length > 0 && (
+                          <optgroup label="Saved groups">
+                            {savedGroups.map((group) => (
+                              <option key={group.id} value={group.id}>{group.title}{group.scope === "AREA" ? " - Area task" : ""}</option>
+                            ))}
+                          </optgroup>
+                        )}
+                      </select>
+                    </label>
                     {selectedGroup && selectedGroup.id !== DEFAULT_GROUP_ID && (
                       <button className="vf-btn vf-btn-ghost vf-btn-md" type="button" onClick={deleteSelectedGroup} disabled={saving} style={{ color: "#f87171" }}>
                         <Trash2 size={17} /> Delete group
@@ -591,12 +584,6 @@ export default function TaskSheetClient({
                 </div>
               ))}
             </div>
-
-            {canEdit && (
-              <button className="vf-btn vf-btn-ghost vf-btn-lg task-add-btn" type="button" onClick={addItem}>
-                <Plus size={18} /> Add empty row
-              </button>
-            )}
           </section>
 
           {taskModalOpen && (
