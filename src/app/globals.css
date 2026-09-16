@@ -1878,23 +1878,43 @@ h1, h2, h3, h4, h5, h6 {
 .task-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  align-items: end;
+  gap: 0.55rem;
   justify-content: flex-end;
+  max-width: 780px;
+  padding: 0.55rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018)),
+    rgba(10, 10, 10, 0.28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 18px 45px rgba(0, 0, 0, 0.18);
+}
+
+.task-actions .vf-btn {
+  min-height: 44px;
+  border-radius: 14px;
 }
 
 .task-library-picker {
   display: grid;
-  grid-template-columns: minmax(190px, 260px);
-  gap: 0.25rem;
-  min-width: min(100%, 260px);
+  grid-template-columns: minmax(220px, 300px);
+  gap: 0.32rem;
+  min-width: min(100%, 300px);
 }
 
 .task-library-picker span {
-  color: var(--vf-text-2);
-  font-size: 0.68rem;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 0.66rem;
   font-weight: 900;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.task-library-picker .vf-input {
+  height: 44px;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.28);
 }
 
 .task-list {
@@ -2074,10 +2094,11 @@ h1, h2, h3, h4, h5, h6 {
   .task-actions {
     width: 100%;
     justify-content: stretch;
+    padding: 0.65rem;
   }
 
   .task-actions .vf-btn {
-    flex: 1;
+    flex: 1 1 140px;
   }
 
   .task-row-index {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, Loader2, Plus, Printer, Save, Trash2, X } from "lucide-react";
+import { Check, Loader2, Plus, Printer, Trash2, X } from "lucide-react";
 
 type Role = "EMPLOYEE" | "TEAM_LEADER" | "MANAGER" | "AREA_MANAGER" | "ADMIN";
 type Shift = "AM" | "PM" | "BW";
@@ -510,13 +510,9 @@ export default function TaskSheetClient({
                       <select className="vf-input" value={selectedGroupId} onChange={(event) => applyGroup(event.target.value)} disabled={saving}>
                         <option value="">Select saved tasks</option>
                         <option value={ALL_SAVED_TASKS_ID} disabled={!savedGroups.length}>All saved tasks</option>
-                        {savedGroups.length > 0 && (
-                          <optgroup label="Saved groups">
-                            {savedGroups.map((group) => (
-                              <option key={group.id} value={group.id}>{group.title}{group.scope === "AREA" ? " - Area task" : ""}</option>
-                            ))}
-                          </optgroup>
-                        )}
+                        {savedGroups.map((group) => (
+                          <option key={group.id} value={group.id}>{group.title}{group.scope === "AREA" ? " - Area task" : ""}</option>
+                        ))}
                       </select>
                     </label>
                     {selectedGroup && selectedGroup.id !== DEFAULT_GROUP_ID && (
@@ -524,9 +520,6 @@ export default function TaskSheetClient({
                         <Trash2 size={17} /> Delete group
                       </button>
                     )}
-                    <button className="vf-btn vf-btn-ghost vf-btn-md" type="button" onClick={() => saveSheet(false)} disabled={saving}>
-                      <Save size={17} /> Save
-                    </button>
                     <button className="vf-btn vf-btn-primary vf-btn-md" type="button" onClick={() => saveSheet(true)} disabled={saving}>
                       <Check size={17} /> Submit
                     </button>
