@@ -17,6 +17,7 @@ type SheetItem = {
   title: string;
   description: string;
   assignedToId: string;
+  assignedToAllShift: boolean;
   status: ItemStatus;
 };
 
@@ -34,6 +35,7 @@ type SheetPayload = {
     title: string;
     description: string;
     assignedToId: string | null;
+    assignedToAllShift: boolean;
     status: ItemStatus;
   }>;
 };
@@ -56,6 +58,7 @@ const STATUS_LABELS: Record<ItemStatus, string> = {
 
 const ALL_SAVED_TASKS_ID = "all-saved-tasks";
 const DEFAULT_GROUP_ID = "default-operations";
+const ALL_SHIFT_ASSIGNEE_ID = "__ALL_SHIFT__";
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10);
@@ -155,7 +158,7 @@ function taskPrintStyles() {
 }
 
 function blankTask(): SheetItem {
-  return { title: "", description: "", assignedToId: "", status: "PENDING" };
+  return { title: "", description: "", assignedToId: "", assignedToAllShift: false, status: "PENDING" };
 }
 
 export default function TaskSheetClient({
@@ -190,6 +193,13 @@ export default function TaskSheetClient({
   const savedGroups = useMemo(() => (data?.groups || []).filter((group) => group.id !== DEFAULT_GROUP_ID), [data?.groups]);
   const hasNoAssignedSheet = Boolean(data && !canEdit && !data.sheet);
   const completedCount = items.filter((item) => item.status === "DONE").length;
+  const submitBlockReason = !shiftLeaderId
+    ? "Select a Shift Leader before submitting."
+    : !items.some((item) => item.title.trim())
+      ? "Add at least one task before submitting."
+      : items.some((item) => item.title.trim() && !item.assignedToId && !item.assignedToAllShift)
+        ? "Assign every task to an employee or All Shift before submitting."
+        : "";
 
   const memberMap = useMemo(() => {
     const map = new Map<string, Member>();
@@ -224,6 +234,7 @@ export default function TaskSheetClient({
             title: item.title,
             description: item.description,
             assignedToId: item.assignedToId || "",
+            assignedToAllShift: Boolean(item.assignedToAllShift),
             status: item.status,
           })));
         return;
@@ -257,6 +268,7 @@ export default function TaskSheetClient({
         title: item.title,
         description: item.description,
         assignedToId: "",
+        assignedToAllShift: false,
         status: "PENDING",
       })));
       return;
@@ -273,6 +285,7 @@ export default function TaskSheetClient({
       title: item.title,
       description: item.description,
       assignedToId: "",
+      assignedToAllShift: false,
       status: "PENDING",
     })));
   }
@@ -318,6 +331,10 @@ export default function TaskSheetClient({
 
   async function saveSheet(submit = false) {
     if (!branchId) return;
+    if (submit && submitBlockReason) {
+      setMessage(submitBlockReason);
+      return;
+    }
     setSaving(true);
     setMessage("");
     try {
@@ -335,7 +352,8 @@ export default function TaskSheetClient({
             templateItemId: item.templateItemId,
             title: item.title,
             description: item.description,
-            assignedToId: item.assignedToId,
+            assignedToId: item.assignedToAllShift ? null : item.assignedToId,
+            assignedToAllShift: item.assignedToAllShift,
             status: item.status,
           })),
         }),
@@ -472,7 +490,7 @@ export default function TaskSheetClient({
         </label>
       </section>
 
-      {message && <div className={`vf-alert ${message.includes("Could") || message.includes("outside") || message.includes("Invalid") ? "vf-alert-error" : "vf-alert-success"}`}>{message}</div>}
+      {message && <div className={`vf-alert ${message.includes("Could") || message.includes("outside") || message.includes("Invalid") || message.includes("Select") || message.includes("Assign") || message.includes("Add at least") ? "vf-alert-error" : "vf-alert-success"}`}>{message}</div>}
 
       {loading ? (
         <div className="vf-card task-loading"><Loader2 className="daily-spin" /> Loading tasks...</div>
@@ -556,8 +574,17 @@ export default function TaskSheetClient({
                     )}
                   </div>
                   <div className="task-row-side">
-                    <select className="vf-input" value={item.assignedToId} onChange={(event) => updateItem(index, { assignedToId: event.target.value })} disabled={!canEdit}>
+                    <select
+                      className="vf-input"
+                      value={item.assignedToAllShift ? ALL_SHIFT_ASSIGNEE_ID : item.assignedToId}
+                      onChange={(event) => updateItem(index, {
+                        assignedToId: event.target.value === ALL_SHIFT_ASSIGNEE_ID ? "" : event.target.value,
+                        assignedToAllShift: event.target.value === ALL_SHIFT_ASSIGNEE_ID,
+                      })}
+                      disabled={!canEdit}
+                    >
                       <option value="">Unassigned</option>
+                      <option value={ALL_SHIFT_ASSIGNEE_ID}>All Shift</option>
                       {(data?.members || []).map((member) => (
                         <option key={member.id} value={member.id}>{member.name}{member.isMaster ? " - Master" : ""}</option>
                       ))}
@@ -616,10 +643,15 @@ export default function TaskSheetClient({
                       <span>Assigned employee</span>
                       <select
                         className="vf-input"
-                        value={taskDraft.assignedToId}
-                        onChange={(event) => setTaskDraft((current) => ({ ...current, assignedToId: event.target.value }))}
+                        value={taskDraft.assignedToAllShift ? ALL_SHIFT_ASSIGNEE_ID : taskDraft.assignedToId}
+                        onChange={(event) => setTaskDraft((current) => ({
+                          ...current,
+                          assignedToId: event.target.value === ALL_SHIFT_ASSIGNEE_ID ? "" : event.target.value,
+                          assignedToAllShift: event.target.value === ALL_SHIFT_ASSIGNEE_ID,
+                        }))}
                       >
                         <option value="">Unassigned</option>
+                        <option value={ALL_SHIFT_ASSIGNEE_ID}>All Shift</option>
                         {(data?.members || []).map((member) => (
                           <option key={member.id} value={member.id}>{member.name}{member.isMaster ? " - Master" : ""}</option>
                         ))}
@@ -751,7 +783,7 @@ export default function TaskSheetClient({
                   <tr key={`print-${index}`}>
                     <td>{index + 1}</td>
                     <td><strong>{item.title}</strong><span>{item.description}</span></td>
-                    <td>{memberMap.get(item.assignedToId)?.name || ""}</td>
+                    <td>{item.assignedToAllShift ? "All Shift" : memberMap.get(item.assignedToId)?.name || ""}</td>
                     <td>{STATUS_LABELS[item.status]}</td>
                     <td />
                   </tr>

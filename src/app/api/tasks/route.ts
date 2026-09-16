@@ -19,6 +19,7 @@ const taskItemSchema = z.object({
   title: z.string().trim().min(1).max(120),
   description: z.string().trim().max(700).default(""),
   assignedToId: z.string().optional().nullable(),
+  assignedToAllShift: z.boolean().optional().default(false),
   status: z.string().optional().nullable(),
 });
 
@@ -57,6 +58,16 @@ async function loadSheet(branchId: string, date: Date, shift: "AM" | "PM" | "BW"
   });
 }
 
+function isSheetComplete(sheet: Awaited<ReturnType<typeof loadSheet>>) {
+  if (!sheet) return false;
+  return Boolean(
+    sheet.status === "SUBMITTED" &&
+    sheet.shiftLeaderId &&
+    sheet.items.length &&
+    sheet.items.every((item) => item.title.trim() && (item.assignedToId || item.assignedToAllShift))
+  );
+}
+
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -71,6 +82,7 @@ export async function GET(req: NextRequest) {
   const date = toDateOnly(searchParams.get("date") || new Date().toISOString().slice(0, 10));
   const shift = normalizeShift(searchParams.get("shift"));
 
+  const canManage = canManageBranchTasks(session.user.role);
   const [members, groups, sheet] = await Promise.all([
     prisma.user.findMany({
       where: {
@@ -124,8 +136,8 @@ export async function GET(req: NextRequest) {
         })),
       })),
     ],
-    sheet: serializeSheet(sheet),
-    canManage: canManageBranchTasks(session.user.role),
+    sheet: serializeSheet(canManage || isSheetComplete(sheet) ? sheet : null),
+    canManage,
   });
 }
 
@@ -160,7 +172,14 @@ export async function POST(req: NextRequest) {
     if (!leader) return NextResponse.json({ error: "Shift Leader must be an active Master employee in this store" }, { status: 400 });
   }
 
+  if (data.submit && !data.shiftLeaderId) {
+    return NextResponse.json({ error: "Select a Shift Leader before submitting the task sheet" }, { status: 400 });
+  }
+
   for (const item of data.items) {
+    if (data.submit && !item.assignedToId && !item.assignedToAllShift) {
+      return NextResponse.json({ error: "Every task must be assigned to an employee or All Shift before submit" }, { status: 400 });
+    }
     if (item.assignedToId && !memberIds.has(item.assignedToId)) {
       return NextResponse.json({ error: "Assigned employee must be active in this store" }, { status: 400 });
     }
@@ -221,7 +240,8 @@ export async function POST(req: NextRequest) {
         title: item.title,
         description: item.description || "",
         sortOrder: index + 1,
-        assignedToId: item.assignedToId || null,
+        assignedToId: item.assignedToAllShift ? null : item.assignedToId || null,
+        assignedToAllShift: item.assignedToAllShift,
         status: normalizeTaskStatus(item.status),
       })),
     });

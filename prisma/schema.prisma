@@ -294,6 +294,7 @@ model DailyTaskItem {
   description    String         @db.Text
   sortOrder      Int
   assignedToId   String?
+  assignedToAllShift Boolean    @default(false)
   status         TaskItemStatus @default(PENDING)
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
