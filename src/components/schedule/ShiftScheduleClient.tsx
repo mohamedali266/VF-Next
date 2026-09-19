@@ -15,7 +15,7 @@ import {
   type ScheduleMember,
   type ScheduleShiftValue,
 } from "@/lib/shift-schedule";
-import { CalendarDays, CheckCircle2, Edit3, Lock, Printer, RefreshCw, Save, ShieldAlert, Sparkles, Unlock, XCircle } from "lucide-react";
+import { CalendarDays, CheckCircle2, Edit3, Eye, EyeOff, Lock, MousePointer2, Printer, RefreshCw, RotateCcw, Save, ShieldAlert, Sparkles, Trash2, Unlock, XCircle } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type StoreOption = {
@@ -68,6 +68,7 @@ type Props = {
 };
 
 type EditableShiftValue = ScheduleShiftValue | "";
+type SelectionMode = "off" | "cells";
 
 function weekdayClass(weekday: string) {
   return weekday === "FR" ? "schedule-day-friday" : "";
@@ -159,6 +160,10 @@ export default function ShiftScheduleClient({
   const [saving, setSaving] = useState<"save" | "submit" | "edit" | null>(null);
   const [lockBusy, setLockBusy] = useState(false);
   const [generationRound, setGenerationRound] = useState(0);
+  const [hiddenMemberIds, setHiddenMemberIds] = useState<Set<string>>(new Set());
+  const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set());
+  const [selectMode, setSelectMode] = useState<SelectionMode>("off");
+  const [undoEntries, setUndoEntries] = useState<ScheduleEntryInput[] | null>(null);
   const [reviewing, setReviewing] = useState<"approve" | "reject" | null>(null);
   const [reviewComment, setReviewComment] = useState("");
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -188,6 +193,10 @@ export default function ShiftScheduleClient({
         const days = payload.days.length ? payload.days : getMonthDays(month);
         setData({ ...payload, members, days });
         setEntries(payload.entries);
+        setHiddenMemberIds(new Set());
+        setSelectedCells(new Set());
+        setSelectMode("off");
+        setUndoEntries(null);
       })
       .catch((error) => {
         if (error.name !== "AbortError") {
@@ -212,8 +221,8 @@ export default function ShiftScheduleClient({
   const visibleMembers = useMemo(() => (
     viewerEmployeeId && viewMode === "mine"
       ? members.filter((member) => member.id === viewerEmployeeId)
-      : members
-  ), [members, viewMode, viewerEmployeeId]);
+      : members.filter((member) => !hiddenMemberIds.has(member.id))
+  ), [hiddenMemberIds, members, viewMode, viewerEmployeeId]);
   const displayNameMap = useMemo(() => buildDisplayNameMap(members), [members]);
   const entryMap = useMemo(() => buildEntryMap(entries), [entries]);
   const validations = useMemo(() => (
@@ -226,6 +235,8 @@ export default function ShiftScheduleClient({
   const lockedByOtherUser = Boolean(data?.schedule?.lockedByOtherUser);
   const lockOwnedByCurrentUser = Boolean(data?.schedule?.lockOwnedByCurrentUser);
   const editable = canEditThisMonth && !locked && lockOwnedByCurrentUser && !lockedByOtherUser;
+  const hiddenMembersCount = hiddenMemberIds.size;
+  const selectedCellsCount = selectedCells.size;
 
   useEffect(() => {
     lockRef.current = {
@@ -242,13 +253,93 @@ export default function ShiftScheduleClient({
     setTimeout(() => setMessage(null), 4000);
   }
 
-  function setCell(employeeId: string, date: string, shift: EditableShiftValue) {
+  function cellKey(date: string, employeeId: string) {
+    return `${date}:${employeeId}`;
+  }
+
+  function rememberUndo(snapshot = entries) {
+    setUndoEntries(snapshot.map((entry) => ({ ...entry })));
+  }
+
+  function setEntriesWithUndo(updater: (current: ScheduleEntryInput[]) => ScheduleEntryInput[]) {
     setEntries((current) => {
-      const key = `${date}:${employeeId}`;
-      const next = current.filter((entry) => `${entry.date}:${entry.employeeId}` !== key);
+      rememberUndo(current);
+      return updater(current);
+    });
+  }
+
+  function setCell(employeeId: string, date: string, shift: EditableShiftValue) {
+    setEntriesWithUndo((current) => {
+      const key = cellKey(date, employeeId);
+      const next = current.filter((entry) => cellKey(entry.date, entry.employeeId) !== key);
       if (!shift) return next;
       return [...next, { employeeId, date, shift }];
     });
+  }
+
+  function toggleCellSelection(date: string, employeeId: string) {
+    const key = cellKey(date, employeeId);
+    setSelectedCells((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  function selectDay(date: string) {
+    if (!editable) return;
+    setSelectMode("cells");
+    setSelectedCells((current) => {
+      const next = new Set(current);
+      for (const member of visibleMembers) next.add(cellKey(date, member.id));
+      return next;
+    });
+  }
+
+  function selectMember(memberId: string) {
+    if (!editable) return;
+    setSelectMode("cells");
+    setSelectedCells((current) => {
+      const next = new Set(current);
+      for (const day of displayDays) next.add(cellKey(day.date, memberId));
+      return next;
+    });
+  }
+
+  function hideSelectedMembers() {
+    if (!selectedCells.size) return;
+    const memberIds = new Set([...selectedCells].map((key) => key.split(":")[1]).filter(Boolean));
+    setHiddenMemberIds((current) => new Set([...current, ...memberIds]));
+    setSelectedCells(new Set());
+    showMessage("success", `${memberIds.size} column(s) hidden. Shifts are still preserved.`);
+  }
+
+  function clearEntriesByKeys(keys: Set<string>, label: string, confirmMessage?: string) {
+    if (!editable || !keys.size) return;
+    if (confirmMessage && !window.confirm(confirmMessage)) return;
+    setEntriesWithUndo((current) => current.filter((entry) => !keys.has(cellKey(entry.date, entry.employeeId))));
+    setSelectedCells(new Set());
+    showMessage("success", `${label} cleared locally. Press Save when ready.`);
+  }
+
+  function clearFullSchedule() {
+    if (!editable) return;
+    if (!window.confirm("Clear the full schedule locally? This will not save until you press Save.")) return;
+    setEntriesWithUndo(() => []);
+    setSelectedCells(new Set());
+    showMessage("success", "Full schedule cleared locally. Press Save when ready.");
+  }
+
+  function clearSelectedCells() {
+    clearEntriesByKeys(selectedCells, `${selectedCells.size} selected cell(s)`, selectedCells.size > 8 ? "Clear all selected cells locally?" : undefined);
+  }
+
+  function undoLastLocalChange() {
+    if (!undoEntries) return;
+    setEntries(undoEntries);
+    setUndoEntries(null);
+    showMessage("success", "Last local schedule action undone.");
   }
 
   function releaseCurrentLock() {
@@ -296,7 +387,7 @@ export default function ShiftScheduleClient({
     const generatedEntries = generateScheduleDraft(days, members, data.branch.terminalCount, seed);
 
     if (mode === "fill") {
-      setEntries((current) => {
+      setEntriesWithUndo((current) => {
         const currentKeys = new Set(current.map((entry) => `${entry.date}:${entry.employeeId}`));
         const additions = generatedEntries.filter((entry) => !currentKeys.has(`${entry.date}:${entry.employeeId}`));
         return [...current, ...additions];
@@ -306,6 +397,7 @@ export default function ShiftScheduleClient({
     }
 
     setGenerationRound(nextRound);
+    rememberUndo();
     setEntries(generatedEntries);
     showMessage("success", mode === "regenerate" ? "New local draft generated. Press Save when ready." : "Full local draft generated. Press Save when ready.");
   }
@@ -327,6 +419,8 @@ export default function ShiftScheduleClient({
       const nextDays = nextPayload.days.length ? nextPayload.days : getMonthDays(month);
       setData({ ...nextPayload, members: nextMembers, days: nextDays });
       setEntries(nextPayload.entries);
+      setUndoEntries(null);
+      setSelectedCells(new Set());
       showMessage(
         "success",
         action === "submit"
@@ -527,6 +621,48 @@ export default function ShiftScheduleClient({
 
       {message && <div className={`vf-alert ${message.type === "success" ? "vf-alert-success" : "vf-alert-error"} schedule-no-print`}>{message.text}</div>}
 
+      {editable && (
+        <section className="vf-card schedule-tools schedule-no-print">
+          <div className="schedule-tools-copy">
+            <strong>Schedule Tools</strong>
+            <span>
+              {selectedCellsCount ? `${selectedCellsCount} selected cell(s)` : "Use selection mode for quick row, column, and cell actions."}
+              {hiddenMembersCount ? ` · ${hiddenMembersCount} hidden column(s)` : ""}
+            </span>
+          </div>
+          <div className="schedule-tools-actions">
+            <button className={`vf-btn vf-btn-ghost vf-btn-sm ${selectMode === "cells" ? "is-active-tool" : ""}`} type="button" onClick={() => setSelectMode(selectMode === "cells" ? "off" : "cells")}>
+              <MousePointer2 size={16} />
+              Select
+            </button>
+            <button className="vf-btn vf-btn-ghost vf-btn-sm" type="button" onClick={clearSelectedCells} disabled={!selectedCellsCount}>
+              <Trash2 size={16} />
+              Clear Selected
+            </button>
+            <button className="vf-btn vf-btn-ghost vf-btn-sm" type="button" onClick={clearFullSchedule}>
+              <Trash2 size={16} />
+              Clear Full
+            </button>
+            <button className="vf-btn vf-btn-ghost vf-btn-sm" type="button" onClick={hideSelectedMembers} disabled={!selectedCellsCount}>
+              <EyeOff size={16} />
+              Hide Selected
+            </button>
+            <button className="vf-btn vf-btn-ghost vf-btn-sm" type="button" onClick={() => setHiddenMemberIds(new Set())} disabled={!hiddenMembersCount}>
+              <Eye size={16} />
+              Show All
+            </button>
+            <button className="vf-btn vf-btn-ghost vf-btn-sm" type="button" onClick={() => setSelectedCells(new Set())} disabled={!selectedCellsCount}>
+              <XCircle size={16} />
+              Clear Selection
+            </button>
+            <button className="vf-btn vf-btn-ghost vf-btn-sm" type="button" onClick={undoLastLocalChange} disabled={!undoEntries}>
+              <RotateCcw size={16} />
+              Undo
+            </button>
+          </div>
+        </section>
+      )}
+
       {canEditThisMonth && !locked && (
         <section className={`vf-card schedule-warning schedule-no-print ${lockedByOtherUser ? "schedule-lock-blocked" : ""}`}>
           <Lock size={20} />
@@ -619,6 +755,16 @@ export default function ShiftScheduleClient({
                         <span>{member.role === "MANAGER" ? "S.M" : member.role === "TEAM_LEADER" ? "TL" : "AGENT"}</span>
                         <strong title={member.name}>{displayNameMap.get(member.id) || member.name}</strong>
                         {member.role === "EMPLOYEE" && member.isMaster && <em>Master</em>}
+                        {editable && (
+                          <div className="schedule-column-tools">
+                            <button type="button" onClick={() => selectMember(member.id)} title="Select column">
+                              <MousePointer2 size={12} />
+                            </button>
+                            <button type="button" onClick={() => setHiddenMemberIds((current) => new Set([...current, member.id]))} title="Hide column">
+                              <EyeOff size={12} />
+                            </button>
+                          </div>
+                        )}
                       </th>
                     ))}
                     <th>AM</th>
@@ -634,13 +780,33 @@ export default function ShiftScheduleClient({
                     const rowInvalid = validation && !validation.valid;
                     return (
                       <tr key={day.date} className={`${weekdayClass(day.weekday)} ${rowInvalid ? "schedule-invalid-row" : ""}`}>
-                        <td className="schedule-day-num">{day.day}</td>
-                        <td className="schedule-weekday">{day.weekday}</td>
+                        <td className="schedule-day-num">
+                          {editable ? (
+                            <button className="schedule-day-select" type="button" onClick={() => selectDay(day.date)} title="Select row">{day.day}</button>
+                          ) : day.day}
+                        </td>
+                        <td className="schedule-weekday">
+                          {editable ? (
+                            <button className="schedule-day-select" type="button" onClick={() => selectDay(day.date)} title="Select row">{day.weekday}</button>
+                          ) : day.weekday}
+                        </td>
                         {visibleMembers.map((member) => {
                           const shift = entryMap.get(`${day.date}:${member.id}`) || "";
+                          const key = cellKey(day.date, member.id);
+                          const selected = selectedCells.has(key);
                           return (
-                            <td key={`${day.date}:${member.id}`} className={`schedule-shift-cell ${shift ? `shift-cell-${shift.toLowerCase()}` : "shift-cell-empty"}`}>
-                              {editable ? (
+                            <td key={`${day.date}:${member.id}`} className={`schedule-shift-cell ${selected ? "schedule-cell-selected" : ""} ${shift ? `shift-cell-${shift.toLowerCase()}` : "shift-cell-empty"}`}>
+                              {editable && selectMode === "cells" ? (
+                                <button
+                                  className="schedule-select-cell"
+                                  type="button"
+                                  onClick={() => toggleCellSelection(day.date, member.id)}
+                                  aria-pressed={selected}
+                                  aria-label={`Select ${displayNameMap.get(member.id) || member.name} ${day.date}`}
+                                >
+                                  {shift ? SHIFT_LABELS[shift] : "Blank"}
+                                </button>
+                              ) : editable ? (
                                 <>
                                   <select
                                     className={`schedule-shift-select ${shift ? "" : "is-blank"}`}
