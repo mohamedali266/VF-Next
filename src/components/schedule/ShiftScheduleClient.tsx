@@ -247,6 +247,18 @@ export default function ShiftScheduleClient({
     });
   }
 
+  function releaseCurrentLock() {
+    const lock = lockRef.current;
+    if (!lock.owned || lock.submitted) return;
+    lockRef.current = { ...lock, owned: false };
+    fetch("/api/schedules/month", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      keepalive: true,
+      body: JSON.stringify({ branchId: lock.branchId, month: lock.month, action: "unlock", version: lock.version }),
+    }).catch(() => undefined);
+  }
+
   async function sendLockAction(action: "lock" | "unlock" | "forceUnlock", showResult = false) {
     if (!branchId || lockBusy) return;
     setLockBusy(true);
@@ -349,17 +361,14 @@ export default function ShiftScheduleClient({
 
   useEffect(() => {
     const unlockBeforeClose = () => {
-      const lock = lockRef.current;
-      if (!lock.owned || lock.submitted) return;
-      fetch("/api/schedules/month", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        keepalive: true,
-        body: JSON.stringify({ branchId: lock.branchId, month: lock.month, action: "unlock", version: lock.version }),
-      }).catch(() => undefined);
+      releaseCurrentLock();
     };
     window.addEventListener("beforeunload", unlockBeforeClose);
-    return () => window.removeEventListener("beforeunload", unlockBeforeClose);
+    return () => {
+      unlockBeforeClose();
+      window.removeEventListener("beforeunload", unlockBeforeClose);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -410,6 +419,7 @@ export default function ShiftScheduleClient({
               className="vf-input"
               value={branchId}
               onChange={(event) => {
+                releaseCurrentLock();
                 setLoading(true);
                 setMessage(null);
                 setBranchId(event.target.value);
@@ -428,6 +438,7 @@ export default function ShiftScheduleClient({
             type="month"
             value={month}
             onChange={(event) => {
+              releaseCurrentLock();
               setLoading(true);
               setMessage(null);
               setMonth(event.target.value);
