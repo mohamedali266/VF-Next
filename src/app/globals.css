@@ -3427,22 +3427,22 @@ html[data-theme="light"] .vf-page {
 
 html[data-theme="light"] .vf-header-gradient {
   background:
-    linear-gradient(135deg, rgba(230, 0, 0, 0.98), rgba(190, 0, 0, 0.94)),
-    #e60000;
-  border-bottom-color: rgba(142, 0, 0, 0.2);
-  box-shadow: 0 10px 28px rgba(230, 0, 0, 0.18);
+    linear-gradient(135deg, #ffe1e1 0%, #ffc8c8 58%, #ffb4b4 100%),
+    #ffc8c8;
+  border-bottom-color: rgba(230, 0, 0, 0.18);
+  box-shadow: 0 14px 32px rgba(230, 0, 0, 0.1);
 }
 
 html[data-theme="light"] .vf-header-gradient :is(div, span) {
-  color: rgba(255,255,255,0.86) !important;
+  color: inherit;
 }
 
 html[data-theme="light"] .vf-header-gradient [style*="color: var(--vf-text)"] {
-  color: #fff !important;
+  color: var(--vf-text) !important;
 }
 
 html[data-theme="light"] .vf-header-gradient [style*="color: var(--vf-text-muted)"] {
-  color: rgba(255,255,255,0.68) !important;
+  color: var(--vf-red-dark) !important;
 }
 
 html[data-theme="light"] .vf-header-gradient .vf-theme-toggle-thumb {
