@@ -217,10 +217,6 @@ function stableMemberRank(member: ScheduleMember, seed: string) {
   return seededNumber(`${seed}:${member.id}`);
 }
 
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value));
-}
-
 function setGeneratedShift(
   assignments: Map<string, ScheduleShiftValue>,
   stats: Map<string, MemberStats>,
@@ -261,52 +257,96 @@ function pickWorker(
     })[0];
 }
 
-function generateEmployeeSchedule(days: ScheduleDay[], employees: ScheduleMember[], terminalCount: number, seed: string) {
+function requiredEmployeeCoverage(day: ScheduleDay, terminalCount: number) {
+  return day.isFriday ? 3 : terminalCount * 2;
+}
+
+function buildPairedOffMap(
+  days: ScheduleDay[],
+  members: ScheduleMember[],
+  employees: ScheduleMember[],
+  terminalCount: number,
+  seed: string,
+) {
+  const offMap = new Map<string, Set<string>>(members.map((member) => [member.id, new Set<string>()]));
+  const employeeIds = new Set(employees.map((member) => member.id));
+  const masterIds = new Set(employees.filter((member) => member.isMaster).map((member) => member.id));
+  const targetPairs = Math.min(4, Math.floor(days.length / 2));
+  const pairStarts = Array.from({ length: Math.max(0, days.length - 1) }, (_, index) => index);
+
+  const offCountForDay = (dayIndex: number) => employees.filter((member) => offMap.get(member.id)?.has(days[dayIndex].date)).length;
+  const workingEmployeeCount = (dayIndex: number, extraOffMemberId?: string) => employees.filter((member) => {
+    if (member.id === extraOffMemberId) return false;
+    return !offMap.get(member.id)?.has(days[dayIndex].date);
+  }).length;
+  const workingMasterCount = (dayIndex: number, extraOffMemberId?: string) => employees.filter((member) => {
+    if (!masterIds.has(member.id)) return false;
+    if (member.id === extraOffMemberId) return false;
+    return !offMap.get(member.id)?.has(days[dayIndex].date);
+  }).length;
+
+  const canUsePair = (member: ScheduleMember, startIndex: number, strict: boolean) => {
+    const first = days[startIndex];
+    const second = days[startIndex + 1];
+    const memberOff = offMap.get(member.id);
+    if (!first || !second || !memberOff) return false;
+    if (memberOff.has(first.date) || memberOff.has(second.date)) return false;
+    if (!strict || !employeeIds.has(member.id)) return true;
+
+    const firstRequired = Math.min(requiredEmployeeCoverage(first, terminalCount), employees.length);
+    const secondRequired = Math.min(requiredEmployeeCoverage(second, terminalCount), employees.length);
+    const firstCoverageOk = workingEmployeeCount(startIndex, member.id) >= firstRequired;
+    const secondCoverageOk = workingEmployeeCount(startIndex + 1, member.id) >= secondRequired;
+    const firstMasterOk = !masterIds.size || workingMasterCount(startIndex, member.id) >= 1;
+    const secondMasterOk = !masterIds.size || workingMasterCount(startIndex + 1, member.id) >= 1;
+    return firstCoverageOk && secondCoverageOk && firstMasterOk && secondMasterOk;
+  };
+
+  const scorePair = (member: ScheduleMember, startIndex: number) => {
+    const first = days[startIndex];
+    const second = days[startIndex + 1];
+    const coveragePressure = employeeIds.has(member.id)
+      ? offCountForDay(startIndex) + offCountForDay(startIndex + 1)
+      : 0;
+    const fridayPenalty = first.isFriday || second.isFriday ? 3 : 0;
+    return coveragePressure * 10 + fridayPenalty + (stableMemberRank(member, `${seed}:pair:${startIndex}`) % 7);
+  };
+
+  for (const member of [...members].sort((a, b) => stableMemberRank(a, `${seed}:member-off`) - stableMemberRank(b, `${seed}:member-off`))) {
+    for (let pairNumber = 0; pairNumber < targetPairs; pairNumber += 1) {
+      const strictPair = [...pairStarts]
+        .filter((startIndex) => canUsePair(member, startIndex, true))
+        .sort((a, b) => scorePair(member, a) - scorePair(member, b))[0];
+      const relaxedPair = strictPair ?? [...pairStarts]
+        .filter((startIndex) => canUsePair(member, startIndex, false))
+        .sort((a, b) => scorePair(member, a) - scorePair(member, b))[0];
+
+      if (relaxedPair === undefined) break;
+      offMap.get(member.id)?.add(days[relaxedPair].date);
+      offMap.get(member.id)?.add(days[relaxedPair + 1].date);
+    }
+  }
+
+  return offMap;
+}
+
+function generateMemberSchedule(days: ScheduleDay[], members: ScheduleMember[], employees: ScheduleMember[], terminalCount: number, seed: string) {
   const stats = new Map<string, MemberStats>(
-    employees.map((member) => [member.id, { AM: 0, PM: 0, OFF: 0, work: 0, lastShift: null }]),
+    members.map((member) => [member.id, { AM: 0, PM: 0, OFF: 0, work: 0, lastShift: null }]),
   );
   const entries: ScheduleEntryInput[] = [];
-  const masters = employees.filter((member) => member.isMaster);
-  const offTarget = 8;
+  const offMap = buildPairedOffMap(days, members, employees, terminalCount, seed);
 
   days.forEach((day, dayIndex) => {
-    const remainingDays = days.length - dayIndex;
-    const remainingOff = employees.reduce((total, member) => {
-      const memberStats = stats.get(member.id)!;
-      return total + Math.max(0, offTarget - memberStats.OFF);
-    }, 0);
-    const minimumWorkers = day.isFriday ? Math.min(3, employees.length) : Math.min(terminalCount * 2, employees.length);
-    const maxOffToday = Math.max(0, employees.length - minimumWorkers);
-    const targetOffToday = clamp(Math.round(remainingOff / remainingDays), 0, maxOffToday);
-
-    const offCandidates = [...employees].sort((a, b) => {
-      const aStats = stats.get(a.id)!;
-      const bStats = stats.get(b.id)!;
-      const aCanRest = aStats.OFF < offTarget ? 0 : 1;
-      const bCanRest = bStats.OFF < offTarget ? 0 : 1;
-      if (aCanRest !== bCanRest) return aCanRest - bCanRest;
-      if (aStats.OFF !== bStats.OFF) return aStats.OFF - bStats.OFF;
-      if (aStats.work !== bStats.work) return bStats.work - aStats.work;
-      return stableMemberRank(a, `${seed}:off:${day.date}`) - stableMemberRank(b, `${seed}:off:${day.date}`);
-    });
-
-    const offIds = new Set<string>();
-    for (const member of offCandidates) {
-      if (offIds.size >= targetOffToday) break;
-      const wouldLeaveMaster = member.isMaster && masters.length > 0 && employees.filter((candidate) => candidate.isMaster && !offIds.has(candidate.id) && candidate.id !== member.id).length === 0;
-      if (wouldLeaveMaster) continue;
-      offIds.add(member.id);
-    }
-
-    const workers = employees.filter((member) => !offIds.has(member.id));
+    const employeeWorkers = employees.filter((member) => !offMap.get(member.id)?.has(day.date));
     const assignments = new Map<string, ScheduleShiftValue>();
 
     if (day.isFriday) {
       const fridayShift: "AM" | "PM" = dayIndex % 2 === 0 ? "AM" : "PM";
-      workers.forEach((member) => setGeneratedShift(assignments, stats, member.id, fridayShift));
+      employeeWorkers.forEach((member) => setGeneratedShift(assignments, stats, member.id, fridayShift));
     } else {
       const assigned = new Set<string>();
-      const workingMasters = workers.filter((member) => member.isMaster);
+      const workingMasters = employeeWorkers.filter((member) => member.isMaster);
 
       if (workingMasters.length === 1) {
         const master = workingMasters[0];
@@ -329,7 +369,7 @@ function generateEmployeeSchedule(days: ScheduleDay[], employees: ScheduleMember
       const countShift = (shift: "AM" | "PM") => [...assignments.values()].filter((value) => value === shift || value === "FULL").length;
       const assignUntil = (shift: "AM" | "PM") => {
         while (countShift(shift) < terminalCount) {
-          const worker = pickWorker(workers, stats, shift, `${seed}:${day.date}:${shift}`, assigned);
+          const worker = pickWorker(employeeWorkers, stats, shift, `${seed}:${day.date}:${shift}`, assigned);
           if (!worker) break;
           setGeneratedShift(assignments, stats, worker.id, shift);
           assigned.add(worker.id);
@@ -339,7 +379,7 @@ function generateEmployeeSchedule(days: ScheduleDay[], employees: ScheduleMember
       assignUntil("AM");
       assignUntil("PM");
 
-      for (const member of workers) {
+      for (const member of employeeWorkers) {
         if (assignments.has(member.id)) continue;
         const memberStats = stats.get(member.id)!;
         const preferredShift = memberStats.AM <= memberStats.PM ? "AM" : "PM";
@@ -347,29 +387,26 @@ function generateEmployeeSchedule(days: ScheduleDay[], employees: ScheduleMember
       }
     }
 
-    for (const member of employees) {
+    for (const member of members) {
+      if (offMap.get(member.id)?.has(day.date)) {
+        stats.get(member.id)!.OFF += 1;
+        stats.get(member.id)!.lastShift = "OFF";
+        entries.push({ employeeId: member.id, date: day.date, shift: "OFF" });
+        continue;
+      }
+
       const shift = assignments.get(member.id);
       if (shift) {
         entries.push({ employeeId: member.id, date: day.date, shift });
       } else {
-        stats.get(member.id)!.OFF += 1;
-        stats.get(member.id)!.lastShift = "OFF";
-        entries.push({ employeeId: member.id, date: day.date, shift: "OFF" });
+        const leaderShift = (dayIndex + stableMemberRank(member, `${seed}:leader`)) % 2 === 0 ? "AM" : "PM";
+        setGeneratedShift(assignments, stats, member.id, leaderShift);
+        entries.push({ employeeId: member.id, date: day.date, shift: leaderShift });
       }
     }
   });
 
   return entries;
-}
-
-function generateLeadershipSchedule(days: ScheduleDay[], leaders: ScheduleMember[], seed: string) {
-  return leaders.flatMap((member, memberIndex) => days.map<ScheduleEntryInput>((day, dayIndex) => {
-    if ((dayIndex + memberIndex) % 7 === 5) {
-      return { employeeId: member.id, date: day.date, shift: "OFF" };
-    }
-    const shift = (dayIndex + memberIndex + stableMemberRank(member, seed)) % 2 === 0 ? "AM" : "PM";
-    return { employeeId: member.id, date: day.date, shift };
-  }));
 }
 
 export function generateScheduleDraft(
@@ -380,10 +417,5 @@ export function generateScheduleDraft(
 ) {
   const activeMembers = sortScheduleMembers(members.filter((member) => member.isActive !== false));
   const employees = activeMembers.filter((member) => member.role === "EMPLOYEE");
-  const leaders = activeMembers.filter((member) => member.role === "MANAGER" || member.role === "TEAM_LEADER");
-
-  return [
-    ...generateLeadershipSchedule(days, leaders, seed),
-    ...generateEmployeeSchedule(days, employees, terminalCount, seed),
-  ];
+  return generateMemberSchedule(days, activeMembers, employees, terminalCount, seed);
 }

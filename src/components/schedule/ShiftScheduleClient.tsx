@@ -3,6 +3,7 @@
 import {
   buildEntryMap,
   countMemberShifts,
+  generateScheduleDraft,
   getMonthDays,
   monthKeyFromDate,
   SHIFT_LABELS,
@@ -14,7 +15,7 @@ import {
   type ScheduleMember,
   type ScheduleShiftValue,
 } from "@/lib/shift-schedule";
-import { CalendarDays, CheckCircle2, Edit3, Lock, Printer, Save, ShieldAlert, Sparkles, Unlock, XCircle } from "lucide-react";
+import { CalendarDays, CheckCircle2, Edit3, Lock, Printer, RefreshCw, Save, ShieldAlert, Sparkles, Unlock, XCircle } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type StoreOption = {
@@ -155,8 +156,9 @@ export default function ShiftScheduleClient({
   const [data, setData] = useState<SchedulePayload | null>(null);
   const [entries, setEntries] = useState<ScheduleEntryInput[]>([]);
   const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState<"save" | "submit" | "edit" | "generate" | null>(null);
+  const [saving, setSaving] = useState<"save" | "submit" | "edit" | null>(null);
   const [lockBusy, setLockBusy] = useState(false);
+  const [generationRound, setGenerationRound] = useState(0);
   const [reviewing, setReviewing] = useState<"approve" | "reject" | null>(null);
   const [reviewComment, setReviewComment] = useState("");
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -171,6 +173,7 @@ export default function ShiftScheduleClient({
   useEffect(() => {
     if (!branchId || !month) return;
     const controller = new AbortController();
+    setGenerationRound(0);
 
     fetch(`/api/schedules/month?branchId=${encodeURIComponent(branchId)}&month=${encodeURIComponent(month)}`, {
       signal: controller.signal,
@@ -286,7 +289,28 @@ export default function ShiftScheduleClient({
     }
   }
 
-  async function sendAction(action: "save" | "submit" | "edit" | "generate") {
+  function applyGeneratedSchedule(mode: "replace" | "fill" | "regenerate") {
+    if (!data || !editable) return;
+    const nextRound = mode === "regenerate" ? generationRound + 1 : generationRound;
+    const seed = `${branchId}:${month}:${nextRound}`;
+    const generatedEntries = generateScheduleDraft(days, members, data.branch.terminalCount, seed);
+
+    if (mode === "fill") {
+      setEntries((current) => {
+        const currentKeys = new Set(current.map((entry) => `${entry.date}:${entry.employeeId}`));
+        const additions = generatedEntries.filter((entry) => !currentKeys.has(`${entry.date}:${entry.employeeId}`));
+        return [...current, ...additions];
+      });
+      showMessage("success", "Blank cells filled locally. Press Save when ready.");
+      return;
+    }
+
+    setGenerationRound(nextRound);
+    setEntries(generatedEntries);
+    showMessage("success", mode === "regenerate" ? "New local draft generated. Press Save when ready." : "Full local draft generated. Press Save when ready.");
+  }
+
+  async function sendAction(action: "save" | "submit" | "edit") {
     if (!branchId) return;
     setSaving(action);
     setMessage(null);
@@ -309,9 +333,7 @@ export default function ShiftScheduleClient({
           ? "Schedule submitted"
           : action === "edit"
             ? "Schedule opened for editing"
-            : action === "generate"
-              ? "Draft generated. Review and adjust it before submit."
-              : "Schedule saved",
+            : "Schedule saved",
       );
     } catch (error) {
       showMessage("error", error instanceof Error ? error.message : "Schedule action failed");
@@ -404,9 +426,17 @@ export default function ShiftScheduleClient({
                   {lockBusy ? "Unlocking..." : "Force unlock"}
                 </button>
               )}
-              <button className="vf-btn vf-btn-ghost vf-btn-md" type="button" onClick={() => sendAction("generate")} disabled={saving !== null || loading || !editable}>
+              <button className="vf-btn vf-btn-ghost vf-btn-md" type="button" onClick={() => applyGeneratedSchedule("replace")} disabled={saving !== null || loading || !editable}>
                 <Sparkles size={18} />
-                {saving === "generate" ? "Generating..." : "Generate Draft"}
+                Generate Full
+              </button>
+              <button className="vf-btn vf-btn-ghost vf-btn-md" type="button" onClick={() => applyGeneratedSchedule("fill")} disabled={saving !== null || loading || !editable}>
+                <Sparkles size={18} />
+                Fill Blanks
+              </button>
+              <button className="vf-btn vf-btn-ghost vf-btn-md" type="button" onClick={() => applyGeneratedSchedule("regenerate")} disabled={saving !== null || loading || !editable}>
+                <RefreshCw size={18} />
+                Regenerate
               </button>
               <button className="vf-btn vf-btn-ghost vf-btn-md" type="button" onClick={() => sendAction("save")} disabled={saving !== null || loading || !editable}>
                 <Save size={18} />
