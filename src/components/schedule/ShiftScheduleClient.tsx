@@ -14,7 +14,7 @@ import {
   type ScheduleMember,
   type ScheduleShiftValue,
 } from "@/lib/shift-schedule";
-import { CalendarDays, CheckCircle2, Edit3, Lock, Printer, Save, ShieldAlert, Unlock, XCircle } from "lucide-react";
+import { CalendarDays, CheckCircle2, Edit3, Lock, Printer, Save, ShieldAlert, Sparkles, Unlock, XCircle } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type StoreOption = {
@@ -133,6 +133,7 @@ function actionLabel(action?: string | null) {
   if (action === "SUBMITTED") return "Submitted";
   if (action === "REOPENED") return "Reopened";
   if (action === "SAVED") return "Saved";
+  if (action === "GENERATED") return "Generated";
   return "Updated";
 }
 
@@ -154,7 +155,7 @@ export default function ShiftScheduleClient({
   const [data, setData] = useState<SchedulePayload | null>(null);
   const [entries, setEntries] = useState<ScheduleEntryInput[]>([]);
   const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState<"save" | "submit" | "edit" | null>(null);
+  const [saving, setSaving] = useState<"save" | "submit" | "edit" | "generate" | null>(null);
   const [lockBusy, setLockBusy] = useState(false);
   const [reviewing, setReviewing] = useState<"approve" | "reject" | null>(null);
   const [reviewComment, setReviewComment] = useState("");
@@ -285,7 +286,7 @@ export default function ShiftScheduleClient({
     }
   }
 
-  async function sendAction(action: "save" | "submit" | "edit") {
+  async function sendAction(action: "save" | "submit" | "edit" | "generate") {
     if (!branchId) return;
     setSaving(action);
     setMessage(null);
@@ -302,7 +303,16 @@ export default function ShiftScheduleClient({
       const nextDays = nextPayload.days.length ? nextPayload.days : getMonthDays(month);
       setData({ ...nextPayload, members: nextMembers, days: nextDays });
       setEntries(nextPayload.entries);
-      showMessage("success", action === "submit" ? "Schedule submitted" : action === "edit" ? "Schedule opened for editing" : "Schedule saved");
+      showMessage(
+        "success",
+        action === "submit"
+          ? "Schedule submitted"
+          : action === "edit"
+            ? "Schedule opened for editing"
+            : action === "generate"
+              ? "Draft generated. Review and adjust it before submit."
+              : "Schedule saved",
+      );
     } catch (error) {
       showMessage("error", error instanceof Error ? error.message : "Schedule action failed");
     } finally {
@@ -394,6 +404,10 @@ export default function ShiftScheduleClient({
                   {lockBusy ? "Unlocking..." : "Force unlock"}
                 </button>
               )}
+              <button className="vf-btn vf-btn-ghost vf-btn-md" type="button" onClick={() => sendAction("generate")} disabled={saving !== null || loading || !editable}>
+                <Sparkles size={18} />
+                {saving === "generate" ? "Generating..." : "Generate Draft"}
+              </button>
               <button className="vf-btn vf-btn-ghost vf-btn-md" type="button" onClick={() => sendAction("save")} disabled={saving !== null || loading || !editable}>
                 <Save size={18} />
                 {saving === "save" ? "Saving..." : "Save"}

@@ -193,3 +193,197 @@ export function countMemberShifts(memberId: string, entries: ScheduleEntryInput[
     { ANN: 0, AM: 0, PM: 0, BW: 0, OFF: 0 },
   );
 }
+
+type ScheduleDay = ReturnType<typeof getMonthDays>[number];
+
+type MemberStats = {
+  AM: number;
+  PM: number;
+  OFF: number;
+  work: number;
+  lastShift: ScheduleShiftValue | null;
+};
+
+function seededNumber(seed: string) {
+  let hash = 2166136261;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash ^= seed.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return Math.abs(hash);
+}
+
+function stableMemberRank(member: ScheduleMember, seed: string) {
+  return seededNumber(`${seed}:${member.id}`);
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function setGeneratedShift(
+  assignments: Map<string, ScheduleShiftValue>,
+  stats: Map<string, MemberStats>,
+  memberId: string,
+  shift: ScheduleShiftValue,
+) {
+  const current = assignments.get(memberId);
+  const next = current && current !== shift ? "FULL" : shift;
+  assignments.set(memberId, next);
+
+  const memberStats = stats.get(memberId);
+  if (!memberStats) return;
+  if (shift === "AM") memberStats.AM += 1;
+  if (shift === "PM") memberStats.PM += 1;
+  if (!current) memberStats.work += 1;
+  memberStats.lastShift = next;
+}
+
+function pickWorker(
+  candidates: ScheduleMember[],
+  stats: Map<string, MemberStats>,
+  shift: "AM" | "PM",
+  seed: string,
+  assigned: Set<string>,
+) {
+  return [...candidates]
+    .filter((member) => !assigned.has(member.id))
+    .sort((a, b) => {
+      const aStats = stats.get(a.id)!;
+      const bStats = stats.get(b.id)!;
+      const aRestPenalty = shift === "AM" && aStats.lastShift === "PM" ? 2 : 0;
+      const bRestPenalty = shift === "AM" && bStats.lastShift === "PM" ? 2 : 0;
+      const aShiftCount = aStats[shift] + aRestPenalty;
+      const bShiftCount = bStats[shift] + bRestPenalty;
+      if (aShiftCount !== bShiftCount) return aShiftCount - bShiftCount;
+      if (aStats.work !== bStats.work) return aStats.work - bStats.work;
+      return stableMemberRank(a, seed) - stableMemberRank(b, seed);
+    })[0];
+}
+
+function generateEmployeeSchedule(days: ScheduleDay[], employees: ScheduleMember[], terminalCount: number, seed: string) {
+  const stats = new Map<string, MemberStats>(
+    employees.map((member) => [member.id, { AM: 0, PM: 0, OFF: 0, work: 0, lastShift: null }]),
+  );
+  const entries: ScheduleEntryInput[] = [];
+  const masters = employees.filter((member) => member.isMaster);
+  const offTarget = 8;
+
+  days.forEach((day, dayIndex) => {
+    const remainingDays = days.length - dayIndex;
+    const remainingOff = employees.reduce((total, member) => {
+      const memberStats = stats.get(member.id)!;
+      return total + Math.max(0, offTarget - memberStats.OFF);
+    }, 0);
+    const minimumWorkers = day.isFriday ? Math.min(3, employees.length) : Math.min(terminalCount * 2, employees.length);
+    const maxOffToday = Math.max(0, employees.length - minimumWorkers);
+    const targetOffToday = clamp(Math.round(remainingOff / remainingDays), 0, maxOffToday);
+
+    const offCandidates = [...employees].sort((a, b) => {
+      const aStats = stats.get(a.id)!;
+      const bStats = stats.get(b.id)!;
+      const aCanRest = aStats.OFF < offTarget ? 0 : 1;
+      const bCanRest = bStats.OFF < offTarget ? 0 : 1;
+      if (aCanRest !== bCanRest) return aCanRest - bCanRest;
+      if (aStats.OFF !== bStats.OFF) return aStats.OFF - bStats.OFF;
+      if (aStats.work !== bStats.work) return bStats.work - aStats.work;
+      return stableMemberRank(a, `${seed}:off:${day.date}`) - stableMemberRank(b, `${seed}:off:${day.date}`);
+    });
+
+    const offIds = new Set<string>();
+    for (const member of offCandidates) {
+      if (offIds.size >= targetOffToday) break;
+      const wouldLeaveMaster = member.isMaster && masters.length > 0 && employees.filter((candidate) => candidate.isMaster && !offIds.has(candidate.id) && candidate.id !== member.id).length === 0;
+      if (wouldLeaveMaster) continue;
+      offIds.add(member.id);
+    }
+
+    const workers = employees.filter((member) => !offIds.has(member.id));
+    const assignments = new Map<string, ScheduleShiftValue>();
+
+    if (day.isFriday) {
+      const fridayShift: "AM" | "PM" = dayIndex % 2 === 0 ? "AM" : "PM";
+      workers.forEach((member) => setGeneratedShift(assignments, stats, member.id, fridayShift));
+    } else {
+      const assigned = new Set<string>();
+      const workingMasters = workers.filter((member) => member.isMaster);
+
+      if (workingMasters.length === 1) {
+        const master = workingMasters[0];
+        setGeneratedShift(assignments, stats, master.id, "AM");
+        setGeneratedShift(assignments, stats, master.id, "PM");
+        assigned.add(master.id);
+      } else if (workingMasters.length > 1) {
+        const amMaster = pickWorker(workingMasters, stats, "AM", `${seed}:master:${day.date}`, assigned);
+        if (amMaster) {
+          setGeneratedShift(assignments, stats, amMaster.id, "AM");
+          assigned.add(amMaster.id);
+        }
+        const pmMaster = pickWorker(workingMasters, stats, "PM", `${seed}:master:${day.date}`, assigned);
+        if (pmMaster) {
+          setGeneratedShift(assignments, stats, pmMaster.id, "PM");
+          assigned.add(pmMaster.id);
+        }
+      }
+
+      const countShift = (shift: "AM" | "PM") => [...assignments.values()].filter((value) => value === shift || value === "FULL").length;
+      const assignUntil = (shift: "AM" | "PM") => {
+        while (countShift(shift) < terminalCount) {
+          const worker = pickWorker(workers, stats, shift, `${seed}:${day.date}:${shift}`, assigned);
+          if (!worker) break;
+          setGeneratedShift(assignments, stats, worker.id, shift);
+          assigned.add(worker.id);
+        }
+      };
+
+      assignUntil("AM");
+      assignUntil("PM");
+
+      for (const member of workers) {
+        if (assignments.has(member.id)) continue;
+        const memberStats = stats.get(member.id)!;
+        const preferredShift = memberStats.AM <= memberStats.PM ? "AM" : "PM";
+        setGeneratedShift(assignments, stats, member.id, preferredShift);
+      }
+    }
+
+    for (const member of employees) {
+      const shift = assignments.get(member.id);
+      if (shift) {
+        entries.push({ employeeId: member.id, date: day.date, shift });
+      } else {
+        stats.get(member.id)!.OFF += 1;
+        stats.get(member.id)!.lastShift = "OFF";
+        entries.push({ employeeId: member.id, date: day.date, shift: "OFF" });
+      }
+    }
+  });
+
+  return entries;
+}
+
+function generateLeadershipSchedule(days: ScheduleDay[], leaders: ScheduleMember[], seed: string) {
+  return leaders.flatMap((member, memberIndex) => days.map<ScheduleEntryInput>((day, dayIndex) => {
+    if ((dayIndex + memberIndex) % 7 === 5) {
+      return { employeeId: member.id, date: day.date, shift: "OFF" };
+    }
+    const shift = (dayIndex + memberIndex + stableMemberRank(member, seed)) % 2 === 0 ? "AM" : "PM";
+    return { employeeId: member.id, date: day.date, shift };
+  }));
+}
+
+export function generateScheduleDraft(
+  days: ScheduleDay[],
+  members: ScheduleMember[],
+  terminalCount: number,
+  seed: string,
+) {
+  const activeMembers = sortScheduleMembers(members.filter((member) => member.isActive !== false));
+  const employees = activeMembers.filter((member) => member.role === "EMPLOYEE");
+  const leaders = activeMembers.filter((member) => member.role === "MANAGER" || member.role === "TEAM_LEADER");
+
+  return [
+    ...generateLeadershipSchedule(days, leaders, seed),
+    ...generateEmployeeSchedule(days, employees, terminalCount, seed),
+  ];
+}

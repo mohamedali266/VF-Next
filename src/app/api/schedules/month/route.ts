@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import {
   getMonthDays,
+  generateScheduleDraft,
   monthStartFromInput,
   SCHEDULE_SHIFTS,
   sortScheduleMembers,
@@ -25,7 +26,7 @@ const entrySchema = z.object({
 const saveSchema = z.object({
   branchId: z.string().optional().nullable(),
   month: z.string().regex(/^\d{4}-\d{2}$/),
-  action: z.enum(["save", "submit", "edit", "approve", "reject", "lock", "unlock", "forceUnlock"]),
+  action: z.enum(["save", "submit", "edit", "approve", "reject", "lock", "unlock", "forceUnlock", "generate"]),
   reviewComment: z.string().trim().max(500).optional(),
   version: z.number().int().nonnegative().optional(),
   entries: z.array(entrySchema).default([]),
@@ -276,7 +277,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Only managers, team leaders, and admins can reopen a submitted schedule." }, { status: 401 });
   }
 
-  if ((action === "save" || action === "submit" || action === "lock" || action === "unlock" || action === "forceUnlock") && !canSaveDraft(user, month)) {
+  if ((action === "save" || action === "submit" || action === "lock" || action === "unlock" || action === "forceUnlock" || action === "generate") && !canSaveDraft(user, month)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -373,8 +374,114 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(result.payload);
   }
 
-  const allowedUserIds = new Set(branch.users.map((member) => member.id));
   const days = getMonthDays(month);
+
+  if (action === "generate") {
+    if (existing?.status === "SUBMITTED") {
+      return NextResponse.json({ error: "Schedule is submitted. Press Edit first." }, { status: 409 });
+    }
+
+    if (existing && isActiveForeignLock(existing, user.id)) {
+      return NextResponse.json({
+        error: `This schedule is currently being edited by ${existing.lockedBy?.name || "another user"}.`,
+      }, { status: 423 });
+    }
+
+    if (existing && typeof parsed.data.version === "number" && parsed.data.version !== existing.version) {
+      return NextResponse.json({
+        error: "This schedule was updated by another user. Reload the latest version before generating.",
+      }, { status: 409 });
+    }
+
+    const generatedEntries = generateScheduleDraft(days, branch.users, branch.terminalCount, `${branchId}:${month}`);
+
+    let schedule: { id: string };
+    try {
+      schedule = await prisma.$transaction(async (tx) => {
+        const nextActionAt = new Date();
+        let saved: { id: string };
+
+        if (existing) {
+          const expectedVersion = typeof parsed.data.version === "number" ? parsed.data.version : existing.version;
+          const updated = await tx.shiftSchedule.updateMany({
+            where: {
+              id: existing.id,
+              version: expectedVersion,
+              OR: [
+                { lockedById: user.id },
+                { lockedById: null },
+                { lockExpiresAt: { lt: new Date() } },
+              ],
+            },
+            data: {
+              status: "DRAFT",
+              approvalStatus: "PENDING",
+              submittedAt: null,
+              submittedById: null,
+              reviewedAt: null,
+              reviewedById: null,
+              reviewComment: null,
+              updatedById: user.id,
+              lockedById: user.id,
+              lockExpiresAt: lockExpiresAt(),
+              version: { increment: 1 },
+              lastAction: "GENERATED",
+              lastActionAt: nextActionAt,
+            },
+          });
+
+          if (updated.count !== 1) {
+            throw new Error("SCHEDULE_VERSION_CONFLICT");
+          }
+          saved = { id: existing.id };
+        } else {
+          saved = await tx.shiftSchedule.create({
+            data: {
+              branchId,
+              month: monthStart,
+              status: "DRAFT",
+              approvalStatus: "PENDING",
+              createdById: user.id,
+              updatedById: user.id,
+              lockedById: user.id,
+              lockExpiresAt: lockExpiresAt(),
+              version: 1,
+              lastAction: "GENERATED",
+              lastActionAt: nextActionAt,
+            },
+            select: { id: true },
+          });
+        }
+
+        await tx.shiftScheduleEntry.deleteMany({ where: { scheduleId: saved.id } });
+        if (generatedEntries.length) {
+          await tx.shiftScheduleEntry.createMany({
+            data: generatedEntries.map((entry) => ({
+              scheduleId: saved.id,
+              employeeId: entry.employeeId,
+              date: new Date(`${entry.date}T00:00:00.000Z`),
+              shift: entry.shift,
+            })),
+          });
+        }
+
+        return saved;
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message === "SCHEDULE_VERSION_CONFLICT") {
+        return NextResponse.json({
+          error: "This schedule was updated by another user. Reload the latest version before generating.",
+        }, { status: 409 });
+      }
+      throw error;
+    }
+
+    const result = await getSchedulePayload(branchId, month, { currentUserId: user.id });
+    if (result.error) return result.error;
+    return NextResponse.json({ ...result.payload, schedule: { ...result.payload?.schedule, id: schedule.id } });
+  }
+
+  const allowedUserIds = new Set(branch.users.map((member) => member.id));
   const allowedDates = new Set(days.map((day) => day.date));
   const cleanEntries: ScheduleEntryInput[] = entries.filter((entry) => (
     allowedUserIds.has(entry.employeeId) && allowedDates.has(entry.date)
