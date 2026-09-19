@@ -3427,22 +3427,22 @@ html[data-theme="light"] .vf-page {
 
 html[data-theme="light"] .vf-header-gradient {
   background:
-    linear-gradient(135deg, #ffe1e1 0%, #ffc8c8 58%, #ffb4b4 100%),
-    #ffc8c8;
-  border-bottom-color: rgba(230, 0, 0, 0.18);
-  box-shadow: 0 14px 32px rgba(230, 0, 0, 0.1);
+    linear-gradient(135deg, rgba(230, 0, 0, 0.98), rgba(190, 0, 0, 0.94)),
+    #e60000;
+  border-bottom-color: rgba(142, 0, 0, 0.2);
+  box-shadow: 0 10px 28px rgba(230, 0, 0, 0.18);
 }
 
 html[data-theme="light"] .vf-header-gradient :is(div, span) {
-  color: inherit;
+  color: rgba(255,255,255,0.86) !important;
 }
 
 html[data-theme="light"] .vf-header-gradient [style*="color: var(--vf-text)"] {
-  color: var(--vf-text) !important;
+  color: #fff !important;
 }
 
 html[data-theme="light"] .vf-header-gradient [style*="color: var(--vf-text-muted)"] {
-  color: var(--vf-red-dark) !important;
+  color: rgba(255,255,255,0.68) !important;
 }
 
 html[data-theme="light"] .vf-header-gradient .vf-theme-toggle-thumb {
@@ -3511,14 +3511,30 @@ html[data-theme="light"] .priority-picker button.active {
 
 html[data-theme="light"] :is(.daily-hero, .admin-notifications-hero, .task-hero) {
   background:
-    radial-gradient(circle at top left, rgba(255,255,255,0.42), transparent 22rem),
-    linear-gradient(135deg, rgba(230,0,0,0.12), rgba(255,255,255,0.96) 58%);
-  border-color: rgba(230,0,0,0.2);
-  box-shadow: 0 22px 55px rgba(230,0,0,0.08);
+    linear-gradient(135deg, rgba(230, 0, 0, 0.98), rgba(190, 0, 0, 0.94)),
+    #e60000;
+  border-color: rgba(142, 0, 0, 0.22);
+  box-shadow: 0 22px 55px rgba(230,0,0,0.16);
 }
 
-html[data-theme="light"] :is(.daily-hero h1, .admin-notifications-hero h1, .task-empty-state h2, .task-editor-head h2, .daily-section-title, .daily-modal-card h3, .sms-summary-card strong, .users-admin-head h1, .users-modal-head h2, .schedule-print-title h2, .schedule-person-head strong, .vf-nav-drawer-head strong, .notification-panel-head h2, .notification-recent-head h2) {
+html[data-theme="light"] :is(.task-empty-state h2, .task-editor-head h2, .daily-section-title, .daily-modal-card h3, .sms-summary-card strong, .users-admin-head h1, .users-modal-head h2, .schedule-person-head strong, .vf-nav-drawer-head strong, .notification-panel-head h2, .notification-recent-head h2) {
   color: var(--vf-text);
+}
+
+html[data-theme="light"] :is(.daily-hero h1, .admin-notifications-hero h1, .task-hero h1, .schedule-print-title h2) {
+  color: #fff;
+}
+
+html[data-theme="light"] :is(.daily-hero p, .daily-hero span, .admin-notifications-hero p, .task-hero p, .task-hero span) {
+  color: rgba(255,255,255,0.78);
+}
+
+html[data-theme="light"] :is(.vf-card, .vf-card-glass, .notification-composer, .notification-recent, .users-modal-card, .daily-modal-card, .store-card, .area-store-card, .schedule-status-card, .schedule-day-card) :is(h1, h2, h3, h4, strong) {
+  color: var(--vf-text);
+}
+
+html[data-theme="light"] :is(.vf-card, .vf-card-glass, .notification-composer, .notification-recent, .users-modal-card, .daily-modal-card, .store-card, .area-store-card, .schedule-status-card, .schedule-day-card) :is(p, em, label, small) {
+  color: var(--vf-text-2);
 }
 
 html[data-theme="light"] :is(.daily-score, .notification-hero-stat, .task-actions) {
@@ -3531,6 +3547,10 @@ html[data-theme="light"] :is(.daily-score, .notification-hero-stat, .task-action
 
 html[data-theme="light"] :is(.daily-score strong, .notification-hero-stat strong) {
   color: var(--vf-text);
+}
+
+html[data-theme="light"] :is(.task-library-picker span, .daily-score span, .notification-hero-stat span) {
+  color: var(--vf-text-2);
 }
 
 html[data-theme="light"] .task-library-picker .vf-input {
@@ -3565,12 +3585,18 @@ html[data-theme="light"] .schedule-table {
 }
 
 html[data-theme="light"] .schedule-print-title {
-  background: linear-gradient(135deg, #ffe1e1, #ffc8c8);
-  border-bottom-color: rgba(230,0,0,0.16);
+  background:
+    linear-gradient(135deg, rgba(230, 0, 0, 0.98), rgba(190, 0, 0, 0.94)),
+    #e60000;
+  border-bottom-color: rgba(142,0,0,0.22);
 }
 
 html[data-theme="light"] .schedule-print-title h2 {
-  color: var(--vf-text);
+  color: #fff;
+}
+
+html[data-theme="light"] .schedule-print-title :is(span, strong) {
+  color: rgba(255,255,255,0.82);
 }
 
 html[data-theme="light"] .schedule-date-col,
