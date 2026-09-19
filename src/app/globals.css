@@ -58,11 +58,11 @@ html[data-theme="light"] {
   --vf-red-light:    #E60000;
   --vf-red-glow:     rgba(230, 0, 0, 0.18);
   --vf-red-subtle:   rgba(230, 0, 0, 0.075);
-  --vf-hero-card-gradient: linear-gradient(135deg, rgba(230, 0, 0, 0.16) 0%, rgba(255, 229, 229, 0.92) 48%, #ffffff 100%);
-  --vf-red-card-gradient: linear-gradient(135deg, rgba(230, 0, 0, 0.12), rgba(255, 244, 244, 0.94) 54%, #ffffff);
-  --vf-info-card-gradient: linear-gradient(135deg, rgba(14, 165, 233, 0.12), #ffffff 62%);
-  --vf-warning-card-gradient: linear-gradient(135deg, rgba(245, 158, 11, 0.13), #ffffff 62%);
-  --vf-alt-card-gradient: linear-gradient(135deg, rgba(139, 92, 246, 0.12), #ffffff 62%);
+  --vf-hero-card-gradient: linear-gradient(135deg, #ffe6e6 0%, #ffd2d2 52%, #ffc0c0 100%);
+  --vf-red-card-gradient: linear-gradient(135deg, #ffeaea, #ffd7d7);
+  --vf-info-card-gradient: linear-gradient(135deg, #ffecec, #ffe0e0);
+  --vf-warning-card-gradient: linear-gradient(135deg, #ffeded, #ffdbdb);
+  --vf-alt-card-gradient: linear-gradient(135deg, #ffecec, #ffe2e2);
 
   --vf-bg:           #F7F8FA;
   --vf-bg-2:         #FFFFFF;
@@ -3132,10 +3132,16 @@ html[data-theme="light"] .vf-theme-toggle-thumb {
   font-weight: 900;
 }
 
+.schedule-day-friday td {
+  border-top-color: rgba(248, 113, 113, 0.55);
+  border-bottom-color: rgba(248, 113, 113, 0.55);
+  box-shadow: inset 0 0 0 9999px rgba(239, 68, 68, 0.045);
+}
+
 .schedule-day-friday .schedule-day-num,
 .schedule-day-friday .schedule-weekday {
-  background: rgba(239, 68, 68, 0.22);
-  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.28);
+  color: #fecaca;
 }
 
 .schedule-person-head {
@@ -3559,7 +3565,7 @@ html[data-theme="light"] .schedule-table {
 }
 
 html[data-theme="light"] .schedule-print-title {
-  background: linear-gradient(135deg, rgba(230,0,0,0.12), rgba(255,238,238,0.92) 54%, #ffffff);
+  background: linear-gradient(135deg, #ffe1e1, #ffc8c8);
   border-bottom-color: rgba(230,0,0,0.16);
 }
 
@@ -3575,31 +3581,54 @@ html[data-theme="light"] .schedule-weekday {
 }
 
 html[data-theme="light"] .schedule-shift-cell {
-  background: #ffffff;
+  background: var(--vf-surface-2);
 }
 
 html[data-theme="light"] .shift-cell-am {
-  background: #fff3c4;
+  background: rgba(245, 158, 11, 0.26);
+  color: #7c4a03;
 }
 
 html[data-theme="light"] .shift-cell-pm {
-  background: #dbeafe;
+  background: rgba(59, 130, 246, 0.18);
+  color: #174ea6;
 }
 
 html[data-theme="light"] .shift-cell-full {
-  background: #dcfce7;
+  background: rgba(250, 204, 21, 0.35);
+  color: #7a5d00;
 }
 
 html[data-theme="light"] .shift-cell-ann {
-  background: #ccfbf1;
+  background: rgba(34, 197, 94, 0.14);
+  color: #166534;
 }
 
 html[data-theme="light"] .shift-cell-bw {
-  background: #ede9fe;
+  background: rgba(139, 92, 246, 0.18);
+  color: #5b21b6;
 }
 
 html[data-theme="light"] .shift-cell-off {
-  background: #ffe4e6;
+  background: rgba(20, 184, 166, 0.15);
+  color: #0f766e;
+}
+
+html[data-theme="light"] .shift-cell-empty {
+  background: var(--vf-surface-2);
+  color: var(--vf-surface-2);
+}
+
+html[data-theme="light"] .schedule-day-friday td {
+  border-top-color: rgba(230, 0, 0, 0.38);
+  border-bottom-color: rgba(230, 0, 0, 0.38);
+  box-shadow: inset 0 0 0 9999px rgba(230, 0, 0, 0.035);
+}
+
+html[data-theme="light"] .schedule-day-friday .schedule-day-num,
+html[data-theme="light"] .schedule-day-friday .schedule-weekday {
+  background: rgba(230, 0, 0, 0.14);
+  color: var(--vf-red-dark);
 }
 
 html[data-theme="light"] .schedule-shift-cell select,
@@ -3616,7 +3645,7 @@ html[data-theme="light"] .schedule-day-card select {
 
 html[data-theme="light"] .schedule-shift-select.is-blank,
 html[data-theme="light"] .schedule-day-card select.is-blank {
-  color: rgba(255,255,255,0.02);
+  color: var(--vf-surface-2);
 }
 
 .schedule-shift-select.is-blank option,
