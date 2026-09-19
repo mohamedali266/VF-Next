@@ -161,6 +161,7 @@ export default function ShiftScheduleClient({
   const [lockBusy, setLockBusy] = useState(false);
   const [generationRound, setGenerationRound] = useState(0);
   const [hiddenMemberIds, setHiddenMemberIds] = useState<Set<string>>(new Set());
+  const [hiddenDayDates, setHiddenDayDates] = useState<Set<string>>(new Set());
   const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set());
   const [selectMode, setSelectMode] = useState<SelectionMode>("off");
   const [undoEntries, setUndoEntries] = useState<ScheduleEntryInput[] | null>(null);
@@ -194,6 +195,7 @@ export default function ShiftScheduleClient({
         setData({ ...payload, members, days });
         setEntries(payload.entries);
         setHiddenMemberIds(new Set());
+        setHiddenDayDates(new Set());
         setSelectedCells(new Set());
         setSelectMode("off");
         setUndoEntries(null);
@@ -214,9 +216,9 @@ export default function ShiftScheduleClient({
   const displayDays = useMemo(() => {
     const currentMonth = monthKeyFromDate();
     const today = todayKey();
-    if (month !== currentMonth) return days;
-    return days.filter((day) => day.date >= today);
-  }, [days, month]);
+    const filteredDays = month !== currentMonth ? days : days.filter((day) => day.date >= today);
+    return filteredDays.filter((day) => !hiddenDayDates.has(day.date));
+  }, [days, hiddenDayDates, month]);
   const members = useMemo(() => data?.members || [], [data?.members]);
   const visibleMembers = useMemo(() => (
     viewerEmployeeId && viewMode === "mine"
@@ -236,6 +238,7 @@ export default function ShiftScheduleClient({
   const lockOwnedByCurrentUser = Boolean(data?.schedule?.lockOwnedByCurrentUser);
   const editable = canEditThisMonth && !locked && lockOwnedByCurrentUser && !lockedByOtherUser;
   const hiddenMembersCount = hiddenMemberIds.size;
+  const hiddenDaysCount = hiddenDayDates.size;
   const selectedCellsCount = selectedCells.size;
 
   useEffect(() => {
@@ -307,9 +310,28 @@ export default function ShiftScheduleClient({
     });
   }
 
-  function hideSelectedMembers() {
+  function hideSelectedItems() {
     if (!selectedCells.size) return;
-    const memberIds = new Set([...selectedCells].map((key) => key.split(":")[1]).filter(Boolean));
+    const selectedDates = new Set([...selectedCells].map((key) => key.split(":")[0]).filter(Boolean));
+    const fullRowDates = [...selectedDates].filter((date) => visibleMembers.length > 0 && visibleMembers.every((member) => selectedCells.has(cellKey(date, member.id))));
+
+    if (fullRowDates.length) {
+      setHiddenDayDates((current) => new Set([...current, ...fullRowDates]));
+      setSelectedCells((current) => {
+        const next = new Set(current);
+        for (const date of fullRowDates) {
+          for (const member of visibleMembers) next.delete(cellKey(date, member.id));
+        }
+        return next;
+      });
+      showMessage("success", `${fullRowDates.length} row(s) hidden. Shifts are still preserved.`);
+      return;
+    }
+
+    const selectedMemberIds = new Set([...selectedCells].map((key) => key.split(":")[1]).filter(Boolean));
+    const fullColumnIds = [...selectedMemberIds].filter((memberId) => displayDays.length > 0 && displayDays.every((day) => selectedCells.has(cellKey(day.date, memberId))));
+    const memberIds = new Set(fullColumnIds.length ? fullColumnIds : [...selectedMemberIds]);
+
     setHiddenMemberIds((current) => new Set([...current, ...memberIds]));
     setSelectedCells(new Set());
     showMessage("success", `${memberIds.size} column(s) hidden. Shifts are still preserved.`);
@@ -628,6 +650,7 @@ export default function ShiftScheduleClient({
             <span>
               {selectedCellsCount ? `${selectedCellsCount} selected cell(s)` : "Use selection mode for quick row, column, and cell actions."}
               {hiddenMembersCount ? ` · ${hiddenMembersCount} hidden column(s)` : ""}
+              {hiddenDaysCount ? ` · ${hiddenDaysCount} hidden row(s)` : ""}
             </span>
           </div>
           <div className="schedule-tools-actions">
@@ -643,11 +666,19 @@ export default function ShiftScheduleClient({
               <Trash2 size={16} />
               Clear Full
             </button>
-            <button className="vf-btn vf-btn-ghost vf-btn-sm" type="button" onClick={hideSelectedMembers} disabled={!selectedCellsCount}>
+            <button className="vf-btn vf-btn-ghost vf-btn-sm" type="button" onClick={hideSelectedItems} disabled={!selectedCellsCount}>
               <EyeOff size={16} />
               Hide Selected
             </button>
-            <button className="vf-btn vf-btn-ghost vf-btn-sm" type="button" onClick={() => setHiddenMemberIds(new Set())} disabled={!hiddenMembersCount}>
+            <button
+              className="vf-btn vf-btn-ghost vf-btn-sm"
+              type="button"
+              onClick={() => {
+                setHiddenMemberIds(new Set());
+                setHiddenDayDates(new Set());
+              }}
+              disabled={!hiddenMembersCount && !hiddenDaysCount}
+            >
               <Eye size={16} />
               Show All
             </button>
