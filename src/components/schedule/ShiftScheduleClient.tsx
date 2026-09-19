@@ -445,7 +445,7 @@ export default function ShiftScheduleClient({
                               {editable ? (
                                 <>
                                   <select
-                                    className="schedule-shift-select"
+                                    className={`schedule-shift-select ${shift ? "" : "is-blank"}`}
                                     value={shift}
                                     onChange={(event) => setCell(member.id, day.date, event.target.value as EditableShiftValue)}
                                     aria-label={`${displayNameMap.get(member.id) || member.name} ${day.date}`}
@@ -519,7 +519,7 @@ export default function ShiftScheduleClient({
                               {badge && <small>{badge}</small>}
                             </span>
                             {editable ? (
-                              <select value={shift} onChange={(event) => setCell(member.id, day.date, event.target.value as EditableShiftValue)}>
+                              <select className={shift ? "" : "is-blank"} value={shift} onChange={(event) => setCell(member.id, day.date, event.target.value as EditableShiftValue)}>
                                 <option value="">Blank</option>
                                 {SCHEDULE_SHIFTS.map((option) => <option key={option} value={option}>{SHIFT_LABELS[option]}</option>)}
                               </select>

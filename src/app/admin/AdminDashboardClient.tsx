@@ -43,7 +43,7 @@ export default function AdminDashboardClient({ userName, todayText, stats, actio
       </div>
 
       <div className="vf-card animate-fade-up animate-fade-up-delay-1" style={{
-        background: "linear-gradient(135deg, rgba(196,30,58,0.2) 0%, rgba(26,26,26,1) 60%)",
+        background: "var(--vf-hero-card-gradient)",
         borderColor: "rgba(196,30,58,0.35)",
         position: "relative",
         overflow: "hidden",
@@ -98,7 +98,7 @@ export default function AdminDashboardClient({ userName, todayText, stats, actio
             className="vf-card animate-fade-up"
             style={{
               minHeight: 130, display: "flex", flexDirection: "column", justifyContent: "space-between",
-              borderColor: "rgba(56,189,248,0.3)", background: "linear-gradient(135deg, rgba(56,189,248,0.08), var(--vf-surface))",
+              borderColor: "rgba(56,189,248,0.3)", background: "var(--vf-info-card-gradient)",
               cursor: "pointer",
             }}
           >
@@ -117,7 +117,7 @@ export default function AdminDashboardClient({ userName, todayText, stats, actio
             className="vf-card animate-fade-up"
             style={{
               minHeight: 130, display: "flex", flexDirection: "column", justifyContent: "space-between",
-              borderColor: "rgba(245,158,11,0.3)", background: "linear-gradient(135deg, rgba(245,158,11,0.08), var(--vf-surface))",
+              borderColor: "rgba(245,158,11,0.3)", background: "var(--vf-warning-card-gradient)",
               cursor: "pointer",
             }}
           >

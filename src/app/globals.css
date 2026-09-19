@@ -9,6 +9,11 @@
   --vf-red-light:    #E02347;
   --vf-red-glow:     rgba(196, 30, 58, 0.25);
   --vf-red-subtle:   rgba(196, 30, 58, 0.08);
+  --vf-hero-card-gradient: linear-gradient(135deg, rgba(196, 30, 58, 0.2) 0%, rgba(24, 24, 24, 0.98) 64%);
+  --vf-red-card-gradient: linear-gradient(135deg, rgba(196, 30, 58, 0.16), var(--vf-surface));
+  --vf-info-card-gradient: linear-gradient(135deg, rgba(56, 189, 248, 0.12), var(--vf-surface));
+  --vf-warning-card-gradient: linear-gradient(135deg, rgba(245, 158, 11, 0.1), var(--vf-surface));
+  --vf-alt-card-gradient: linear-gradient(135deg, rgba(139, 92, 246, 0.18), var(--vf-surface));
 
   /* Backgrounds */
   --vf-bg:           #0A0A0A;
@@ -53,6 +58,11 @@ html[data-theme="light"] {
   --vf-red-light:    #E60000;
   --vf-red-glow:     rgba(230, 0, 0, 0.18);
   --vf-red-subtle:   rgba(230, 0, 0, 0.075);
+  --vf-hero-card-gradient: linear-gradient(135deg, rgba(230, 0, 0, 0.16) 0%, rgba(255, 229, 229, 0.92) 48%, #ffffff 100%);
+  --vf-red-card-gradient: linear-gradient(135deg, rgba(230, 0, 0, 0.12), rgba(255, 244, 244, 0.94) 54%, #ffffff);
+  --vf-info-card-gradient: linear-gradient(135deg, rgba(14, 165, 233, 0.12), #ffffff 62%);
+  --vf-warning-card-gradient: linear-gradient(135deg, rgba(245, 158, 11, 0.13), #ffffff 62%);
+  --vf-alt-card-gradient: linear-gradient(135deg, rgba(139, 92, 246, 0.12), #ffffff 62%);
 
   --vf-bg:           #F7F8FA;
   --vf-bg-2:         #FFFFFF;
@@ -3219,7 +3229,7 @@ html[data-theme="light"] .vf-theme-toggle-thumb {
 }
 
 .shift-cell-empty {
-  background: rgba(255, 255, 255, 0.025);
+  background: var(--vf-surface-2);
   color: var(--vf-text-muted);
 }
 
@@ -3532,15 +3542,86 @@ html[data-theme="light"] :is(.task-row-body strong, .task-group-selection-head s
 
 html[data-theme="light"] .vf-table th,
 html[data-theme="light"] .schedule-table th {
-  background: linear-gradient(180deg, #f5f7fa, #eef2f6);
-  color: var(--vf-text-2);
-  border-color: #dbe2eb;
+  background: linear-gradient(180deg, #fff, #f2f5f9);
+  color: #263241;
+  border-color: #cbd5e1;
 }
 
 html[data-theme="light"] .vf-table td,
 html[data-theme="light"] .schedule-table td {
   color: var(--vf-text);
-  border-color: #e4e9f0;
+  border-color: #d9e1eb;
+}
+
+html[data-theme="light"] .schedule-table {
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(16,24,40,0.08);
+}
+
+html[data-theme="light"] .schedule-print-title {
+  background: linear-gradient(135deg, rgba(230,0,0,0.12), rgba(255,238,238,0.92) 54%, #ffffff);
+  border-bottom-color: rgba(230,0,0,0.16);
+}
+
+html[data-theme="light"] .schedule-print-title h2 {
+  color: var(--vf-text);
+}
+
+html[data-theme="light"] .schedule-date-col,
+html[data-theme="light"] .schedule-day-num,
+html[data-theme="light"] .schedule-weekday {
+  background: #fff2f2;
+  color: var(--vf-red);
+}
+
+html[data-theme="light"] .schedule-shift-cell {
+  background: #ffffff;
+}
+
+html[data-theme="light"] .shift-cell-am {
+  background: #fff3c4;
+}
+
+html[data-theme="light"] .shift-cell-pm {
+  background: #dbeafe;
+}
+
+html[data-theme="light"] .shift-cell-full {
+  background: #dcfce7;
+}
+
+html[data-theme="light"] .shift-cell-ann {
+  background: #ccfbf1;
+}
+
+html[data-theme="light"] .shift-cell-bw {
+  background: #ede9fe;
+}
+
+html[data-theme="light"] .shift-cell-off {
+  background: #ffe4e6;
+}
+
+html[data-theme="light"] .schedule-shift-cell select,
+html[data-theme="light"] .schedule-day-card select {
+  background: rgba(255,255,255,0.72);
+  border-color: rgba(100,116,139,0.26);
+  color: #111827;
+}
+
+.schedule-shift-select.is-blank,
+.schedule-day-card select.is-blank {
+  color: var(--vf-surface-2);
+}
+
+html[data-theme="light"] .schedule-shift-select.is-blank,
+html[data-theme="light"] .schedule-day-card select.is-blank {
+  color: rgba(255,255,255,0.02);
+}
+
+.schedule-shift-select.is-blank option,
+.schedule-day-card select.is-blank option {
+  color: var(--vf-text);
 }
 
 html[data-theme="light"] .vf-table tr:hover td {

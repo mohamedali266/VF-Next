@@ -246,7 +246,7 @@ export default function HealthCheckPage() {
           {/* Totals */}
           <div className="vf-card" style={{
             marginTop: "0.875rem",
-            background: "linear-gradient(135deg, rgba(196,30,58,0.12), rgba(26,26,26,1))",
+            background: "var(--vf-hero-card-gradient)",
             borderColor: "rgba(196,30,58,0.3)",
           }}>
             <div style={{ fontSize: "0.8125rem", fontWeight: "700", color: "var(--vf-text-2)", marginBottom: "0.875rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>

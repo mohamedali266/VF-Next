@@ -297,7 +297,7 @@ export default function ManagerHealthCheckPage() {
 
       {!loading && records.length > 0 && (
         <div className="vf-card animate-fade-up" style={{
-          background: "linear-gradient(135deg, rgba(196,30,58,0.18), rgba(26,26,26,1))",
+          background: "var(--vf-hero-card-gradient)",
           borderColor: "rgba(196,30,58,0.4)",
         }}>
           <div style={{ fontWeight: "800", color: "var(--vf-red-light)", fontSize: "0.875rem", marginBottom: "1rem", textTransform: "uppercase" }}>

@@ -234,7 +234,7 @@ export default function DailyReportClient() {
       {/* ── Employee RPM Card ── */}
       {showCumulative && (
         <section className="vf-card animate-fade-up" style={{
-          background: "linear-gradient(135deg, rgba(196,30,58,0.15), var(--vf-surface))",
+          background: "var(--vf-red-card-gradient)",
           borderColor: "rgba(196,30,58,0.35)",
         }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>

@@ -202,7 +202,7 @@ export default function SmsClient({
       {/* ── Store RPM Section ── */}
       {showRpmModal && (
         <section className="vf-card animate-fade-up" style={{
-          background: "linear-gradient(135deg, rgba(196,30,58,0.18), var(--vf-surface))",
+          background: "var(--vf-red-card-gradient)",
           borderColor: "rgba(196,30,58,0.4)",
         }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>

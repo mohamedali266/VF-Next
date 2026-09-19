@@ -72,7 +72,7 @@ export default function EmployeeDashboardClient({ userName, todayText, branchId 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
       <div className="vf-card animate-fade-up" style={{
-        background: "linear-gradient(135deg, rgba(196,30,58,0.15) 0%, rgba(26,26,26,1) 60%)",
+        background: "var(--vf-hero-card-gradient)",
         borderColor: "rgba(196,30,58,0.25)",
       }}>
         <p style={{ fontSize: "0.75rem", color: "var(--vf-text-muted)", marginBottom: "0.25rem" }}>{todayText}</p>
@@ -102,7 +102,7 @@ export default function EmployeeDashboardClient({ userName, todayText, branchId 
               justifyContent: "space-between",
               textAlign: "inherit",
               borderColor: "rgba(56,189,248,0.4)",
-              background: "linear-gradient(135deg, rgba(56,189,248,0.12), var(--vf-surface))",
+              background: "var(--vf-info-card-gradient)",
               cursor: "pointer",
             }}
           >
@@ -125,7 +125,7 @@ export default function EmployeeDashboardClient({ userName, todayText, branchId 
                 flexDirection: "column",
                 justifyContent: "space-between",
                 borderColor: item.id === "store" ? "rgba(196,30,58,0.4)" : "rgba(196,30,58,0.2)",
-                background: item.id === "store" ? "linear-gradient(135deg, rgba(196,30,58,0.12), var(--vf-surface))" : undefined,
+                background: item.id === "store" ? "var(--vf-red-card-gradient)" : undefined,
               }}>
                 <div className="vf-number-badge" style={{ width: 42, height: 42 }}>{item.icon}</div>
                 <div>
@@ -146,7 +146,7 @@ export default function EmployeeDashboardClient({ userName, todayText, branchId 
               flexDirection: "column",
               justifyContent: "space-between",
               borderColor: "rgba(245,158,11,0.3)",
-              background: "linear-gradient(135deg, rgba(245,158,11,0.08), var(--vf-surface))",
+              background: "var(--vf-warning-card-gradient)",
               cursor: "pointer",
             }}
           >
