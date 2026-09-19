@@ -3852,6 +3852,25 @@ html[data-theme="light"] .notification-status.success {
   color: #087A35;
 }
 
+html[data-theme="light"] .store-page > .animate-fade-up [style*="color: #fff"],
+html[data-theme="light"] .store-page .vf-card [style*="color: #fff"] {
+  color: var(--vf-text) !important;
+}
+
+html[data-theme="light"] .store-page .vf-card [style*="background: var(--vf-surface-2)"] [style*="color: #fff"] {
+  color: var(--vf-text) !important;
+}
+
+html[data-theme="light"] .store-page [style*="--vf-red-card-gradient"] > :not([style*="background: var(--vf-surface-2)"]) [style*="color: #fff"],
+html[data-theme="light"] .store-page [style*="--vf-alt-card-gradient"] > :not([style*="background: var(--vf-surface-2)"]) [style*="color: #fff"] {
+  color: #fff !important;
+}
+
+html[data-theme="light"] .store-page [style*="--vf-red-card-gradient"] > div > h3[style*="color: #fff"],
+html[data-theme="light"] .store-page [style*="--vf-alt-card-gradient"] > div > h3[style*="color: #fff"] {
+  color: #fff !important;
+}
+
 @media print {
   @page {
     size: A4 landscape;

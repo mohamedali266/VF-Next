@@ -243,7 +243,7 @@ export default function StoreClient({ storeId }: { storeId: string }) {
   const currentMonthDays = new Set((data?.monthlyReports || []).map((r) => r.date)).size;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+    <div className="store-page" style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
 
       {/* Header */}
       <div className="animate-fade-up">
