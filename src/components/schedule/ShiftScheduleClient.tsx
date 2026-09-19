@@ -393,7 +393,9 @@ export default function ShiftScheduleClient({
       const nextMembers = sortScheduleMembers(nextPayload.members);
       const nextDays = nextPayload.days.length ? nextPayload.days : getMonthDays(month);
       setData({ ...nextPayload, members: nextMembers, days: nextDays });
-      setEntries(nextPayload.entries);
+      if (action !== "lock") {
+        setEntries(nextPayload.entries);
+      }
       if (showResult) showMessage("success", action === "forceUnlock" ? "Schedule unlocked" : action === "unlock" ? "Editing lock released" : "Editing lock acquired");
     } catch (error) {
       if (showResult) showMessage("error", error instanceof Error ? error.message : "Schedule lock action failed");
