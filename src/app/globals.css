@@ -3042,6 +3042,15 @@ html[data-theme="light"] .vf-theme-toggle-thumb {
   font-size: 0.78rem;
 }
 
+.schedule-lock-blocked {
+  border-color: rgba(245, 158, 11, 0.42);
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.schedule-lock-blocked svg {
+  color: #f59e0b;
+}
+
 .schedule-print-area {
   padding: 0;
   overflow: hidden;

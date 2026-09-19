@@ -110,6 +110,7 @@ model User {
   updatedSchedules ShiftSchedule[] @relation("ScheduleUpdatedBy")
   submittedSchedules ShiftSchedule[] @relation("ScheduleSubmittedBy")
   reviewedSchedules ShiftSchedule[] @relation("ScheduleReviewedBy")
+  lockedSchedules ShiftSchedule[] @relation("ScheduleLockedBy")
   createdNotifications Notification[] @relation("NotificationCreatedBy")
   directNotifications Notification[] @relation("NotificationRecipient")
   notificationReads NotificationRead[]
@@ -321,6 +322,11 @@ model ShiftSchedule {
   reviewedAt     DateTime?
   reviewedById   String?
   reviewComment  String?
+  lockedById      String?
+  lockExpiresAt   DateTime?
+  version         Int            @default(0)
+  lastAction      String?
+  lastActionAt    DateTime?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
@@ -329,6 +335,7 @@ model ShiftSchedule {
   updatedBy   User?  @relation("ScheduleUpdatedBy", fields: [updatedById], references: [id])
   submittedBy User?  @relation("ScheduleSubmittedBy", fields: [submittedById], references: [id])
   reviewedBy  User?  @relation("ScheduleReviewedBy", fields: [reviewedById], references: [id])
+  lockedBy    User?  @relation("ScheduleLockedBy", fields: [lockedById], references: [id], onDelete: SetNull)
   entries     ShiftScheduleEntry[]
 
   @@unique([branchId, month])

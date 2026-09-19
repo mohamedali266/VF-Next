@@ -14,8 +14,8 @@ import {
   type ScheduleMember,
   type ScheduleShiftValue,
 } from "@/lib/shift-schedule";
-import { CalendarDays, CheckCircle2, Edit3, Printer, Save, ShieldAlert, XCircle } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { CalendarDays, CheckCircle2, Edit3, Lock, Printer, Save, ShieldAlert, Unlock, XCircle } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type StoreOption = {
   id: string;
@@ -34,8 +34,19 @@ type SchedulePayload = {
     status: "DRAFT" | "SUBMITTED";
     approvalStatus?: "PENDING" | "APPROVED" | "REJECTED";
     submittedAt: string | null;
+    submittedBy?: { id: string; name: string } | null;
     updatedAt: string;
+    updatedBy?: { id: string; name: string } | null;
+    version: number;
+    lastAction?: string | null;
+    lastActionAt?: string | null;
+    lockExpiresAt?: string | null;
+    lockedBy?: { id: string; name: string; role: string } | null;
+    lockOwnedByCurrentUser?: boolean;
+    lockedByOtherUser?: boolean;
     reviewComment?: string | null;
+    reviewedAt?: string | null;
+    reviewedBy?: { id: string; name: string } | null;
   } | null;
   entries: ScheduleEntryInput[];
   validations: DayValidation[];
@@ -108,6 +119,23 @@ function memberRoleLabel(member: ScheduleMember) {
   return "";
 }
 
+function formatMetaDate(value?: string | null) {
+  if (!value) return "";
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function actionLabel(action?: string | null) {
+  if (action === "SUBMITTED") return "Submitted";
+  if (action === "REOPENED") return "Reopened";
+  if (action === "SAVED") return "Saved";
+  return "Updated";
+}
+
 export default function ShiftScheduleClient({
   title,
   description,
@@ -127,10 +155,17 @@ export default function ShiftScheduleClient({
   const [entries, setEntries] = useState<ScheduleEntryInput[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState<"save" | "submit" | "edit" | null>(null);
+  const [lockBusy, setLockBusy] = useState(false);
   const [reviewing, setReviewing] = useState<"approve" | "reject" | null>(null);
   const [reviewComment, setReviewComment] = useState("");
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [viewMode, setViewMode] = useState<"mine" | "store">(viewerEmployeeId && !canEdit ? "mine" : "store");
+  const lockRef = useRef<{ branchId: string; month: string; version?: number; owned: boolean; submitted: boolean }>({
+    branchId,
+    month,
+    owned: false,
+    submitted: false,
+  });
 
   useEffect(() => {
     if (!branchId || !month) return;
@@ -184,7 +219,19 @@ export default function ShiftScheduleClient({
   const canEditThisMonth = canEdit && (!editableMonth || month === editableMonth);
   const invalidDays = canEditThisMonth ? validations.filter((day) => !day.valid) : [];
   const locked = data?.schedule?.status === "SUBMITTED";
-  const editable = canEditThisMonth && !locked;
+  const lockedByOtherUser = Boolean(data?.schedule?.lockedByOtherUser);
+  const lockOwnedByCurrentUser = Boolean(data?.schedule?.lockOwnedByCurrentUser);
+  const editable = canEditThisMonth && !locked && lockOwnedByCurrentUser && !lockedByOtherUser;
+
+  useEffect(() => {
+    lockRef.current = {
+      branchId,
+      month,
+      version: data?.schedule?.version,
+      owned: lockOwnedByCurrentUser,
+      submitted: locked,
+    };
+  }, [branchId, month, data?.schedule?.version, lockOwnedByCurrentUser, locked]);
 
   function showMessage(type: "success" | "error", text: string) {
     setMessage({ type, text });
@@ -200,6 +247,32 @@ export default function ShiftScheduleClient({
     });
   }
 
+  async function sendLockAction(action: "lock" | "unlock" | "forceUnlock", showResult = false) {
+    if (!branchId || lockBusy) return;
+    setLockBusy(true);
+    if (showResult) setMessage(null);
+    try {
+      const res = await fetch("/api/schedules/month", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        keepalive: action === "unlock",
+        body: JSON.stringify({ branchId, month, action, version: data?.schedule?.version }),
+      });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.error || "Schedule lock action failed");
+      const nextPayload = payload as SchedulePayload;
+      const nextMembers = sortScheduleMembers(nextPayload.members);
+      const nextDays = nextPayload.days.length ? nextPayload.days : getMonthDays(month);
+      setData({ ...nextPayload, members: nextMembers, days: nextDays });
+      setEntries(nextPayload.entries);
+      if (showResult) showMessage("success", action === "forceUnlock" ? "Schedule unlocked" : action === "unlock" ? "Editing lock released" : "Editing lock acquired");
+    } catch (error) {
+      if (showResult) showMessage("error", error instanceof Error ? error.message : "Schedule lock action failed");
+    } finally {
+      setLockBusy(false);
+    }
+  }
+
   async function sendAction(action: "save" | "submit" | "edit") {
     if (!branchId) return;
     setSaving(action);
@@ -208,7 +281,7 @@ export default function ShiftScheduleClient({
       const res = await fetch("/api/schedules/month", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ branchId, month, action, entries }),
+        body: JSON.stringify({ branchId, month, action, entries, version: data?.schedule?.version }),
       });
       const payload = await res.json();
       if (!res.ok) throw new Error(payload.error || "Schedule action failed");
@@ -259,6 +332,36 @@ export default function ShiftScheduleClient({
     window.print();
   }
 
+  useEffect(() => {
+    if (!data || !canEditThisMonth || locked || lockedByOtherUser || lockOwnedByCurrentUser) return;
+    void sendLockAction("lock");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data?.schedule?.id, data?.schedule?.status, branchId, month, canEditThisMonth, locked, lockedByOtherUser, lockOwnedByCurrentUser]);
+
+  useEffect(() => {
+    if (!lockOwnedByCurrentUser || locked) return;
+    const timer = window.setInterval(() => {
+      void sendLockAction("lock");
+    }, 4 * 60 * 1000);
+    return () => window.clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lockOwnedByCurrentUser, locked, branchId, month, data?.schedule?.version]);
+
+  useEffect(() => {
+    const unlockBeforeClose = () => {
+      const lock = lockRef.current;
+      if (!lock.owned || lock.submitted) return;
+      fetch("/api/schedules/month", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        keepalive: true,
+        body: JSON.stringify({ branchId: lock.branchId, month: lock.month, action: "unlock", version: lock.version }),
+      }).catch(() => undefined);
+    };
+    window.addEventListener("beforeunload", unlockBeforeClose);
+    return () => window.removeEventListener("beforeunload", unlockBeforeClose);
+  }, []);
+
   return (
     <div className="schedule-shell">
       <section className="users-admin-head schedule-no-print">
@@ -276,11 +379,17 @@ export default function ShiftScheduleClient({
           )}
           {canEditThisMonth && !locked && (
             <>
-              <button className="vf-btn vf-btn-ghost vf-btn-md" type="button" onClick={() => sendAction("save")} disabled={saving !== null || loading}>
+              {lockedByOtherUser && canReopenSubmitted && (
+                <button className="vf-btn vf-btn-ghost vf-btn-md" type="button" onClick={() => sendLockAction("forceUnlock", true)} disabled={lockBusy}>
+                  <Unlock size={18} />
+                  {lockBusy ? "Unlocking..." : "Force unlock"}
+                </button>
+              )}
+              <button className="vf-btn vf-btn-ghost vf-btn-md" type="button" onClick={() => sendAction("save")} disabled={saving !== null || loading || !editable}>
                 <Save size={18} />
                 {saving === "save" ? "Saving..." : "Save"}
               </button>
-              <button className="vf-btn vf-btn-primary vf-btn-md" type="button" onClick={() => sendAction("submit")} disabled={saving !== null || loading || invalidDays.length > 0}>
+              <button className="vf-btn vf-btn-primary vf-btn-md" type="button" onClick={() => sendAction("submit")} disabled={saving !== null || loading || invalidDays.length > 0 || !editable}>
                 <CheckCircle2 size={18} />
                 {saving === "submit" ? "Submitting..." : "Submit"}
               </button>
@@ -337,6 +446,16 @@ export default function ShiftScheduleClient({
               {data?.schedule?.approvalStatus ? ` | ${data.schedule.approvalStatus}` : ""}
               {editableMonth && month !== editableMonth ? ` | Editing opens for ${editableMonth}` : ""}
             </span>
+            {data?.schedule && (
+              <span>
+                {data.schedule.lastActionAt && data.schedule.updatedBy
+                  ? `${actionLabel(data.schedule.lastAction)} by ${data.schedule.updatedBy.name} at ${formatMetaDate(data.schedule.lastActionAt)}`
+                  : "No saved changes yet"}
+                {data.schedule.submittedAt && data.schedule.submittedBy
+                  ? ` | Submitted by ${data.schedule.submittedBy.name} at ${formatMetaDate(data.schedule.submittedAt)}`
+                  : ""}
+              </span>
+            )}
           </div>
         </div>
         {viewerEmployeeId && data?.schedule?.status === "SUBMITTED" && (
@@ -352,6 +471,30 @@ export default function ShiftScheduleClient({
       </section>
 
       {message && <div className={`vf-alert ${message.type === "success" ? "vf-alert-success" : "vf-alert-error"} schedule-no-print`}>{message.text}</div>}
+
+      {canEditThisMonth && !locked && (
+        <section className={`vf-card schedule-warning schedule-no-print ${lockedByOtherUser ? "schedule-lock-blocked" : ""}`}>
+          <Lock size={20} />
+          <div>
+            {lockedByOtherUser ? (
+              <>
+                <strong>This schedule is currently being edited by {data?.schedule?.lockedBy?.name || "another user"}</strong>
+                <span>You can view the table, but editing is locked until {formatMetaDate(data?.schedule?.lockExpiresAt)} or until the lock is released.</span>
+              </>
+            ) : lockOwnedByCurrentUser ? (
+              <>
+                <strong>You are editing this schedule</strong>
+                <span>Your lock renews automatically. Save or submit when finished.</span>
+              </>
+            ) : (
+              <>
+                <strong>Preparing edit lock</strong>
+                <span>Editing will open as soon as the schedule lock is acquired.</span>
+              </>
+            )}
+          </div>
+        </section>
+      )}
 
       {!!invalidDays.length && (
         <section className="vf-card schedule-warning schedule-no-print">

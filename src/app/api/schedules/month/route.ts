@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 const elevatedWriteRoles = new Set(["ADMIN", "MANAGER", "TEAM_LEADER"]);
+const LOCK_TTL_MS = 10 * 60 * 1000;
 
 const entrySchema = z.object({
   employeeId: z.string().min(1),
@@ -24,8 +25,9 @@ const entrySchema = z.object({
 const saveSchema = z.object({
   branchId: z.string().optional().nullable(),
   month: z.string().regex(/^\d{4}-\d{2}$/),
-  action: z.enum(["save", "submit", "edit", "approve", "reject"]),
+  action: z.enum(["save", "submit", "edit", "approve", "reject", "lock", "unlock", "forceUnlock"]),
   reviewComment: z.string().trim().max(500).optional(),
+  version: z.number().int().nonnegative().optional(),
   entries: z.array(entrySchema).default([]),
 });
 
@@ -63,6 +65,17 @@ function canSaveDraft(user: { role: string; isMaster: boolean }, month: string) 
   return canElevatedWrite(user.role) || isMasterNextMonthCreator(user, month);
 }
 
+function lockExpiresAt() {
+  return new Date(Date.now() + LOCK_TTL_MS);
+}
+
+function isActiveForeignLock(
+  schedule: { lockedById: string | null; lockExpiresAt: Date | null },
+  userId: string,
+) {
+  return Boolean(schedule.lockedById && schedule.lockedById !== userId && schedule.lockExpiresAt && schedule.lockExpiresAt > new Date());
+}
+
 function requestedBranchId(req: NextRequest, user: { role: string; branchId: string | null; isMaster: boolean }) {
   const queryBranchId = req.nextUrl.searchParams.get("branchId");
   if (user.role === "ADMIN" || user.role === "AREA_MANAGER") return queryBranchId || null;
@@ -77,7 +90,7 @@ function serializeEntry(entry: { employeeId: string; date: Date; shift: Schedule
   };
 }
 
-async function getSchedulePayload(branchId: string, month: string, options?: { submittedOnly?: boolean }) {
+async function getSchedulePayload(branchId: string, month: string, options?: { submittedOnly?: boolean; currentUserId?: string }) {
   const monthStart = monthStartFromInput(month);
   if (!monthStart) {
     return { error: NextResponse.json({ error: "Invalid month" }, { status: 400 }) };
@@ -108,8 +121,18 @@ async function getSchedulePayload(branchId: string, month: string, options?: { s
           status: true,
           approvalStatus: true,
           submittedAt: true,
+          submittedBy: { select: { id: true, name: true } },
+          updatedBy: { select: { id: true, name: true } },
           updatedAt: true,
+          version: true,
+          lastAction: true,
+          lastActionAt: true,
+          lockedById: true,
+          lockExpiresAt: true,
+          lockedBy: { select: { id: true, name: true, role: true } },
           reviewComment: true,
+          reviewedAt: true,
+          reviewedBy: { select: { id: true, name: true } },
           entries: {
             select: { employeeId: true, date: true, shift: true },
           },
@@ -144,8 +167,19 @@ async function getSchedulePayload(branchId: string, month: string, options?: { s
         status: schedule.status,
         approvalStatus: schedule.approvalStatus,
         submittedAt: schedule.submittedAt,
+        submittedBy: schedule.submittedBy,
         updatedAt: schedule.updatedAt,
+        updatedBy: schedule.updatedBy,
+        version: schedule.version,
+        lastAction: schedule.lastAction,
+        lastActionAt: schedule.lastActionAt,
+        lockExpiresAt: schedule.lockExpiresAt,
+        lockedBy: schedule.lockedBy,
+        lockOwnedByCurrentUser: Boolean(schedule.lockedById && schedule.lockedById === options?.currentUserId && schedule.lockExpiresAt && schedule.lockExpiresAt > new Date()),
+        lockedByOtherUser: Boolean(schedule.lockedById && schedule.lockedById !== options?.currentUserId && schedule.lockExpiresAt && schedule.lockExpiresAt > new Date()),
         reviewComment: schedule.reviewComment,
+        reviewedAt: schedule.reviewedAt,
+        reviewedBy: schedule.reviewedBy,
       } : null,
       entries,
       validations,
@@ -174,6 +208,7 @@ export async function GET(req: NextRequest) {
 
   const result = await getSchedulePayload(branchId, month, {
     submittedOnly: (user.role === "EMPLOYEE" && !isMasterNextMonthCreator(user, month)) || user.role === "AREA_MANAGER",
+    currentUserId: user.id,
   });
   if (result.error) return result.error;
   return NextResponse.json(result.payload);
@@ -232,7 +267,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    const result = await getSchedulePayload(branchId, month, { submittedOnly: user.role === "AREA_MANAGER" });
+    const result = await getSchedulePayload(branchId, month, { submittedOnly: user.role === "AREA_MANAGER", currentUserId: user.id });
     if (result.error) return result.error;
     return NextResponse.json(result.payload);
   }
@@ -241,7 +276,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Only managers, team leaders, and admins can reopen a submitted schedule." }, { status: 401 });
   }
 
-  if ((action === "save" || action === "submit") && !canSaveDraft(user, month)) {
+  if ((action === "save" || action === "submit" || action === "lock" || action === "unlock" || action === "forceUnlock") && !canSaveDraft(user, month)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -265,6 +300,79 @@ export async function POST(req: NextRequest) {
 
   if (!branch) return NextResponse.json({ error: "Store not found" }, { status: 404 });
 
+  const existing = await prisma.shiftSchedule.findUnique({
+    where: { branchId_month: { branchId, month: monthStart } },
+    select: {
+      id: true,
+      status: true,
+      version: true,
+      lockedById: true,
+      lockExpiresAt: true,
+      lockedBy: { select: { name: true } },
+    },
+  });
+
+  if (action === "lock") {
+    if (existing?.status === "SUBMITTED") {
+      return NextResponse.json({ error: "Schedule is submitted. Press Edit first." }, { status: 409 });
+    }
+
+    if (existing && isActiveForeignLock(existing, user.id)) {
+      return NextResponse.json({
+        error: `This schedule is currently being edited by ${existing.lockedBy?.name || "another user"}.`,
+      }, { status: 423 });
+    }
+
+    await prisma.shiftSchedule.upsert({
+      where: { branchId_month: { branchId, month: monthStart } },
+      create: {
+        branchId,
+        month: monthStart,
+        status: "DRAFT",
+        createdById: user.id,
+        lockedById: user.id,
+        lockExpiresAt: lockExpiresAt(),
+      },
+      update: {
+        lockedById: user.id,
+        lockExpiresAt: lockExpiresAt(),
+      },
+    });
+
+    const result = await getSchedulePayload(branchId, month, { currentUserId: user.id });
+    if (result.error) return result.error;
+    return NextResponse.json(result.payload);
+  }
+
+  if (action === "unlock") {
+    if (existing?.lockedById === user.id) {
+      await prisma.shiftSchedule.update({
+        where: { id: existing.id },
+        data: { lockedById: null, lockExpiresAt: null },
+      });
+    }
+
+    const result = await getSchedulePayload(branchId, month, { currentUserId: user.id });
+    if (result.error) return result.error;
+    return NextResponse.json(result.payload);
+  }
+
+  if (action === "forceUnlock") {
+    if (!canElevatedWrite(user.role)) {
+      return NextResponse.json({ error: "Only managers, team leaders, and admins can force unlock schedules." }, { status: 401 });
+    }
+    if (existing) {
+      await prisma.shiftSchedule.update({
+        where: { id: existing.id },
+        data: { lockedById: null, lockExpiresAt: null },
+      });
+    }
+
+    const result = await getSchedulePayload(branchId, month, { currentUserId: user.id });
+    if (result.error) return result.error;
+    return NextResponse.json(result.payload);
+  }
+
   const allowedUserIds = new Set(branch.users.map((member) => member.id));
   const days = getMonthDays(month);
   const allowedDates = new Set(days.map((day) => day.date));
@@ -283,12 +391,13 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const existing = await prisma.shiftSchedule.findUnique({
-    where: { branchId_month: { branchId, month: monthStart } },
-    select: { id: true, status: true },
-  });
-
   if (action === "edit") {
+    if (existing && isActiveForeignLock(existing, user.id)) {
+      return NextResponse.json({
+        error: `This schedule is currently being edited by ${existing.lockedBy?.name || "another user"}.`,
+      }, { status: 423 });
+    }
+
     const schedule = await prisma.shiftSchedule.upsert({
       where: { branchId_month: { branchId, month: monthStart } },
       create: {
@@ -297,6 +406,10 @@ export async function POST(req: NextRequest) {
         status: "DRAFT",
         createdById: user.id,
         updatedById: user.id,
+        lockedById: user.id,
+        lockExpiresAt: lockExpiresAt(),
+        lastAction: "REOPENED",
+        lastActionAt: new Date(),
       },
       update: {
         status: "DRAFT",
@@ -307,11 +420,16 @@ export async function POST(req: NextRequest) {
         reviewedById: null,
         reviewComment: null,
         updatedById: user.id,
+        lockedById: user.id,
+        lockExpiresAt: lockExpiresAt(),
+        version: { increment: 1 },
+        lastAction: "REOPENED",
+        lastActionAt: new Date(),
       },
       select: { id: true },
     });
 
-    const result = await getSchedulePayload(branchId, month);
+    const result = await getSchedulePayload(branchId, month, { currentUserId: user.id });
     if (result.error) return result.error;
     return NextResponse.json({ ...result.payload, schedule: { ...result.payload?.schedule, id: schedule.id } });
   }
@@ -320,31 +438,78 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Schedule is submitted. Press Edit first." }, { status: 409 });
   }
 
-  const schedule = await prisma.$transaction(async (tx) => {
-    const saved = await tx.shiftSchedule.upsert({
-      where: { branchId_month: { branchId, month: monthStart } },
-      create: {
+  if (existing && isActiveForeignLock(existing, user.id)) {
+    return NextResponse.json({
+      error: `This schedule is currently being edited by ${existing.lockedBy?.name || "another user"}.`,
+    }, { status: 423 });
+  }
+
+  if (existing && typeof parsed.data.version === "number" && parsed.data.version !== existing.version) {
+    return NextResponse.json({
+      error: "This schedule was updated by another user. Reload the latest version before saving.",
+    }, { status: 409 });
+  }
+
+  let schedule: { id: string };
+  try {
+    schedule = await prisma.$transaction(async (tx) => {
+      let saved: { id: string };
+      const nextActionAt = new Date();
+      const nextLockExpiresAt = action === "submit" ? null : lockExpiresAt();
+
+      if (existing) {
+        const expectedVersion = typeof parsed.data.version === "number" ? parsed.data.version : existing.version;
+        const updated = await tx.shiftSchedule.updateMany({
+          where: {
+            id: existing.id,
+            version: expectedVersion,
+            OR: [
+              { lockedById: user.id },
+              { lockedById: null },
+              { lockExpiresAt: { lt: new Date() } },
+            ],
+          },
+          data: {
+            status: action === "submit" ? "SUBMITTED" : "DRAFT",
+            approvalStatus: "PENDING",
+            submittedAt: action === "submit" ? nextActionAt : null,
+            submittedById: action === "submit" ? user.id : null,
+            reviewedAt: null,
+            reviewedById: null,
+            reviewComment: null,
+            updatedById: user.id,
+            lockedById: action === "submit" ? null : user.id,
+            lockExpiresAt: nextLockExpiresAt,
+            version: { increment: 1 },
+            lastAction: action === "submit" ? "SUBMITTED" : "SAVED",
+            lastActionAt: nextActionAt,
+          },
+        });
+
+        if (updated.count !== 1) {
+          throw new Error("SCHEDULE_VERSION_CONFLICT");
+        }
+        saved = { id: existing.id };
+      } else {
+        saved = await tx.shiftSchedule.create({
+          data: {
         branchId,
         month: monthStart,
         status: action === "submit" ? "SUBMITTED" : "DRAFT",
         approvalStatus: "PENDING",
-        submittedAt: action === "submit" ? new Date() : null,
+        submittedAt: action === "submit" ? nextActionAt : null,
         submittedById: action === "submit" ? user.id : null,
         createdById: user.id,
         updatedById: user.id,
-      },
-      update: {
-        status: action === "submit" ? "SUBMITTED" : "DRAFT",
-        approvalStatus: "PENDING",
-        submittedAt: action === "submit" ? new Date() : null,
-        submittedById: action === "submit" ? user.id : null,
-        reviewedAt: null,
-        reviewedById: null,
-        reviewComment: null,
-        updatedById: user.id,
-      },
-      select: { id: true },
-    });
+        lockedById: action === "submit" ? null : user.id,
+        lockExpiresAt: nextLockExpiresAt,
+        version: 1,
+        lastAction: action === "submit" ? "SUBMITTED" : "SAVED",
+        lastActionAt: nextActionAt,
+          },
+          select: { id: true },
+        });
+      }
 
     await tx.shiftScheduleEntry.deleteMany({ where: { scheduleId: saved.id } });
     if (cleanEntries.length) {
@@ -359,9 +524,17 @@ export async function POST(req: NextRequest) {
     }
 
     return saved;
-  });
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "SCHEDULE_VERSION_CONFLICT") {
+      return NextResponse.json({
+        error: "This schedule was updated by another user. Reload the latest version before saving.",
+      }, { status: 409 });
+    }
+    throw error;
+  }
 
-  const result = await getSchedulePayload(branchId, month);
+  const result = await getSchedulePayload(branchId, month, { currentUserId: user.id });
   if (result.error) return result.error;
   return NextResponse.json({ ...result.payload, schedule: { ...result.payload?.schedule, id: schedule.id } });
 }
