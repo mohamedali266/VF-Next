@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import ThemeToggle from "@/components/theme/ThemeToggle";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -35,6 +36,10 @@ export default function LoginPage() {
 
   return (
     <div className="login-page">
+      <div className="login-theme-toggle">
+        <ThemeToggle />
+      </div>
+
       {/* Background */}
       <div className="login-bg">
         <div className="login-bg-orb login-bg-orb-1" />

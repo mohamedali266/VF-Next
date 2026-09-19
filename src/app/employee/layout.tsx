@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Image from "next/image";
 import EmployeeBottomNav from "@/components/layout/EmployeeBottomNav";
 import NotificationBell from "@/components/notifications/NotificationBell";
+import ThemeToggle from "@/components/theme/ThemeToggle";
 
 export default async function EmployeeLayout({
   children,
@@ -40,6 +41,7 @@ export default async function EmployeeLayout({
             </div>
           </div>
           <div className="vf-header-actions">
+            <ThemeToggle />
             <NotificationBell />
             <div style={{
               background: "rgba(196,30,58,0.1)",

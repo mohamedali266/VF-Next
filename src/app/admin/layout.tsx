@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import AdminBottomNav from "@/components/layout/AdminBottomNav";
 import NotificationBell from "@/components/notifications/NotificationBell";
+import ThemeToggle from "@/components/theme/ThemeToggle";
 import Image from "next/image";
 import { redirect } from "next/navigation";
 
@@ -30,6 +31,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             </div>
           </div>
           <div className="vf-header-actions">
+            <ThemeToggle />
             <NotificationBell />
             <div style={{
               background: "linear-gradient(135deg, var(--vf-red), var(--vf-red-dark))",

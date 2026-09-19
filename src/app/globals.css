@@ -44,6 +44,38 @@
   --radius-full:      9999px;
 }
 
+html[data-theme="light"] {
+  color-scheme: light;
+
+  --vf-red:          #E60000;
+  --vf-red-dark:     #B80000;
+  --vf-red-darker:   #8E0000;
+  --vf-red-light:    #E60000;
+  --vf-red-glow:     rgba(230, 0, 0, 0.18);
+  --vf-red-subtle:   rgba(230, 0, 0, 0.075);
+
+  --vf-bg:           #F7F8FA;
+  --vf-bg-2:         #FFFFFF;
+  --vf-surface:      #FFFFFF;
+  --vf-surface-2:    #F1F3F6;
+  --vf-surface-3:    #E7EBF0;
+
+  --vf-border:       #DDE3EA;
+  --vf-border-light: #C8D0DA;
+
+  --vf-text:         #17202A;
+  --vf-text-2:       #4A5565;
+  --vf-text-muted:   #7A8594;
+
+  --vf-success:      #128A3A;
+  --vf-warning:      #B86E00;
+  --vf-error:        #D01919;
+
+  --shift-am:        #B86E00;
+  --shift-pm:        #0F5CC9;
+  --shift-bw:        #6B3FD6;
+}
+
 /* ─── Base Reset ─── */
 * {
   box-sizing: border-box;
@@ -84,6 +116,77 @@ h1, h2, h3, h4, h5, h6 {
   display: flex;
   align-items: center;
   gap: 0.625rem;
+}
+
+.vf-theme-toggle {
+  width: 54px;
+  height: 40px;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 999px;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04)),
+    rgba(255,255,255,0.065);
+  color: var(--vf-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+  padding: 0;
+}
+
+.vf-theme-toggle:hover {
+  transform: translateY(-1px);
+  border-color: rgba(224,35,71,0.45);
+  box-shadow: 0 8px 22px rgba(196,30,58,0.16);
+}
+
+.vf-theme-toggle-track {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.28);
+  box-shadow: inset 0 1px 4px rgba(0,0,0,0.28);
+}
+
+.vf-theme-toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #fff, #d6dbe5);
+  color: #111827;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 5px 12px rgba(0,0,0,0.24);
+  transition: transform 0.24s cubic-bezier(.2,.8,.2,1), background 0.2s ease, color 0.2s ease;
+}
+
+html[data-theme="light"] .vf-theme-toggle {
+  border-color: rgba(230,0,0,0.18);
+  background: linear-gradient(135deg, #fff, #f3f5f8);
+  box-shadow: 0 8px 24px rgba(16,24,40,0.08);
+}
+
+html[data-theme="light"] .vf-theme-toggle-track {
+  background: rgba(230,0,0,0.15);
+  box-shadow: inset 0 1px 4px rgba(155,0,0,0.16);
+}
+
+html[data-theme="light"] .vf-theme-toggle-thumb {
+  transform: translateX(18px);
+  background: linear-gradient(135deg, var(--vf-red), #ff4b4b);
+  color: #fff;
+}
+
+.login-theme-toggle {
+  position: fixed;
+  top: max(1rem, calc(env(safe-area-inset-top) + 0.75rem));
+  left: 1rem;
+  z-index: 20;
 }
 
 .notification-shell {
@@ -3286,6 +3389,265 @@ h1, h2, h3, h4, h5, h6 {
     font-weight: 900;
     text-align: center;
   }
+}
+
+/* Light mode coverage */
+html[data-theme="light"] body {
+  background:
+    radial-gradient(circle at top right, rgba(230, 0, 0, 0.08), transparent 34rem),
+    linear-gradient(180deg, #fff, var(--vf-bg) 18rem);
+  color: var(--vf-text);
+}
+
+html[data-theme="light"] ::-webkit-scrollbar-track {
+  background: #eef1f5;
+}
+
+html[data-theme="light"] .vf-page {
+  background:
+    radial-gradient(circle at top right, rgba(230, 0, 0, 0.09), transparent 30rem),
+    linear-gradient(180deg, #fff 0%, var(--vf-bg) 24rem);
+}
+
+html[data-theme="light"] .vf-header-gradient {
+  background:
+    linear-gradient(135deg, rgba(230, 0, 0, 0.98), rgba(190, 0, 0, 0.94)),
+    #e60000;
+  border-bottom-color: rgba(142, 0, 0, 0.2);
+  box-shadow: 0 10px 28px rgba(230, 0, 0, 0.18);
+}
+
+html[data-theme="light"] .vf-header-gradient :is(div, span) {
+  color: rgba(255,255,255,0.86) !important;
+}
+
+html[data-theme="light"] .vf-header-gradient [style*="color: var(--vf-text)"] {
+  color: #fff !important;
+}
+
+html[data-theme="light"] .vf-header-gradient [style*="color: var(--vf-text-muted)"] {
+  color: rgba(255,255,255,0.68) !important;
+}
+
+html[data-theme="light"] .vf-header-gradient .vf-theme-toggle-thumb {
+  color: #fff !important;
+}
+
+html[data-theme="light"] .vf-card,
+html[data-theme="light"] .vf-card-glass,
+html[data-theme="light"] .notification-composer,
+html[data-theme="light"] .notification-recent,
+html[data-theme="light"] .users-modal-card,
+html[data-theme="light"] .daily-modal-card,
+html[data-theme="light"] .store-card,
+html[data-theme="light"] .area-store-card,
+html[data-theme="light"] .schedule-status-card,
+html[data-theme="light"] .schedule-print-area,
+html[data-theme="light"] .schedule-day-card {
+  background: rgba(255,255,255,0.92);
+  border-color: rgba(197, 207, 219, 0.95);
+  box-shadow: 0 18px 45px rgba(16, 24, 40, 0.08);
+}
+
+html[data-theme="light"] .vf-card:hover {
+  border-color: rgba(230, 0, 0, 0.22);
+  box-shadow: 0 18px 48px rgba(230, 0, 0, 0.08);
+}
+
+html[data-theme="light"] .vf-input,
+html[data-theme="light"] .notification-composer input,
+html[data-theme="light"] .notification-composer textarea,
+html[data-theme="light"] .notification-composer select,
+html[data-theme="light"] .schedule-shift-cell select,
+html[data-theme="light"] .schedule-day-card select {
+  background: #fff;
+  border-color: #d7dee8;
+  color: var(--vf-text);
+  box-shadow: inset 0 1px 0 rgba(16,24,40,0.02);
+}
+
+html[data-theme="light"] :is(input, textarea)::placeholder {
+  color: #98A2B3;
+}
+
+html[data-theme="light"] select option,
+html[data-theme="light"] .notification-composer select option,
+html[data-theme="light"] .schedule-shift-cell select option,
+html[data-theme="light"] .schedule-day-card select option {
+  background: #fff;
+  color: #17202A;
+}
+
+html[data-theme="light"] .vf-btn-ghost,
+html[data-theme="light"] .priority-picker button,
+html[data-theme="light"] .notification-actions button {
+  background: #fff;
+  border-color: #d7dee8;
+  color: var(--vf-text-2);
+}
+
+html[data-theme="light"] .vf-btn-ghost:hover,
+html[data-theme="light"] .priority-picker button.active {
+  background: var(--vf-red-subtle);
+  border-color: rgba(230,0,0,0.28);
+  color: var(--vf-red);
+}
+
+html[data-theme="light"] :is(.daily-hero, .admin-notifications-hero, .task-hero) {
+  background:
+    radial-gradient(circle at top left, rgba(255,255,255,0.42), transparent 22rem),
+    linear-gradient(135deg, rgba(230,0,0,0.12), rgba(255,255,255,0.96) 58%);
+  border-color: rgba(230,0,0,0.2);
+  box-shadow: 0 22px 55px rgba(230,0,0,0.08);
+}
+
+html[data-theme="light"] :is(.daily-hero h1, .admin-notifications-hero h1, .task-empty-state h2, .task-editor-head h2, .daily-section-title, .daily-modal-card h3, .sms-summary-card strong, .users-admin-head h1, .users-modal-head h2, .schedule-print-title h2, .schedule-person-head strong, .vf-nav-drawer-head strong, .notification-panel-head h2, .notification-recent-head h2) {
+  color: var(--vf-text);
+}
+
+html[data-theme="light"] :is(.daily-score, .notification-hero-stat, .task-actions) {
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.82), rgba(255,255,255,0.54)),
+    rgba(255,255,255,0.86);
+  border-color: rgba(197,207,219,0.88);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.8), 0 14px 34px rgba(16,24,40,0.08);
+}
+
+html[data-theme="light"] :is(.daily-score strong, .notification-hero-stat strong) {
+  color: var(--vf-text);
+}
+
+html[data-theme="light"] .task-library-picker .vf-input {
+  background: #fff;
+}
+
+html[data-theme="light"] :is(.task-row-card, .task-group-selection, .task-group-selection label, .schedule-table tfoot td, .daily-history-list button, .notification-recent-card, .notification-recent-empty, .users-store-group-row td) {
+  background: #fff;
+  border-color: #dce3ec;
+}
+
+html[data-theme="light"] :is(.task-row-body strong, .task-group-selection-head strong, .task-group-selection label span, .store-card-head h2, .store-team strong, .notification-recent-card strong) {
+  color: var(--vf-text);
+}
+
+html[data-theme="light"] .vf-table th,
+html[data-theme="light"] .schedule-table th {
+  background: linear-gradient(180deg, #f5f7fa, #eef2f6);
+  color: var(--vf-text-2);
+  border-color: #dbe2eb;
+}
+
+html[data-theme="light"] .vf-table td,
+html[data-theme="light"] .schedule-table td {
+  color: var(--vf-text);
+  border-color: #e4e9f0;
+}
+
+html[data-theme="light"] .vf-table tr:hover td {
+  background: #fff6f6;
+}
+
+html[data-theme="light"] .vf-bottom-nav,
+html[data-theme="light"] .vf-nav-drawer,
+html[data-theme="light"] .notification-panel {
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.92), rgba(255,255,255,0.68)),
+    rgba(255,255,255,0.86);
+  border-color: rgba(198, 208, 220, 0.9);
+  box-shadow: 0 18px 55px rgba(16,24,40,0.14), inset 0 1px 0 rgba(255,255,255,0.9);
+}
+
+html[data-theme="light"] .vf-bottom-nav-item.active,
+html[data-theme="light"] .vf-nav-drawer-link.active {
+  background: rgba(230,0,0,0.09);
+  color: var(--vf-red);
+}
+
+html[data-theme="light"] .vf-nav-scrim,
+html[data-theme="light"] .users-modal,
+html[data-theme="light"] .daily-modal {
+  background: rgba(15,23,42,0.34);
+}
+
+html[data-theme="light"] .vf-nav-drawer-head button,
+html[data-theme="light"] .notification-trigger,
+html[data-theme="light"] .notification-icon-btn,
+html[data-theme="light"] .notification-combobox > button {
+  background: #fff;
+  border-color: rgba(210,218,228,0.95);
+  color: var(--vf-text);
+}
+
+html[data-theme="light"] .notification-badge {
+  box-shadow: 0 0 0 3px #fff, 0 7px 20px rgba(230,0,0,0.28);
+}
+
+html[data-theme="light"] .notification-combobox-menu {
+  background: #fff;
+  border-color: rgba(230,0,0,0.24);
+  box-shadow: 0 20px 45px rgba(16,24,40,0.15);
+}
+
+html[data-theme="light"] .notification-combobox-menu button,
+html[data-theme="light"] .notification-combobox-empty {
+  color: var(--vf-text);
+}
+
+html[data-theme="light"] .notification-combobox-menu button:hover,
+html[data-theme="light"] .notification-combobox-menu button.selected {
+  background: rgba(230,0,0,0.08);
+  color: var(--vf-red);
+}
+
+html[data-theme="light"] .notification-permission-card {
+  background: linear-gradient(135deg, rgba(14,165,233,0.1), rgba(255,255,255,0.9));
+}
+
+html[data-theme="light"] .login-page {
+  background:
+    radial-gradient(circle at top right, rgba(230,0,0,0.14), transparent 28rem),
+    linear-gradient(180deg, #fff, #f6f7f9);
+}
+
+html[data-theme="light"] .login-bg-orb {
+  opacity: 0.42;
+}
+
+html[data-theme="light"] .login-bg-grid {
+  opacity: 0.16;
+}
+
+html[data-theme="light"] :is(.login-card, .login-input-wrapper) {
+  background: rgba(255,255,255,0.9);
+  border-color: rgba(210,218,228,0.9);
+  box-shadow: 0 24px 70px rgba(16,24,40,0.12);
+}
+
+html[data-theme="light"] :is(.login-title, .login-logo-title) {
+  color: var(--vf-text);
+}
+
+html[data-theme="light"] .schedule-day-card.is-invalid,
+html[data-theme="light"] .schedule-invalid-row td {
+  background: rgba(230,0,0,0.09) !important;
+}
+
+html[data-theme="light"] .schedule-count-bad {
+  background: rgba(230,0,0,0.16) !important;
+  color: var(--vf-red) !important;
+}
+
+html[data-theme="light"] .vf-alert-success {
+  color: #087A35;
+}
+
+html[data-theme="light"] .vf-alert-error,
+html[data-theme="light"] .notification-status.error {
+  color: #B42318;
+}
+
+html[data-theme="light"] .notification-status.success {
+  color: #087A35;
 }
 
 @media print {

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Image from "next/image";
 import AreaBottomNav from "@/components/layout/AreaBottomNav";
 import NotificationBell from "@/components/notifications/NotificationBell";
+import ThemeToggle from "@/components/theme/ThemeToggle";
 
 export default async function AreaLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -31,6 +32,7 @@ export default async function AreaLayout({ children }: { children: React.ReactNo
             </div>
           </div>
           <div className="vf-header-actions">
+            <ThemeToggle />
             <NotificationBell />
             <div style={{
               background: "linear-gradient(135deg, rgba(196,30,58,0.2), rgba(196,30,58,0.1))",
