@@ -249,7 +249,7 @@ export default function StoreClient({ storeId }: { storeId: string }) {
       <div className="animate-fade-up">
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
           <span style={{ fontSize: "1.375rem" }}>🏪</span>
-          <h1 style={{ fontSize: "1.25rem", fontWeight: "800", color: "#fff" }}>
+          <h1 style={{ fontSize: "1.25rem", fontWeight: "800", color: "var(--vf-text)" }}>
             {data?.branch.name ?? "Store"}
           </h1>
           {data?.branch.code && (
@@ -352,7 +352,7 @@ export default function StoreClient({ storeId }: { storeId: string }) {
                   {m.name.charAt(0).toUpperCase()}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: "0.9375rem", fontWeight: "700", color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <div style={{ fontSize: "0.9375rem", fontWeight: "700", color: "var(--vf-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {m.name}
                   </div>
                   <div style={{ fontSize: "0.6875rem", color: "var(--vf-text-muted)", marginTop: "0.125rem" }}>
@@ -379,7 +379,7 @@ export default function StoreClient({ storeId }: { storeId: string }) {
         <div className="animate-fade-up" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           <div className="vf-card" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem" }}>
             <div>
-              <div style={{ fontSize: "0.875rem", fontWeight: "700", color: "#fff" }}>📱 Final SMS Message</div>
+              <div style={{ fontSize: "0.875rem", fontWeight: "700", color: "var(--vf-text)" }}>📱 Final SMS Message</div>
               <div style={{ fontSize: "0.75rem", color: "var(--vf-text-muted)", marginTop: "0.125rem" }}>
                 {data?.reportsCount ?? 0} reports aggregated · Read-only
               </div>
@@ -423,7 +423,7 @@ export default function StoreClient({ storeId }: { storeId: string }) {
         <div className="animate-fade-up" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           <div className="vf-card" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem" }}>
             <div>
-              <div style={{ fontSize: "0.875rem", fontWeight: "700", color: "#fff" }}>📋 Health Report</div>
+              <div style={{ fontSize: "0.875rem", fontWeight: "700", color: "var(--vf-text)" }}>📋 Health Report</div>
               <div style={{ fontSize: "0.75rem", color: "var(--vf-text-muted)", marginTop: "0.125rem" }}>
                 {data?.checksCount ?? 0} health checks · Read-only
               </div>
@@ -447,7 +447,7 @@ export default function StoreClient({ storeId }: { storeId: string }) {
           ) : (
             <>
               <div className="vf-card" style={{ padding: "1rem", display: "flex", flexDirection: "column", gap: "0.625rem" }}>
-                <div style={{ fontSize: "0.875rem", fontWeight: "800", color: "#fff" }}>
+                <div style={{ fontSize: "0.875rem", fontWeight: "800", color: "var(--vf-text)" }}>
                   Submitted Health Checks
                 </div>
                 {healthSubmitters.map((record) => (
@@ -462,7 +462,7 @@ export default function StoreClient({ storeId }: { storeId: string }) {
                     border: "1px solid var(--vf-border)",
                   }}>
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ color: "#fff", fontWeight: "800", fontSize: "0.875rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <div style={{ color: "var(--vf-text)", fontWeight: "800", fontSize: "0.875rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {record.employee.name}
                       </div>
                       <div style={{ color: "var(--vf-text-muted)", fontSize: "0.6875rem", marginTop: "0.125rem" }}>
@@ -561,7 +561,7 @@ export default function StoreClient({ storeId }: { storeId: string }) {
 
           {/* 2) Detailed Breakdown Per Employee for Current Month */}
           <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-            <div className="vf-plain-section-title" style={{ fontSize: "0.9375rem", fontWeight: "800", color: "#fff", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <div className="vf-plain-section-title" style={{ fontSize: "0.9375rem", fontWeight: "800", color: "var(--vf-text)", display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <span>👥</span>
               <span>Agent RPM Breakdown — {data?.currentMonthLabel}</span>
             </div>
@@ -591,7 +591,7 @@ export default function StoreClient({ storeId }: { storeId: string }) {
                 >
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--vf-border)", paddingBottom: "0.5rem" }}>
                     <div>
-                      <div style={{ fontWeight: "800", color: "#fff", fontSize: "0.9375rem" }}>
+                      <div style={{ fontWeight: "800", color: "var(--vf-text)", fontSize: "0.9375rem" }}>
                         {emp.name} RPM
                       </div>
                       <div style={{ fontSize: "0.6875rem", color: "var(--vf-text-muted)", marginTop: "0.125rem" }}>
@@ -606,11 +606,11 @@ export default function StoreClient({ storeId }: { storeId: string }) {
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem", textAlign: "center" }}>
                     <div style={{ background: "var(--vf-surface-2)", borderRadius: "8px", padding: "0.5rem" }}>
                       <div style={{ fontSize: "0.625rem", color: "var(--vf-text-muted)" }}>Lines</div>
-                      <div style={{ fontSize: "0.9375rem", fontWeight: "800", color: "#fff" }}>{emp.lines}</div>
+                      <div style={{ fontSize: "0.9375rem", fontWeight: "800", color: "var(--vf-text)" }}>{emp.lines}</div>
                     </div>
                     <div style={{ background: "var(--vf-surface-2)", borderRadius: "8px", padding: "0.5rem" }}>
                       <div style={{ fontSize: "0.625rem", color: "var(--vf-text-muted)" }}>New VMT</div>
-                      <div style={{ fontSize: "0.9375rem", fontWeight: "800", color: "#fff" }}>{emp.newVmt}</div>
+                      <div style={{ fontSize: "0.9375rem", fontWeight: "800", color: "var(--vf-text)" }}>{emp.newVmt}</div>
                     </div>
                     <div style={{ background: "var(--vf-surface-2)", borderRadius: "8px", padding: "0.5rem" }}>
                       <div style={{ fontSize: "0.625rem", color: "var(--vf-text-muted)" }}>At Home</div>
@@ -640,7 +640,7 @@ export default function StoreClient({ storeId }: { storeId: string }) {
                   <div style={{ color: "var(--vf-red-light)", fontSize: "0.72rem", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.08em" }}>
                     Employee details
                   </div>
-                  <h3 style={{ color: "#fff", fontSize: "1rem", marginTop: "0.15rem" }}>{selectedEmployeeRpm.name}</h3>
+                  <h3 style={{ color: "var(--vf-text)", fontSize: "1rem", marginTop: "0.15rem" }}>{selectedEmployeeRpm.name}</h3>
                   <p style={{ color: "var(--vf-text-muted)", fontSize: "0.75rem", marginTop: "0.15rem" }}>
                     {selectedEmployeeRpm.reportsCount} reports in {data?.currentMonthLabel}
                   </p>
@@ -663,16 +663,16 @@ export default function StoreClient({ storeId }: { storeId: string }) {
                 ].map(([label, value]) => (
                   <div key={label} style={{ background: "var(--vf-surface-2)", border: "1px solid var(--vf-border)", borderRadius: "10px", padding: "0.65rem" }}>
                     <div style={{ color: "var(--vf-text-muted)", fontSize: "0.64rem", fontWeight: 800 }}>{label}</div>
-                    <div style={{ color: "#fff", fontSize: "1rem", fontWeight: 900, marginTop: "0.15rem" }}>{value}</div>
+                    <div style={{ color: "var(--vf-text)", fontSize: "1rem", fontWeight: 900, marginTop: "0.15rem" }}>{value}</div>
                   </div>
                 ))}
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: "0.45rem" }}>
-                <div style={{ color: "#fff", fontSize: "0.86rem", fontWeight: 900 }}>Daily reports</div>
+                <div style={{ color: "var(--vf-text)", fontSize: "0.86rem", fontWeight: 900 }}>Daily reports</div>
                 {selectedEmployeeReports.map((report) => (
                   <div key={report.id} style={{ display: "grid", gridTemplateColumns: "96px repeat(4, minmax(0, 1fr))", gap: "0.45rem", alignItems: "center", padding: "0.55rem", borderRadius: "10px", background: "var(--vf-surface-2)", border: "1px solid var(--vf-border)", color: "var(--vf-text-2)", fontSize: "0.72rem", fontWeight: 800 }}>
-                    <strong style={{ color: "#fff" }}>{report.date}</strong>
+                    <strong style={{ color: "var(--vf-text)" }}>{report.date}</strong>
                     <span>Acq {(report.pre + report.f52 + report.f80 + report.aboveF115) + report.mnp + (report.newRed * 3) + report.conRed + report.newVmt}</span>
                     <span>VMT {report.newVmt}</span>
                     <span>Home {report.atHomeAch}</span>
@@ -762,7 +762,7 @@ export default function StoreClient({ storeId }: { storeId: string }) {
 
               {/* Per Employee Breakdown for Last Month */}
               <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                <div className="vf-plain-section-title" style={{ fontSize: "0.9375rem", fontWeight: "800", color: "#fff", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <div className="vf-plain-section-title" style={{ fontSize: "0.9375rem", fontWeight: "800", color: "var(--vf-text)", display: "flex", alignItems: "center", gap: "0.5rem" }}>
                   <span>👥</span>
                   <span>Agent Final RPM — {data?.lastMonthLabel}</span>
                 </div>
@@ -776,7 +776,7 @@ export default function StoreClient({ storeId }: { storeId: string }) {
                     <div key={emp.name} className="vf-card" style={{ padding: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--vf-border)", paddingBottom: "0.5rem" }}>
                         <div>
-                          <div style={{ fontWeight: "800", color: "#fff", fontSize: "0.9375rem" }}>
+                          <div style={{ fontWeight: "800", color: "var(--vf-text)", fontSize: "0.9375rem" }}>
                             {emp.name} RPM
                           </div>
                           <div style={{ fontSize: "0.6875rem", color: "var(--vf-text-muted)", marginTop: "0.125rem" }}>
@@ -791,11 +791,11 @@ export default function StoreClient({ storeId }: { storeId: string }) {
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem", textAlign: "center" }}>
                         <div style={{ background: "var(--vf-surface-2)", borderRadius: "8px", padding: "0.5rem" }}>
                           <div style={{ fontSize: "0.625rem", color: "var(--vf-text-muted)" }}>Lines</div>
-                          <div style={{ fontSize: "0.9375rem", fontWeight: "800", color: "#fff" }}>{emp.lines}</div>
+                          <div style={{ fontSize: "0.9375rem", fontWeight: "800", color: "var(--vf-text)" }}>{emp.lines}</div>
                         </div>
                         <div style={{ background: "var(--vf-surface-2)", borderRadius: "8px", padding: "0.5rem" }}>
                           <div style={{ fontSize: "0.625rem", color: "var(--vf-text-muted)" }}>New VMT</div>
-                          <div style={{ fontSize: "0.9375rem", fontWeight: "800", color: "#fff" }}>{emp.newVmt}</div>
+                          <div style={{ fontSize: "0.9375rem", fontWeight: "800", color: "var(--vf-text)" }}>{emp.newVmt}</div>
                         </div>
                         <div style={{ background: "var(--vf-surface-2)", borderRadius: "8px", padding: "0.5rem" }}>
                           <div style={{ fontSize: "0.625rem", color: "var(--vf-text-muted)" }}>At Home</div>
