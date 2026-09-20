@@ -251,7 +251,7 @@ export default function SrSkuClient() {
                         return (
                           <div key={k} style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", fontSize: "0.75rem" }}>
                             <span style={{ color: "var(--vf-text-muted)", textTransform: "capitalize" }}>{k}:</span>
-                            <span style={{ color: "#fff", fontWeight: "600", textAlign: "left", wordBreak: "break-word" }}>{v}</span>
+                            <span style={{ color: "var(--vf-text)", fontWeight: "600", textAlign: "left", wordBreak: "break-word" }}>{v}</span>
                           </div>
                         );
                       })}
@@ -310,7 +310,7 @@ export default function SrSkuClient() {
                         paddingBottom: isTitle ? "0.375rem" : 0, marginBottom: isTitle ? "0.25rem" : 0
                       }}>
                         <span style={{ fontSize: "0.75rem", color: "var(--vf-text-muted)", textTransform: "capitalize" }}>{k}:</span>
-                        <span style={{ fontSize: isTitle ? "0.875rem" : "0.75rem", fontWeight: isTitle ? "800" : "600", color: isTitle ? "var(--vf-red-light)" : "#fff", textAlign: "left", wordBreak: "break-word" }}>{v}</span>
+                        <span style={{ fontSize: isTitle ? "0.875rem" : "0.75rem", fontWeight: isTitle ? "800" : "600", color: isTitle ? "var(--vf-red-light)" : "var(--vf-text)", textAlign: "left", wordBreak: "break-word" }}>{v}</span>
                       </div>
                     );
                   })}
