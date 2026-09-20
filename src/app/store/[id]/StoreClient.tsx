@@ -504,7 +504,7 @@ export default function StoreClient({ storeId }: { storeId: string }) {
         <div className="animate-fade-up" style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
 
           {/* 1) Store Total RPM Summary */}
-          <div className="vf-card" style={{
+          <div className="vf-card vf-colored-card" style={{
             background: "var(--vf-red-card-gradient)",
             borderColor: "rgba(196,30,58,0.4)",
           }}>
@@ -520,7 +520,7 @@ export default function StoreClient({ storeId }: { storeId: string }) {
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.625rem" }}>
-              <div style={{ background: "rgba(196,30,58,0.2)", borderRadius: "10px", padding: "0.75rem", border: "1px solid rgba(196,30,58,0.4)" }}>
+              <div className="vf-colored-card" style={{ background: "rgba(196,30,58,0.2)", borderRadius: "10px", padding: "0.75rem", border: "1px solid rgba(196,30,58,0.4)" }}>
                 <div style={{ fontSize: "0.6875rem", color: "var(--vf-red-light)", fontWeight: "600" }}>Acquisition</div>
                 <div style={{ fontSize: "1.375rem", fontWeight: "800", color: "#fff", marginTop: "0.125rem" }}>
                   {currentMonthRpm.storeTotals.acquisition}
@@ -561,7 +561,7 @@ export default function StoreClient({ storeId }: { storeId: string }) {
 
           {/* 2) Detailed Breakdown Per Employee for Current Month */}
           <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-            <div style={{ fontSize: "0.9375rem", fontWeight: "800", color: "#fff", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <div className="vf-plain-section-title" style={{ fontSize: "0.9375rem", fontWeight: "800", color: "#fff", display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <span>👥</span>
               <span>Agent RPM Breakdown — {data?.currentMonthLabel}</span>
             </div>
@@ -705,7 +705,7 @@ export default function StoreClient({ storeId }: { storeId: string }) {
           ) : (
             <>
               {/* Last Month Store Summary */}
-              <div className="vf-card" style={{
+              <div className="vf-card vf-colored-card" style={{
                 background: "var(--vf-alt-card-gradient)",
                 borderColor: "rgba(139,92,246,0.4)",
               }}>
@@ -721,7 +721,7 @@ export default function StoreClient({ storeId }: { storeId: string }) {
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.625rem" }}>
-                  <div style={{ background: "rgba(139,92,246,0.2)", borderRadius: "10px", padding: "0.75rem", border: "1px solid rgba(139,92,246,0.4)" }}>
+                  <div className="vf-colored-card" style={{ background: "rgba(139,92,246,0.2)", borderRadius: "10px", padding: "0.75rem", border: "1px solid rgba(139,92,246,0.4)" }}>
                     <div style={{ fontSize: "0.6875rem", color: "#8b5cf6", fontWeight: "600" }}>Final Acquisition</div>
                     <div style={{ fontSize: "1.375rem", fontWeight: "800", color: "#fff", marginTop: "0.125rem" }}>
                       {lastMonthRpm.storeTotals.acquisition}
@@ -762,7 +762,7 @@ export default function StoreClient({ storeId }: { storeId: string }) {
 
               {/* Per Employee Breakdown for Last Month */}
               <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                <div style={{ fontSize: "0.9375rem", fontWeight: "800", color: "#fff", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <div className="vf-plain-section-title" style={{ fontSize: "0.9375rem", fontWeight: "800", color: "#fff", display: "flex", alignItems: "center", gap: "0.5rem" }}>
                   <span>👥</span>
                   <span>Agent Final RPM — {data?.lastMonthLabel}</span>
                 </div>

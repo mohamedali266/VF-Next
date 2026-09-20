@@ -71,7 +71,7 @@ export default function EmployeeDashboardClient({ userName, todayText, branchId 
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-      <div className="vf-card animate-fade-up" style={{
+      <div className="vf-card vf-colored-card animate-fade-up" style={{
         background: "var(--vf-hero-card-gradient)",
         borderColor: "rgba(196,30,58,0.25)",
       }}>
@@ -94,7 +94,7 @@ export default function EmployeeDashboardClient({ userName, todayText, branchId 
           <button
             type="button"
             onClick={() => setTelegramModalOpen(true)}
-            className="vf-card animate-fade-up"
+            className="vf-card vf-colored-card animate-fade-up"
             style={{
               minHeight: 140,
               display: "flex",
@@ -119,7 +119,7 @@ export default function EmployeeDashboardClient({ userName, todayText, branchId 
 
           {actions.map((item, index) => (
             <Link key={item.id} href={item.href} style={{ textDecoration: "none" }}>
-              <div className={`vf-card animate-fade-up animate-fade-up-delay-${index + 1}`} style={{
+              <div className={`vf-card ${item.id === "store" ? "vf-colored-card" : ""} animate-fade-up animate-fade-up-delay-${index + 1}`} style={{
                 minHeight: 140,
                 display: "flex",
                 flexDirection: "column",
@@ -139,7 +139,7 @@ export default function EmployeeDashboardClient({ userName, todayText, branchId 
           {/* Reset Password Card */}
           <div
             onClick={() => setResetModalOpen(true)}
-            className="vf-card animate-fade-up"
+            className="vf-card vf-colored-card animate-fade-up"
             style={{
               minHeight: 140,
               display: "flex",
