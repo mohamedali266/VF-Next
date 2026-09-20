@@ -127,7 +127,11 @@ export default function NotificationBell() {
         if (hasPushSupport && config.enabled) {
           const registration = await navigator.serviceWorker.getRegistration("/vf-push-sw.js");
           const subscription = await registration?.pushManager.getSubscription();
-          if (mountedRef.current) setPushEnabled(Boolean(subscription && Notification.permission === "granted"));
+          if (mountedRef.current) {
+            const isEnabled = Boolean(subscription && Notification.permission === "granted");
+            setPushEnabled(isEnabled);
+            if (Notification.permission === "granted") setShowPermissionNudge(false);
+          }
         }
 
         const dismissedThisSession = window.sessionStorage.getItem("vf-notification-nudge-dismissed") === "1";
@@ -148,9 +152,20 @@ export default function NotificationBell() {
     fetchNotifications();
     const interval = window.setInterval(() => fetchNotifications(true), 5000);
 
-    const refreshOnFocus = () => fetchNotifications(true);
+    const refreshPermissionState = () => {
+      if (!("Notification" in window)) return;
+      setSystemPermission(Notification.permission);
+      if (Notification.permission === "granted") setShowPermissionNudge(false);
+    };
+    const refreshOnFocus = () => {
+      refreshPermissionState();
+      fetchNotifications(true);
+    };
     const refreshOnVisible = () => {
-      if (document.visibilityState === "visible") fetchNotifications(true);
+      if (document.visibilityState === "visible") {
+        refreshPermissionState();
+        fetchNotifications(true);
+      }
     };
 
     window.addEventListener("focus", refreshOnFocus);
@@ -189,6 +204,7 @@ export default function NotificationBell() {
         setPushBusy(false);
         return;
       }
+      setShowPermissionNudge(false);
 
       const registration = await navigator.serviceWorker.register("/vf-push-sw.js", { scope: "/" });
       const existingSubscription = await registration.pushManager.getSubscription();
@@ -206,7 +222,6 @@ export default function NotificationBell() {
       if (!response.ok) throw new Error("Subscription save failed");
 
       setPushEnabled(true);
-      setShowPermissionNudge(false);
       setPushMessage("Device alerts are enabled.");
       new Notification("VF-Next alerts enabled", {
         body: "You will receive notifications even when the app is in the background.",
@@ -256,26 +271,44 @@ export default function NotificationBell() {
       </button>
 
       {showPermissionNudge && !open && (
-        <div className="notification-permission-nudge" role="status">
-          <div>
-            <strong>Enable phone alerts</strong>
-            <span>Receive lock-screen updates with the VF-Next alert sound.</span>
-          </div>
-          <div className="notification-nudge-actions">
-            <button className="notification-nudge-primary" type="button" onClick={enableSystemAlerts} disabled={pushBusy}>
-              {pushBusy ? <Loader2 size={14} className="notification-spin" /> : <Volume2 size={14} />}
-              Allow
-            </button>
+        <div className="notification-permission-nudge" role="dialog" aria-modal="true" aria-label="Enable notifications">
+          <div className="notification-permission-modal">
             <button
-              className="notification-nudge-secondary"
+              className="notification-permission-close"
               type="button"
               onClick={() => {
                 window.sessionStorage.setItem("vf-notification-nudge-dismissed", "1");
                 setShowPermissionNudge(false);
               }}
+              aria-label="Close notification permission prompt"
             >
-              Later
+              <X size={18} />
             </button>
+            <div className="notification-permission-orb">
+              <Bell size={25} />
+            </div>
+            <div className="notification-permission-copy">
+              <span>Stay updated</span>
+              <strong>Enable VF-Next notifications</strong>
+              <p>Receive lock-screen alerts for schedule updates, urgent tasks, and daily reminders with the VF-Next sound.</p>
+            </div>
+            {pushMessage && <em>{pushMessage}</em>}
+            <div className="notification-nudge-actions">
+              <button className="notification-nudge-primary" type="button" onClick={enableSystemAlerts} disabled={pushBusy}>
+                {pushBusy ? <Loader2 size={16} className="notification-spin" /> : <Volume2 size={16} />}
+                {pushBusy ? "Enabling..." : "Allow notifications"}
+              </button>
+              <button
+                className="notification-nudge-secondary"
+                type="button"
+                onClick={() => {
+                  window.sessionStorage.setItem("vf-notification-nudge-dismissed", "1");
+                  setShowPermissionNudge(false);
+                }}
+              >
+                Not now
+              </button>
+            </div>
           </div>
         </div>
       )}
