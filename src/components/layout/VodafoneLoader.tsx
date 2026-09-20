@@ -11,19 +11,19 @@ type VodafoneLoaderProps = {
 export function VodafoneLoader({ fullscreen = false, label = "Loading" }: VodafoneLoaderProps) {
   return (
     <div className={fullscreen ? "vf-loader-overlay" : "vf-loader-inline"} role="status" aria-live="polite">
-      <div className="vf-loader-card">
-        <svg className="vf-svg-loader" viewBox="0 0 500 500" width="150" height="150" aria-hidden="true">
+      <div className="vf-loader-mark">
+        <svg className="vf-svg-loader" viewBox="0 0 500 500" width="190" height="190" aria-hidden="true">
           <g className="vf-loader-rings">
-            <path className="vf-loader-path vf-ring-1" d="M 250 45 A 205 205 0 0 1 455 250" fill="none" strokeWidth="4" strokeLinecap="round" />
-            <path className="vf-loader-path vf-ring-2" d="M 250 25 A 225 225 0 0 1 475 250" fill="none" strokeWidth="3" strokeLinecap="round" strokeDasharray="100 40" />
-            <path className="vf-loader-path vf-ring-3" d="M 50 250 A 200 200 0 0 0 250 455" fill="none" strokeWidth="3" strokeLinecap="round" strokeDasharray="80 30" />
-            <path className="vf-loader-path vf-sub-line-1" d="M 250,55 C 370,55 435,140 435,250" fill="none" strokeWidth="5" strokeLinecap="round" />
-            <path className="vf-loader-path vf-sub-line-2" d="M 250,30 C 400,30 460,120 460,250" fill="none" strokeWidth="4" strokeLinecap="round" strokeDasharray="120 50" />
+            <path className="vf-loader-path vf-ring-1" d="M 82 355 A 214 214 0 0 1 390 84" fill="none" strokeWidth="7" strokeLinecap="round" />
+            <path className="vf-loader-path vf-ring-2" d="M 52 386 A 248 248 0 0 1 420 52" fill="none" strokeWidth="5" strokeLinecap="round" strokeDasharray="164 48" />
+            <path className="vf-loader-path vf-ring-3" d="M 87 420 A 276 276 0 0 0 456 170" fill="none" strokeWidth="5" strokeLinecap="round" strokeDasharray="128 54" />
+            <path className="vf-loader-path vf-sub-line-1" d="M 284 116 C 366 128 424 195 432 286" fill="none" strokeWidth="6" strokeLinecap="round" />
+            <path className="vf-loader-path vf-sub-line-2" d="M 302 154 C 364 171 405 223 408 294" fill="none" strokeWidth="5" strokeLinecap="round" strokeDasharray="92 38" />
           </g>
 
           <g className="vf-loader-core">
-            <path className="vf-loader-path vf-core-main" d="M 250,80 C 140,80 80,160 80,270 C 80,380 160,440 270,440 C 350,440 410,390 430,310" fill="none" strokeWidth="12" strokeLinecap="round" />
-            <path className="vf-core-tail" d="M 270,120 C 320,120 360,150 380,190 L 320,190 C 300,165 285,150 260,150 Z" />
+            <path className="vf-loader-path vf-core-main" d="M 317 105 C 240 82 143 126 109 238 C 66 378 170 451 292 428 C 386 410 435 319 405 235 C 389 191 351 161 300 151 C 286 148 282 128 317 105" fill="none" strokeWidth="22" strokeLinecap="round" strokeLinejoin="round" />
+            <path className="vf-loader-path vf-core-cut" d="M 312 154 C 350 166 378 194 391 233" fill="none" strokeWidth="12" strokeLinecap="round" />
           </g>
         </svg>
         <span className="vf-loader-label">{label}</span>
