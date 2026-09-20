@@ -35,6 +35,7 @@ export default function NotificationBell() {
   const [pushBusy, setPushBusy] = useState(false);
   const [pushMessage, setPushMessage] = useState("");
   const [vapidPublicKey, setVapidPublicKey] = useState("");
+  const [showPermissionNudge, setShowPermissionNudge] = useState(false);
   const mountedRef = useRef(true);
   const knownIdsRef = useRef<Set<string>>(new Set());
   const firstLoadRef = useRef(true);
@@ -57,6 +58,16 @@ export default function NotificationBell() {
       // Browsers may block audio until the user interacts with the page.
     }
   }, []);
+
+  function getActionLabel(link: string | null) {
+    if (!link) return "";
+    if (link.includes("health")) return "Submit health";
+    if (link.includes("daily-report")) return "Open report";
+    if (link.includes("tasks")) return "View tasks";
+    if (link.includes("schedule")) return "Open schedule";
+    if (link.includes("store")) return "Open store";
+    return "Open";
+  }
 
   const showSystemNotification = useCallback((notification: NotificationItem) => {
     if (!("Notification" in window) || Notification.permission !== "granted") return;
@@ -117,6 +128,17 @@ export default function NotificationBell() {
           const registration = await navigator.serviceWorker.getRegistration("/vf-push-sw.js");
           const subscription = await registration?.pushManager.getSubscription();
           if (mountedRef.current) setPushEnabled(Boolean(subscription && Notification.permission === "granted"));
+        }
+
+        const dismissedThisSession = window.sessionStorage.getItem("vf-notification-nudge-dismissed") === "1";
+        if (
+          hasPushSupport &&
+          config.enabled &&
+          Notification.permission !== "granted" &&
+          Notification.permission !== "denied" &&
+          !dismissedThisSession
+        ) {
+          setShowPermissionNudge(true);
         }
       })
       .catch(() => {
@@ -184,6 +206,7 @@ export default function NotificationBell() {
       if (!response.ok) throw new Error("Subscription save failed");
 
       setPushEnabled(true);
+      setShowPermissionNudge(false);
       setPushMessage("Device alerts are enabled.");
       new Notification("VF-Next alerts enabled", {
         body: "You will receive notifications even when the app is in the background.",
@@ -216,6 +239,7 @@ export default function NotificationBell() {
 
   function handleOpen() {
     setOpen((value) => !value);
+    setShowPermissionNudge(false);
     fetchNotifications(true);
   }
 
@@ -230,6 +254,31 @@ export default function NotificationBell() {
         <Bell size={18} />
         {unreadCount > 0 && <span className="notification-badge">{unreadLabel}</span>}
       </button>
+
+      {showPermissionNudge && !open && (
+        <div className="notification-permission-nudge" role="status">
+          <div>
+            <strong>Enable phone alerts</strong>
+            <span>Receive lock-screen updates with the VF-Next alert sound.</span>
+          </div>
+          <div className="notification-nudge-actions">
+            <button className="notification-nudge-primary" type="button" onClick={enableSystemAlerts} disabled={pushBusy}>
+              {pushBusy ? <Loader2 size={14} className="notification-spin" /> : <Volume2 size={14} />}
+              Allow
+            </button>
+            <button
+              className="notification-nudge-secondary"
+              type="button"
+              onClick={() => {
+                window.sessionStorage.setItem("vf-notification-nudge-dismissed", "1");
+                setShowPermissionNudge(false);
+              }}
+            >
+              Later
+            </button>
+          </div>
+        </div>
+      )}
 
       {open && (
         <div className="notification-panel" role="dialog" aria-label="Notification center">
@@ -290,7 +339,12 @@ export default function NotificationBell() {
                   <span className="notification-body">{notification.body}</span>
                   <span className="notification-meta">
                     {new Date(notification.createdAt).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
-                    {notification.link && <ExternalLink size={13} />}
+                    {notification.link && (
+                      <span className="notification-card-action">
+                        {getActionLabel(notification.link)}
+                        <ExternalLink size={13} />
+                      </span>
+                    )}
                   </span>
                 </button>
               ))

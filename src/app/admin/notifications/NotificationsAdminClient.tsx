@@ -5,7 +5,13 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useMemo, useState } from "react";
 
 type Role = "EMPLOYEE" | "TEAM_LEADER" | "MANAGER" | "AREA_MANAGER" | "ADMIN";
-type TargetType = "ALL" | "ROLE" | "USER" | "BRANCH" | "AREA";
+type SmartTargetType =
+  | "SMART_MISSING_HEALTH_TODAY"
+  | "SMART_MISSING_REPORT_TODAY"
+  | "SMART_PENDING_TASKS_TODAY"
+  | "SMART_MANAGERS_TEAM_LEADERS"
+  | "SMART_EMPLOYEES_WITHOUT_PUSH";
+type TargetType = "ALL" | "ROLE" | "USER" | "BRANCH" | "AREA" | SmartTargetType;
 type Priority = "INFO" | "SUCCESS" | "WARNING" | "CRITICAL";
 
 type UserOption = {
@@ -64,6 +70,61 @@ const priorities: { value: Priority; label: string; icon: typeof BellRing }[] = 
   { value: "WARNING", label: "Warning", icon: RadioTower },
   { value: "CRITICAL", label: "Critical", icon: ShieldAlert },
 ];
+
+const smartTargets: { value: SmartTargetType; label: string; hint: string }[] = [
+  { value: "SMART_MISSING_HEALTH_TODAY", label: "Missing Health today", hint: "Employees who have not submitted any Health Check today." },
+  { value: "SMART_MISSING_REPORT_TODAY", label: "Missing Daily Report today", hint: "Employees who have not submitted today's Daily Report." },
+  { value: "SMART_PENDING_TASKS_TODAY", label: "Pending Tasks today", hint: "Employees with pending submitted tasks for today." },
+  { value: "SMART_MANAGERS_TEAM_LEADERS", label: "Managers & Team Leaders", hint: "Store managers and team leaders only." },
+  { value: "SMART_EMPLOYEES_WITHOUT_PUSH", label: "Users without phone alerts", hint: "Active users who did not enable device notifications yet." },
+];
+
+const actionPresets = [
+  {
+    label: "Health reminder",
+    title: "Health Check required",
+    body: "Please submit your Health Check now so today's store report stays complete.",
+    priority: "WARNING" as Priority,
+    targetType: "SMART_MISSING_HEALTH_TODAY" as TargetType,
+    link: "/employee/health-check",
+  },
+  {
+    label: "Daily report reminder",
+    title: "Daily Report required",
+    body: "Please submit your Daily Report after finishing the Health Check.",
+    priority: "WARNING" as Priority,
+    targetType: "SMART_MISSING_REPORT_TODAY" as TargetType,
+    link: "/employee/daily-report",
+  },
+  {
+    label: "Task follow-up",
+    title: "Pending task follow-up",
+    body: "You still have pending tasks for today. Open your task checklist and update the status.",
+    priority: "INFO" as Priority,
+    targetType: "SMART_PENDING_TASKS_TODAY" as TargetType,
+    link: "/employee/tasks",
+  },
+  {
+    label: "Schedule review",
+    title: "Schedule update",
+    body: "Please review the latest shift schedule update.",
+    priority: "INFO" as Priority,
+    targetType: "ALL" as TargetType,
+    link: "/employee/schedule",
+  },
+  {
+    label: "Enable phone alerts",
+    title: "Enable VF-Next phone alerts",
+    body: "Turn on notifications to receive urgent updates even when VF-Next is running in the background.",
+    priority: "INFO" as Priority,
+    targetType: "SMART_EMPLOYEES_WITHOUT_PUSH" as TargetType,
+    link: "/employee",
+  },
+];
+
+function isSmartTarget(targetType: TargetType) {
+  return targetType.startsWith("SMART_");
+}
 
 function SearchableTargetSelect({
   label,
@@ -147,6 +208,17 @@ export default function NotificationsAdminClient({ users, branches, areas, notif
   const [sending, setSending] = useState(false);
   const [status, setStatus] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
+  function applyActionPreset(presetLabel: string) {
+    const preset = actionPresets.find((item) => item.label === presetLabel);
+    if (!preset) return;
+    setTitle(preset.title);
+    setBody(preset.body);
+    setPriority(preset.priority);
+    setTargetType(preset.targetType);
+    setTargetId("");
+    setLink(preset.link);
+  }
+
   const targetOptions = useMemo(() => {
     if (targetType === "USER") {
       return users.map((user) => ({
@@ -193,7 +265,8 @@ export default function NotificationsAdminClient({ users, branches, areas, notif
       const pushText = data.push?.skipped
         ? " Push delivery is waiting for VAPID keys."
         : ` Push sent to ${data.push?.sent ?? 0} device(s).`;
-      setStatus({ type: "success", text: `Notification sent and saved successfully.${pushText}` });
+      const savedText = data.notificationsCreated ? ` ${data.notificationsCreated} targeted notification(s) saved.` : "";
+      setStatus({ type: "success", text: `Notification sent and saved successfully.${savedText}${pushText}` });
       setTitle("");
       setBody("");
       setLink("");
@@ -224,6 +297,14 @@ export default function NotificationsAdminClient({ users, branches, areas, notif
 
       <div className="admin-notifications-grid">
         <form className="notification-composer" onSubmit={submit}>
+          <label>
+            Action preset
+            <select defaultValue="" onChange={(event) => applyActionPreset(event.target.value)}>
+              <option value="">Custom notification</option>
+              {actionPresets.map((preset) => <option value={preset.label} key={preset.label}>{preset.label}</option>)}
+            </select>
+          </label>
+
           <div className="notification-form-row">
             <label>
               Title
@@ -260,7 +341,15 @@ export default function NotificationsAdminClient({ users, branches, areas, notif
                 <option value="USER">Single user</option>
                 <option value="BRANCH">Store</option>
                 <option value="AREA">Area</option>
+                {smartTargets.map((target) => (
+                  <option value={target.value} key={target.value}>{target.label}</option>
+                ))}
               </select>
+              {isSmartTarget(targetType) && (
+                <span className="notification-smart-hint">
+                  {smartTargets.find((target) => target.value === targetType)?.hint}
+                </span>
+              )}
             </label>
 
             {targetType === "ROLE" && (
