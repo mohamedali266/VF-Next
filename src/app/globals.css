@@ -1497,9 +1497,9 @@ html[data-theme="light"] .vf-loader-overlay {
   position: relative;
   display: grid;
   place-items: center;
-  gap: 0.35rem;
-  width: 228px;
-  height: 228px;
+  gap: 0.2rem;
+  width: 214px;
+  height: 214px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -1513,85 +1513,102 @@ html[data-theme="light"] .vf-loader-mark {
 .vf-loader-mark::before {
   content: "";
   position: absolute;
-  inset: 24px;
+  inset: 30px;
   border-radius: 50%;
-  background:
-    radial-gradient(circle, rgba(230,0,0,0.18), rgba(230,0,0,0.06) 42%, transparent 70%);
-  filter: blur(14px);
-  opacity: 0.8;
-  animation: vfLoaderHalo 1.9s ease-in-out infinite;
+  background: radial-gradient(circle, rgba(230,0,0,0.16), rgba(230,0,0,0.045) 48%, transparent 72%);
+  filter: blur(16px);
+  opacity: 0.72;
+  animation: vfLoaderHalo 2.1s ease-in-out infinite;
 }
 
 .vf-svg-loader {
   position: relative;
   z-index: 1;
-  width: 184px;
-  height: 184px;
+  width: 176px;
+  height: 176px;
   overflow: visible;
 }
 
 .vf-loader-rings {
   transform-origin: 250px 250px;
-  animation: vfLoaderRotate 3s linear infinite;
+  opacity: 0.98;
 }
 
 .vf-loader-core {
   transform-origin: 250px 250px;
-  animation: vfLoaderCorePulse 1.75s ease-in-out infinite;
+  animation: vfLoaderCorePulse 1.9s ease-in-out infinite;
 }
 
 .vf-loader-path {
   stroke: #e60000;
-  filter: drop-shadow(0 0 7px rgba(230,0,0,0.22));
+  filter: drop-shadow(0 0 5px rgba(230,0,0,0.2));
 }
 
-.vf-ring-1,
-.vf-sub-line-1 {
+.vf-ring {
+  stroke-dasharray: 0.36 0.64;
+  animation: vfLoaderSweep 1.75s cubic-bezier(.68, 0, .32, 1) infinite alternate;
+}
+
+.vf-ring-outer {
+  opacity: 0.58;
+  animation-delay: -0.1s;
+}
+
+.vf-ring-mid {
+  opacity: 0.68;
+  animation-delay: -0.22s;
+}
+
+.vf-ring-inner {
   opacity: 0.78;
-  animation: vfLoaderPathPulse 1.35s ease-in-out infinite alternate;
+  animation-delay: -0.34s;
 }
 
-.vf-ring-2,
-.vf-ring-3,
-.vf-sub-line-2 {
-  opacity: 0.56;
-  animation: vfLoaderPathPulse 1.7s ease-in-out infinite alternate;
+.vf-ring-right {
+  opacity: 0.52;
+  animation-delay: -0.46s;
+}
+
+.vf-ring-right-inner {
+  opacity: 0.64;
+  animation-delay: -0.58s;
 }
 
 .vf-core-main {
-  stroke-dasharray: 1160;
-  stroke-dashoffset: 1160;
+  stroke-dasharray: 1040;
+  stroke-dashoffset: 1040;
   animation: vfLoaderDraw 2.35s ease-in-out infinite;
 }
 
 .vf-core-cut {
-  opacity: 0.92;
+  opacity: 0.82;
   animation: vfLoaderCutPulse 1.75s ease-in-out infinite;
+}
+
+.vf-core-top {
+  opacity: 0.74;
+  animation: vfLoaderCutPulse 1.9s ease-in-out infinite;
 }
 
 .vf-loader-label {
   position: relative;
   z-index: 1;
   color: #e60000;
-  font-size: 0.68rem;
+  font-size: 0.64rem;
   font-weight: 900;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   text-shadow: 0 0 18px rgba(230,0,0,0.18);
 }
 
-@keyframes vfLoaderRotate {
-  to { transform: rotate(360deg); }
-}
-
-@keyframes vfLoaderPathPulse {
-  from { opacity: 0.3; }
-  to { opacity: 1; }
+@keyframes vfLoaderSweep {
+  0% { stroke-dashoffset: 1.02; }
+  100% { stroke-dashoffset: -0.02; }
 }
 
 @keyframes vfLoaderCorePulse {
-  0%, 100% { transform: scale(0.98); }
-  50% { transform: scale(1.015); }
+  0%, 100% { transform: scale(0.985); }
+  50% { transform: scale(1.01); }
 }
 
 @keyframes vfLoaderCutPulse {
@@ -1600,9 +1617,9 @@ html[data-theme="light"] .vf-loader-mark {
 }
 
 @keyframes vfLoaderDraw {
-  0% { stroke-dashoffset: 1160; opacity: 0.45; }
+  0% { stroke-dashoffset: 1040; opacity: 0.52; }
   42%, 66% { stroke-dashoffset: 0; opacity: 1; }
-  100% { stroke-dashoffset: -1160; opacity: 0.45; }
+  100% { stroke-dashoffset: -1040; opacity: 0.52; }
 }
 
 @keyframes vfLoaderHalo {
@@ -1616,6 +1633,7 @@ html[data-theme="light"] .vf-loader-mark {
   .vf-loader-path,
   .vf-core-main,
   .vf-core-cut,
+  .vf-core-top,
   .vf-loader-mark::before {
     animation: none !important;
   }
