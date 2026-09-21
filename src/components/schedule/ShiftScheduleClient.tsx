@@ -15,7 +15,7 @@ import {
   type ScheduleMember,
   type ScheduleShiftValue,
 } from "@/lib/shift-schedule";
-import { CalendarDays, CheckCircle2, Edit3, Eye, EyeOff, Lock, MousePointer2, Printer, RefreshCw, RotateCcw, Save, ShieldAlert, Sparkles, Trash2, Unlock, XCircle } from "lucide-react";
+import { CalendarDays, CheckCircle2, Download, Edit3, Eye, EyeOff, Lock, MousePointer2, Printer, RefreshCw, RotateCcw, Save, ShieldAlert, Sparkles, Trash2, Unlock, XCircle } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type StoreOption = {
@@ -137,6 +137,29 @@ function actionLabel(action?: string | null) {
   if (action === "SAVED") return "Saved";
   if (action === "GENERATED") return "Generated";
   return "Updated";
+}
+
+function escapeHtml(value: string | number | null | undefined) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function safeFileName(value: string) {
+  return value.trim().replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, "-") || "schedule";
+}
+
+function excelShiftStyle(shift: EditableShiftValue) {
+  const base = "font-weight:700;text-align:center;vertical-align:middle;border:1px solid #555;mso-number-format:'\\@';";
+  if (shift === "AM") return `${base}background:#fff36a;color:#111;`;
+  if (shift === "PM") return `${base}background:#d7e8ff;color:#111;`;
+  if (shift === "FULL") return `${base}background:#fff36a;color:#111;`;
+  if (shift === "OFF") return `${base}background:#b7f2e9;color:#111;`;
+  if (shift === "ANN") return `${base}background:#c8f3c8;color:#111;`;
+  if (shift === "BW") return `${base}background:#e5d7ff;color:#111;`;
+  return `${base}background:#ffffff;color:#ffffff;`;
 }
 
 export default function ShiftScheduleClient({
@@ -494,6 +517,111 @@ export default function ShiftScheduleClient({
     window.print();
   }
 
+  function exportScheduleExcel() {
+    if (!data) return;
+
+    const workbookTitle = `${data.branch.name} - ${month} Shift Schedule`;
+    const fileName = `${safeFileName(data.branch.name)}-${month}-shift-schedule.xls`;
+    const headerStyle = "background:#d9d9d9;color:#111;font-weight:800;text-align:center;vertical-align:middle;border:1px solid #555;mso-number-format:'\\@';";
+    const titleStyle = "background:#e60000;color:#fff;font-weight:900;font-size:16pt;text-align:left;border:1px solid #9b0000;";
+    const subtitleStyle = "background:#e60000;color:#fff;font-weight:800;text-align:left;border:1px solid #9b0000;";
+    const dateStyle = "background:#fff36a;color:#111;font-weight:900;text-align:center;vertical-align:middle;border:1px solid #555;mso-number-format:'\\@';";
+    const fridayDateStyle = "background:#ff4d4d;color:#111;font-weight:900;text-align:center;vertical-align:middle;border:1px solid #555;mso-number-format:'\\@';";
+    const countStyle = "background:#fff;color:#111;font-weight:700;text-align:center;border:1px solid #555;mso-number-format:'0';";
+    const badCountStyle = "background:#ff4d4d;color:#111;font-weight:900;text-align:center;border:1px solid #555;mso-number-format:'0';";
+    const footerBaseStyle = "font-weight:900;text-align:center;border:1px solid #555;mso-number-format:'0';";
+    const roleText = (member: ScheduleMember) => member.role === "MANAGER" ? "S.M" : member.role === "TEAM_LEADER" ? "TL" : "AGENT";
+    const colSpan = visibleMembers.length + 7;
+
+    const rows: string[] = [
+      `<tr><td colspan="${colSpan}" style="${titleStyle}">VF-Next Monthly Schedule</td></tr>`,
+      `<tr><td colspan="${colSpan}" style="${subtitleStyle}">${escapeHtml(workbookTitle)}${data.branch.code ? ` (${escapeHtml(data.branch.code)})` : ""}</td></tr>`,
+      `<tr><td colspan="${colSpan}" style="background:#fff;color:#111;border:1px solid #555;font-weight:700;">${escapeHtml(data.branch.terminalCount)} terminals | ${escapeHtml(data.schedule?.status || "DRAFT")}${data.schedule?.approvalStatus ? ` | ${escapeHtml(data.schedule.approvalStatus)}` : ""}</td></tr>`,
+      `<tr><td style="${headerStyle}" colspan="2">DATE</td>${visibleMembers.map((member) => {
+        const name = displayNameMap.get(member.id) || member.name;
+        const master = member.role === "EMPLOYEE" && member.isMaster ? "<br><span style='color:#7a5d00;font-size:8pt;'>Master</span>" : "";
+        return `<td style="${headerStyle}"><span style="font-size:8pt;color:#555;">${escapeHtml(roleText(member))}</span><br><strong>${escapeHtml(name)}</strong>${master}</td>`;
+      }).join("")}<td style="${headerStyle}">AM</td><td style="${headerStyle}">PM</td><td style="${headerStyle}">BW</td><td style="${headerStyle}">SUM</td><td style="${headerStyle}">OFF</td></tr>`,
+    ];
+
+    for (const day of displayDays) {
+      const validation = validationMap.get(day.date);
+      const rowInvalid = validation && !validation.valid;
+      rows.push([
+        "<tr>",
+        `<td style="${rowInvalid || day.isFriday ? fridayDateStyle : dateStyle}">${day.day}</td>`,
+        `<td style="${rowInvalid || day.isFriday ? fridayDateStyle : dateStyle}">${escapeHtml(day.weekday)}</td>`,
+        ...visibleMembers.map((member) => {
+          const shift = entryMap.get(`${day.date}:${member.id}`) || "";
+          return `<td style="${excelShiftStyle(shift)}">${shift ? escapeHtml(SHIFT_LABELS[shift]) : ""}</td>`;
+        }),
+        `<td style="${day.isFriday ? validation?.fridayValid ? countStyle : badCountStyle : validation?.amValid ? countStyle : badCountStyle}">${validation?.amCount || 0}</td>`,
+        `<td style="${day.isFriday ? validation?.fridayValid ? countStyle : badCountStyle : validation?.pmValid ? countStyle : badCountStyle}">${validation?.pmCount || 0}</td>`,
+        `<td style="${countStyle}">${validation?.bwCount || 0}</td>`,
+        `<td style="${countStyle}">${validation?.sumCount || 0}</td>`,
+        `<td style="${countStyle}">${validation?.offCount || 0}</td>`,
+        "</tr>",
+      ].join(""));
+    }
+
+    for (const shiftKey of ["ANN", "AM", "PM", "BW", "OFF"] as const) {
+      const footerColor = shiftKey === "ANN" ? "background:#c8f3c8;color:#111;"
+        : shiftKey === "AM" ? "background:#fff36a;color:#111;"
+          : shiftKey === "PM" ? "background:#d7e8ff;color:#111;"
+            : shiftKey === "BW" ? "background:#e5d7ff;color:#111;"
+              : "background:#b7f2e9;color:#111;";
+      rows.push([
+        "<tr>",
+        `<td colspan="2" style="${footerBaseStyle}${footerColor}">${shiftKey}</td>`,
+        ...visibleMembers.map((member) => {
+          const totals = countMemberShifts(member.id, entries);
+          return `<td style="${footerBaseStyle}${footerColor}">${totals[shiftKey]}</td>`;
+        }),
+        `<td colspan="5" style="${footerBaseStyle}${footerColor}"></td>`,
+        "</tr>",
+      ].join(""));
+    }
+
+    const columnStyles = [
+      '<col style="width:36px">',
+      '<col style="width:42px">',
+      ...visibleMembers.map(() => '<col style="width:92px">'),
+      '<col style="width:42px">',
+      '<col style="width:42px">',
+      '<col style="width:42px">',
+      '<col style="width:42px">',
+      '<col style="width:42px">',
+    ].join("");
+
+    const html = `<!doctype html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+  <meta charset="utf-8">
+  <!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Schedule</x:Name><x:WorksheetOptions><x:Print><x:ValidPrinterInfo/><x:HorizontalResolution>600</x:HorizontalResolution><x:VerticalResolution>600</x:VerticalResolution></x:Print><x:Selected/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+  <style>
+    @page { size: landscape; margin: 0.25in; }
+    body { font-family: Arial, sans-serif; }
+    table { border-collapse: collapse; table-layout: fixed; direction: ltr; }
+    td { height: 22px; font-size: 10pt; white-space: nowrap; }
+  </style>
+</head>
+<body>
+  <table>${columnStyles}${rows.join("")}</table>
+</body>
+</html>`;
+
+    const blob = new Blob(["\ufeff", html], { type: "application/vnd.ms-excel;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    showMessage("success", "Excel file exported with schedule formatting.");
+  }
+
   useEffect(() => {
     if (!data || !canEditThisMonth || locked || lockedByOtherUser || lockOwnedByCurrentUser) return;
     void sendLockAction("lock");
@@ -569,6 +697,10 @@ export default function ShiftScheduleClient({
           <button className="vf-btn vf-btn-ghost vf-btn-md" type="button" onClick={printSchedule} disabled={!data}>
             <Printer size={18} />
             Print
+          </button>
+          <button className="vf-btn vf-btn-ghost vf-btn-md" type="button" onClick={exportScheduleExcel} disabled={!data || loading}>
+            <Download size={18} />
+            Export Excel
           </button>
         </div>
       </section>
